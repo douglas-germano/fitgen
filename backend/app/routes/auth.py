@@ -273,9 +273,12 @@ def forgot_password():
     
     # Send email via Brevo
     from app.services.email_service import EmailService
+    import os
     email_service = EmailService()
     
-    reset_link = f"http://72.60.242.175:3000/reset-password?token={token}"
+    # Use environment variable or fallback to domain
+    frontend_url = os.getenv('FRONTEND_URL', 'https://fitgen.suacozinha.site')
+    reset_link = f"{frontend_url}/reset-password?token={token}"
     
     # Try to send email, log result
     email_sent = email_service.send_password_reset_email(email, reset_link)

@@ -32,9 +32,9 @@ export default function ForgotPasswordPage() {
             // But if it's a server error, we show it.
             // Let's assume the API returns 404 if not found or we just want to be generic
             if (err.message && !err.message.includes("not found")) {
-                 setError(err.message || "Falha ao solicitar redefinição");
+                setError(err.message || "Falha ao solicitar redefinição");
             } else {
-                 setMessage("Se o email estiver cadastrado, você receberá instruções para redefinir sua senha.");
+                setMessage("Se o email estiver cadastrado, você receberá instruções para redefinir sua senha.");
             }
         } finally {
             setLoading(false);
@@ -42,52 +42,51 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold">Recuperar Senha</CardTitle>
-                    <CardDescription>
-                        Digite seu email para receber o link de redefinição
-                    </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleSubmit}>
-                    <CardContent className="space-y-4">
-                        {message && (
-                            <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md border border-green-200">
-                                {message}
-                            </div>
-                        )}
-                        {error && (
-                            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
-                                {error}
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="seu@email.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
+        <Card className="glass-card shadow-2xl border-white/10">
+            <CardHeader className="space-y-1">
+                <CardTitle className="text-2xl font-bold tracking-tight">Recuperar Senha</CardTitle>
+                <CardDescription>
+                    Digite seu email para receber o link de redefinição
+                </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+                <CardContent className="space-y-4">
+                    {message && (
+                        <div className="text-sm font-medium text-green-600 bg-green-500/10 p-3 rounded-[var(--radius-md)] border border-green-500/20 animate-in fade-in slide-in-from-top-1">
+                            {message}
                         </div>
-                    </CardContent>
-                    <CardFooter className="flex flex-col gap-4">
-                        <Button className="w-full" type="submit" disabled={loading}>
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Enviar Link
-                        </Button>
-                        <div className="text-sm text-center text-muted-foreground">
-                            <Link href="/login" className="flex items-center justify-center gap-1 hover:text-primary transition-colors">
-                                <ArrowLeft className="h-4 w-4" />
-                                Voltar para o Login
-                            </Link>
+                    )}
+                    {error && (
+                        <div className="text-sm font-medium text-destructive bg-destructive/10 p-3 rounded-[var(--radius-md)] border border-destructive/20 animate-in fade-in slide-in-from-top-1">
+                            {error}
                         </div>
-                    </CardFooter>
-                </form>
-            </Card>
-        </div>
+                    )}
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            placeholder="seu@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="bg-background/50 border-white/10 focus:ring-primary/20 backdrop-blur-sm"
+                        />
+                    </div>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-4 border-t border-white/5 pt-6 mt-2">
+                    <Button className="w-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all font-semibold" type="submit" disabled={loading}>
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Enviar Link
+                    </Button>
+                    <div className="text-sm text-center text-muted-foreground">
+                        <Link href="/login" className="flex items-center justify-center gap-1 hover:text-primary transition-colors hover:underline underline-offset-4">
+                            <ArrowLeft className="h-4 w-4" />
+                            Voltar para o Login
+                        </Link>
+                    </div>
+                </CardFooter>
+            </form>
+        </Card>
     );
 }
