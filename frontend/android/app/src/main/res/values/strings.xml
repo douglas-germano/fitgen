@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">fitgen</string>
+    <string name="title_activity_main">fitgen</string>
+    <string name="package_name">com.douglas.fitgen</string>
+    <string name="custom_url_scheme">com.douglas.fitgen</string>
+</resources>

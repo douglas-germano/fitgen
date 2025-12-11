@@ -1,7 +1,7 @@
 {
   "appId": "com.douglas.fitgen",
   "appName": "fitgen",
-  "webDir": "out",
+  "webDir": "public",
   "server": {
     "url": "https://fitgen.suacozinha.site",
     "cleartext": false
