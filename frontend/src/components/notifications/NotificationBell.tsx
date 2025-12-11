@@ -81,12 +81,16 @@ export function NotificationBell() {
             size="icon"
             className="relative"
             onClick={() => router.push("/notifications")}
+            aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
         >
             <Bell className="h-5 w-5 text-muted-foreground" />
             {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border border-background animate-pulse" />
+                <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border border-background animate-pulse"
+                    aria-hidden="true" />
             )}
+            <span className="sr-only">
+                {unreadCount > 0 ? `${unreadCount} notificações não lidas` : 'Ver notificações'}
+            </span>
         </Button>
     );
 }
-

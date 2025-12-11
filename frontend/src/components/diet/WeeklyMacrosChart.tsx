@@ -3,6 +3,7 @@
 import { ComposedChart, Bar, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { chartColors, chartConfig } from "@/lib/chart-config";
 
 interface HistoryData {
     date: string;
@@ -53,41 +54,75 @@ export function WeeklyMacrosChart({ data, loading, title = "Evolução Semanal" 
             <CardContent>
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={formattedData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <ComposedChart data={formattedData} margin={chartConfig.defaultMargin}>
+                            <CartesianGrid
+                                strokeDasharray={chartConfig.gridStrokeDasharray}
+                                stroke={chartColors.grid}
+                                vertical={false}
+                            />
                             <XAxis
                                 dataKey="shortDate"
-                                stroke="#888888"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
+                                stroke={chartColors.axis}
+                                fontSize={chartConfig.axis.fontSize}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
                             />
                             <YAxis
                                 yAxisId="left"
-                                stroke="#888888"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
+                                stroke={chartColors.axis}
+                                fontSize={chartConfig.axis.fontSize}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
                                 tickFormatter={(value) => `${value}g`}
                             />
                             <YAxis
                                 yAxisId="right"
                                 orientation="right"
-                                stroke="#f97316"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
+                                stroke={chartColors.calories}
+                                fontSize={chartConfig.axis.fontSize}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
                                 tickFormatter={(value) => `${value}`}
                             />
                             <Tooltip
-                                contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#f3f4f6" }}
-                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                contentStyle={chartConfig.tooltip}
+                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                             />
                             <Legend />
-                            <Bar yAxisId="left" dataKey="protein" name="Proteínas" stackId="a" fill="#3b82f6" radius={[0, 0, 4, 4]} />
-                            <Bar yAxisId="left" dataKey="carbs" name="Carbs" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                            <Bar yAxisId="left" dataKey="fats" name="Gorduras" stackId="a" fill="#eab308" radius={[4, 4, 0, 0]} />
-                            <Line yAxisId="right" type="monotone" dataKey="calories" name="Calorias" stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} />
+                            <Bar
+                                yAxisId="left"
+                                dataKey="protein"
+                                name="Proteínas"
+                                stackId="a"
+                                fill={chartColors.protein}
+                                radius={[0, 0, 4, 4]}
+                            />
+                            <Bar
+                                yAxisId="left"
+                                dataKey="carbs"
+                                name="Carbs"
+                                stackId="a"
+                                fill={chartColors.carbs}
+                                radius={[0, 0, 0, 0]}
+                            />
+                            <Bar
+                                yAxisId="left"
+                                dataKey="fats"
+                                name="Gorduras"
+                                stackId="a"
+                                fill={chartColors.fats}
+                                radius={[4, 4, 0, 0]}
+                            />
+                            <Line
+                                yAxisId="right"
+                                type="monotone"
+                                dataKey="calories"
+                                name="Calorias"
+                                stroke={chartColors.calories}
+                                strokeWidth={chartConfig.lineStrokeWidth}
+                                dot={{ r: chartConfig.dotRadius }}
+                                activeDot={{ r: chartConfig.activeDotRadius }}
+                            />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>

@@ -48,6 +48,10 @@ export function EditGoalsModal({ open, onClose, onSuccess, currentGoals }: EditG
         e.preventDefault();
         setLoading(true);
 
+        // Haptic feedback on submit
+        const { hapticMedium } = await import('@/lib/haptics');
+        await hapticMedium();
+
         try {
             await fetchAPI("/diet/goals", {
                 method: "PUT",
@@ -61,9 +65,17 @@ export function EditGoalsModal({ open, onClose, onSuccess, currentGoals }: EditG
                 })
             });
 
+            // Success haptic
+            const { hapticSuccess } = await import('@/lib/haptics');
+            await hapticSuccess();
+
             onSuccess();
             onClose();
         } catch (error) {
+            // Error haptic
+            const { hapticError } = await import('@/lib/haptics');
+            await hapticError();
+
             console.error("Failed to update goals", error);
             alert("Erro ao atualizar metas. Tente novamente.");
         } finally {
@@ -71,11 +83,18 @@ export function EditGoalsModal({ open, onClose, onSuccess, currentGoals }: EditG
         }
     };
 
+    const handleCancel = async () => {
+        const { hapticLight } = await import('@/lib/haptics');
+        await hapticLight();
+        onClose();
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Editar Metas Nutricionais</DialogTitle>
+
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -118,7 +137,7 @@ export function EditGoalsModal({ open, onClose, onSuccess, currentGoals }: EditG
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                        <Button type="button" variant="outline" onClick={handleCancel} disabled={loading}>
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={loading}>

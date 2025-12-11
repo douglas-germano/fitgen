@@ -7,11 +7,17 @@ import { Button } from "@/components/ui/button";
 export function ThemeToggle() {
     const { theme, toggleTheme } = useTheme();
 
+    const handleToggle = async () => {
+        const { hapticLight } = await import('@/lib/haptics');
+        await hapticLight();
+        toggleTheme();
+    };
+
     return (
         <Button
             variant="ghost"
             size="icon"
-            onClick={toggleTheme}
+            onClick={handleToggle}
             className="relative h-9 w-9 hover:bg-accent transition-colors"
             aria-label="Toggle theme"
         >

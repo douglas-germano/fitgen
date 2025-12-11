@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { chartColors, chartConfig } from '@/lib/chart-config';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -270,30 +271,30 @@ export default function MetricsPage() {
                                 {weightHistory.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={weightHistory}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
                                             <XAxis
                                                 dataKey="formattedDate"
-                                                tickLine={false}
-                                                axisLine={false}
+                                                tickLine={chartConfig.axis.tickLine}
+                                                axisLine={chartConfig.axis.axisLine}
                                                 tickMargin={10}
-                                                tick={{ fontSize: 12, fill: '#666' }}
+                                                tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                             />
                                             <YAxis
                                                 domain={['auto', 'auto']}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                tick={{ fontSize: 12, fill: '#666' }}
+                                                tickLine={chartConfig.axis.tickLine}
+                                                axisLine={chartConfig.axis.axisLine}
+                                                tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                                 width={30}
                                             />
                                             <Tooltip
-                                                contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
-                                                labelStyle={{ color: '#888', marginBottom: '4px' }}
+                                                contentStyle={chartConfig.tooltip}
+                                                labelStyle={{ color: chartColors.axis, marginBottom: '4px' }}
                                             />
                                             <Area
                                                 type="monotone"
                                                 dataKey="value"
-                                                stroke="#3b82f6"
-                                                strokeWidth={3}
+                                                stroke={chartColors.weight}
+                                                strokeWidth={chartConfig.areaStrokeWidth}
                                                 fillOpacity={1}
                                                 fill="url(#colorWeight)"
                                             />
@@ -313,14 +314,14 @@ export default function MetricsPage() {
                                 {fatHistory.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={fatHistory}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="formattedDate" tickLine={false} axisLine={false} tickMargin={10} tick={{ fontSize: 12, fill: '#666' }} />
-                                            <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#666' }} width={30} />
+                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
+                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
+                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
                                             <Tooltip
-                                                contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
-                                                labelStyle={{ color: '#888' }}
+                                                contentStyle={chartConfig.tooltip}
+                                                labelStyle={{ color: chartColors.axis }}
                                             />
-                                            <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorFat)" />
+                                            <Area type="monotone" dataKey="value" stroke={chartColors.bodyFat} strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorFat)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
@@ -337,14 +338,14 @@ export default function MetricsPage() {
                                 {muscleHistory.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={muscleHistory}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="formattedDate" tickLine={false} axisLine={false} tickMargin={10} tick={{ fontSize: 12, fill: '#666' }} />
-                                            <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#666' }} width={30} />
+                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
+                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
+                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
                                             <Tooltip
-                                                contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
-                                                labelStyle={{ color: '#888' }}
+                                                contentStyle={chartConfig.tooltip}
+                                                labelStyle={{ color: chartColors.axis }}
                                             />
-                                            <Area type="monotone" dataKey="value" stroke="#22c55e" strokeWidth={3} fillOpacity={1} fill="url(#colorMuscle)" />
+                                            <Area type="monotone" dataKey="value" stroke={chartColors.muscle} strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorMuscle)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (

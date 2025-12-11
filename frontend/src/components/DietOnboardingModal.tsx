@@ -37,16 +37,29 @@ export function DietOnboardingModal({ open, onClose, onComplete }: DietOnboardin
     const totalSteps = 10;
     const progress = (step / totalSteps) * 100;
 
-    const handleNext = () => {
-        if (step < totalSteps) setStep(step + 1);
+    const handleNext = async () => {
+        if (step < totalSteps) {
+            const { hapticLight } = await import('@/lib/haptics');
+            await hapticLight();
+            setStep(step + 1);
+        }
     };
 
-    const handleBack = () => {
-        if (step > 1) setStep(step - 1);
+    const handleBack = async () => {
+        if (step > 1) {
+            const { hapticLight } = await import('@/lib/haptics');
+            await hapticLight();
+            setStep(step - 1);
+        }
     };
 
     const handleSubmit = async () => {
         setLoading(true);
+
+        // Haptic feedback on submit
+        const { hapticMedium } = await import('@/lib/haptics');
+        await hapticMedium();
+
         try {
             // Save preferences
             await fetchAPI("/diet/onboarding", {
@@ -70,9 +83,17 @@ export function DietOnboardingModal({ open, onClose, onComplete }: DietOnboardin
                 method: "POST"
             });
 
+            // Success haptic
+            const { hapticSuccess } = await import('@/lib/haptics');
+            await hapticSuccess();
+
             onComplete();
             onClose();
         } catch (e) {
+            // Error haptic
+            const { hapticError } = await import('@/lib/haptics');
+            await hapticError();
+
             console.error("Failed to save diet preferences", e);
             alert("Erro ao salvar preferências. Tente novamente.");
         } finally {

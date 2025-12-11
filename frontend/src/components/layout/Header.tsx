@@ -32,7 +32,12 @@ export function Header() {
                 <div className="ml-auto flex items-center gap-2">
                     {isAdmin && (
                         <Link href="/admin">
-                            <Button variant="ghost" size="icon" className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                aria-label="Painel de administração"
+                            >
                                 <Shield className="h-5 w-5" />
                                 <span className="sr-only">Admin</span>
                             </Button>
@@ -40,14 +45,24 @@ export function Header() {
                     )}
                     <NotificationBell />
                     <Link href="/achievements">
-                        <Button variant="ghost" size="icon" className="rounded-full text-yellow-500 hover:text-yellow-600">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full text-yellow-500 hover:text-yellow-600"
+                            aria-label="Ver conquistas"
+                        >
                             <Trophy className="h-5 w-5" />
                             <span className="sr-only">Conquistas</span>
                         </Button>
                     </Link>
                     <ThemeToggle />
                     <Link href="/profile">
-                        <Button variant="ghost" size="icon" className="rounded-full">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full"
+                            aria-label="Ver perfil"
+                        >
                             <User className="h-5 w-5" />
                             <span className="sr-only">Perfil</span>
                         </Button>

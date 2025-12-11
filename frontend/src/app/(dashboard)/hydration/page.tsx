@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { chartColors, chartConfig } from '@/lib/chart-config';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -273,38 +274,38 @@ export default function HydrationPage() {
                         {history.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={history}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                    <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
                                     <XAxis
                                         dataKey="formattedDate"
-                                        tickLine={false}
-                                        axisLine={false}
+                                        tickLine={chartConfig.axis.tickLine}
+                                        axisLine={chartConfig.axis.axisLine}
                                         tickMargin={10}
-                                        tick={{ fontSize: 12, fill: '#666' }}
+                                        tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                     />
                                     <YAxis
                                         domain={[0, 'auto']}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={{ fontSize: 12, fill: '#666' }}
+                                        tickLine={chartConfig.axis.tickLine}
+                                        axisLine={chartConfig.axis.axisLine}
+                                        tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                         width={40}
                                     />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
-                                        labelStyle={{ color: '#888', marginBottom: '4px' }}
-                                        itemStyle={{ color: '#3b82f6' }}
+                                        contentStyle={chartConfig.tooltip}
+                                        labelStyle={{ color: chartColors.axis, marginBottom: '4px' }}
+                                        itemStyle={{ color: chartColors.hydration }}
                                         formatter={(value: any) => [`${value} ml`, 'Consumo']}
                                     />
                                     <Area
                                         type="monotone"
                                         dataKey="value"
-                                        stroke="#3b82f6"
-                                        strokeWidth={3}
+                                        stroke={chartColors.hydration}
+                                        strokeWidth={chartConfig.areaStrokeWidth}
                                         fillOpacity={1}
                                         fill="url(#colorHydration)"
                                     />
                                     {/* Goal Line */}
                                     {stats?.daily_goal_ml && (
-                                        <ReferenceLine y={stats.daily_goal_ml} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                                        <ReferenceLine y={stats.daily_goal_ml} stroke={chartColors.grid} strokeDasharray="3 3" strokeWidth={1.5} />
                                     )}
                                 </AreaChart>
                             </ResponsiveContainer>

@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Apple system fonts primeiro, Geist como fallback */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', var(--font-geist-sans);
+  --font-mono: 'SF Mono', ui-monospace, var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -44,8 +45,48 @@
 }
 
 :root {
-  /* Light Mode - Apple Style */
-  --radius: 0.625rem;
+  /* Apple HIG - Border Radius Scale */
+  --radius: 10px;
+  /* Base radius */
+  --radius-sm: 8px;
+  /* Small buttons, badges */
+  --radius-md: 10px;
+  /* Default buttons, inputs */
+  --radius-lg: 12px;
+  /* Cards, larger components */
+  --radius-xl: 16px;
+  /* Modals, sheets */
+  --radius-2xl: 20px;
+  /* Large cards, containers */
+
+  /* Apple HIG - Typography Scale */
+  --font-size-large-title: 34px;
+  --font-size-title-1: 28px;
+  --font-size-title-2: 22px;
+  --font-size-title-3: 20px;
+  --font-size-headline: 17px;
+  --font-size-body: 17px;
+  --font-size-callout: 16px;
+  --font-size-subhead: 15px;
+  --font-size-footnote: 13px;
+  --font-size-caption-1: 12px;
+  --font-size-caption-2: 11px;
+
+  /* Apple HIG - Line Heights */
+  --line-height-title: 1.1;
+  --line-height-body: 1.47;
+  --line-height-tight: 1.3;
+
+  /* Apple HIG - Chart Colors */
+  --chart-blue: oklch(0.60 0.15 250);
+  --chart-green: oklch(0.65 0.15 145);
+  --chart-orange: oklch(0.68 0.15 50);
+  --chart-red: oklch(0.60 0.15 25);
+  --chart-purple: oklch(0.60 0.15 300);
+  --chart-teal: oklch(0.65 0.15 185);
+
+  --chart-grid: oklch(0.90 0 0 / 0.05);
+  --chart-axis: oklch(0.50 0 0);
 
   /* Light Background */
   --background: oklch(0.98 0 0);
@@ -67,7 +108,8 @@
 
   /* Muted */
   --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.45 0 0);
+  --muted-foreground: oklch(0.40 0 0);
+  /* Melhor contraste: 4.5:1+ */
 
   /* Accent */
   --accent: oklch(0.94 0 0);
@@ -113,7 +155,12 @@
   --secondary: oklch(0.35 0.005 264);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.35 0.005 264);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.75 0 0);
+
+  /* Dark Mode Chart Colors */
+  --chart-grid: oklch(0.30 0 0 / 0.08);
+  --chart-axis: oklch(0.70 0 0);
+  /* Melhor contraste dark mode */
   --accent: oklch(0.35 0.005 264);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.50 0.22 25);
@@ -185,11 +232,52 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+
+  /* Apple HIG: Tipografia base otimizada */
+  html {
+    /* Dynamic Type: permite que texto escale com preferências do usuário */
+    font-size: clamp(14px, calc(1rem + ((1vw - 3.2px) * 0.1)), 20px);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply text-foreground overflow-x-hidden min-h-screen selection:bg-primary/20 selection:text-primary;
+    /* Apple HIG: Body text padrão 17px */
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.022em;
+  }
+
+  /* Focus indicators mais proeminentes (Apple HIG) */
+  *:focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+
+  /* Suporte a preferências de acessibilidade */
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    :root {
+      --muted-foreground: oklch(0.30 0 0);
+    }
+
+    .dark {
+      --muted-foreground: oklch(0.85 0 0);
+    }
   }
 
   .dark body {

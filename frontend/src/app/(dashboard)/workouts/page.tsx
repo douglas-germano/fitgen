@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dumbbell, Plus, Calendar, ChevronRight, Loader2, Play, History, TrendingUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { chartColors, chartConfig } from '@/lib/chart-config';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -228,27 +229,27 @@ export default function WorkoutsPage() {
                             {history.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                                        <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
                                         <XAxis
                                             dataKey="date"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fontSize: 12, fill: '#888' }}
+                                            tickLine={chartConfig.axis.tickLine}
+                                            axisLine={chartConfig.axis.axisLine}
+                                            tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                         />
                                         <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
+                                            tickLine={chartConfig.axis.tickLine}
+                                            axisLine={chartConfig.axis.axisLine}
                                             tickFormatter={(value) => `${value}m`}
-                                            tick={{ fontSize: 12, fill: '#888' }}
+                                            tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
                                         />
                                         <Tooltip
-                                            contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}
-                                            cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
+                                            contentStyle={chartConfig.tooltip}
+                                            cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
                                         />
                                         <Bar
                                             dataKey="minutos"
-                                            fill="var(--primary)"
-                                            radius={[4, 4, 0, 0]}
+                                            fill={chartColors.workout}
+                                            radius={chartConfig.barRadius}
                                             barSize={40}
                                         />
                                     </BarChart>

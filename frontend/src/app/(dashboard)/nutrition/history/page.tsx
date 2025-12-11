@@ -7,6 +7,7 @@ import { fetchAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { Loader2, TrendingUp, TrendingDown, Calendar, ArrowLeft } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { chartColors, chartConfig } from '@/lib/chart-config';
 
 type Period = 'dia' | 'semana' | 'mes' | 'ano';
 
@@ -199,33 +200,32 @@ export default function NutritionHistoryPage() {
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
                             <XAxis
                                 dataKey="name"
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#888', fontSize: 12 }}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
+                                tick={{ fill: chartColors.axis, fontSize: chartConfig.axis.fontSize }}
                                 dy={10}
                             />
                             <YAxis
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#888', fontSize: 12 }}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
+                                tick={{ fill: chartColors.axis, fontSize: chartConfig.axis.fontSize }}
                             />
                             <Tooltip
-                                contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
-                                itemStyle={{ color: 'var(--foreground)' }}
-                                labelStyle={{ color: '#888' }}
+                                contentStyle={chartConfig.tooltip}
+                                labelStyle={{ color: chartColors.axis }}
                             />
                             <Legend />
                             <Line
                                 type="monotone"
                                 dataKey="calories"
-                                stroke="hsl(var(--primary))"
-                                strokeWidth={3}
+                                stroke={chartColors.calories}
+                                strokeWidth={chartConfig.lineStrokeWidth}
                                 name="Calorias"
-                                dot={{ fill: 'hsl(var(--primary))', r: 4, strokeWidth: 0 }}
-                                activeDot={{ r: 6 }}
+                                dot={{ fill: chartColors.calories, r: chartConfig.dotRadius, strokeWidth: 0 }}
+                                activeDot={{ r: chartConfig.activeDotRadius }}
                             />
                         </LineChart>
                     </ResponsiveContainer>
@@ -240,27 +240,27 @@ export default function NutritionHistoryPage() {
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
                             <XAxis
                                 dataKey="name"
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#888', fontSize: 12 }}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
+                                tick={{ fill: chartColors.axis, fontSize: chartConfig.axis.fontSize }}
                                 dy={10}
                             />
                             <YAxis
-                                tickLine={false}
-                                axisLine={false}
-                                tick={{ fill: '#888', fontSize: 12 }}
+                                tickLine={chartConfig.axis.tickLine}
+                                axisLine={chartConfig.axis.axisLine}
+                                tick={{ fill: chartColors.axis, fontSize: chartConfig.axis.fontSize }}
                             />
                             <Tooltip
-                                contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
-                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                contentStyle={chartConfig.tooltip}
+                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                             />
                             <Legend />
-                            <Bar dataKey="protein" stackId="a" fill="#3b82f6" name="Proteína (g)" radius={[0, 0, 4, 4]} />
-                            <Bar dataKey="carbs" stackId="a" fill="#f59e0b" name="Carboidratos (g)" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="fats" stackId="a" fill="#ef4444" name="Gorduras (g)" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="protein" stackId="a" fill={chartColors.protein} name="Proteína (g)" radius={[0, 0, 4, 4]} />
+                            <Bar dataKey="carbs" stackId="a" fill={chartColors.carbs} name="Carboidratos (g)" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="fats" stackId="a" fill={chartColors.fats} name="Gorduras (g)" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </CardContent>
