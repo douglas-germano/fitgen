@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { formatDateOnlyBRT } from "@/lib/date";
 // import { fetchAPI } from "@/lib/api";
 import { useActiveWorkoutPlan, useExerciseHistory, useGenerateWorkout } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -196,7 +197,7 @@ export default function WorkoutsPage() {
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Início:</span>
-                                <span className="font-medium">{new Date(activePlan.created_at).toLocaleDateString()}</span>
+                                <span className="font-medium">{formatDateOnlyBRT(activePlan.created_at)}</span>
                             </div>
                             <div className="pt-2">
                                 <div className="text-xs text-muted-foreground mb-1">Progresso Estimado</div>

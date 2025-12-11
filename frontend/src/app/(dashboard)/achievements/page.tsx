@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { formatDateOnlyBRT } from "@/lib/date"
 import { motion } from "framer-motion"
 import { Award, Flame, Zap, Droplet, Dumbbell, Apple, Trophy } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -178,7 +179,7 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
                     </span>
                     {achievement.unlocked_at && (
                         <span className="text-muted-foreground">
-                            {new Date(achievement.unlocked_at).toLocaleDateString('pt-BR')}
+                            {formatDateOnlyBRT(achievement.unlocked_at)}
                         </span>
                     )}
                 </div>

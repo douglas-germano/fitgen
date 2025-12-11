@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatDateLongBRT } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -285,11 +286,7 @@ export default function UserDetailsPage() {
                                 <Calendar className="h-4 w-4" /> Data de Cadastro
                             </label>
                             <p className="text-lg">
-                                {new Date(user.created_at).toLocaleDateString('pt-BR', {
-                                    day: '2-digit',
-                                    month: 'long',
-                                    year: 'numeric'
-                                })}
+                                {formatDateLongBRT(user.created_at)}
                             </p>
                         </div>
 

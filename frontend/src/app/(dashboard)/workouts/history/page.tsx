@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
+import { formatDateOnlyBRT } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -126,7 +127,7 @@ export default function HistoryPage() {
                                         <h3 className="font-semibold text-lg">{session.workout_name}</h3>
                                         <span className="text-xs text-muted-foreground flex items-center bg-background/50 border border-white/5 px-2 py-1 rounded">
                                             <Calendar className="h-3 w-3 mr-1" />
-                                            {new Date(session.started_at).toLocaleDateString('pt-BR')}
+                                            {formatDateOnlyBRT(session.started_at)}
                                         </span>
                                     </div>
                                     <div className="flex gap-4 text-sm text-muted-foreground mt-2">
