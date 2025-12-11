@@ -44,102 +44,95 @@
 }
 
 :root {
-  /* Default to Dark Mode colors for "Mobile First / Professional" look */
+  /* Light Mode - Apple Style */
   --radius: 0.625rem;
 
-  /* Apple systemGray5 Background (RGB 44,44,46) - Better contrast */
-  --background: oklch(0.26 0.005 264);
-  --foreground: oklch(0.985 0 0);
+  /* Light Background */
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.15 0 0);
 
-  /* Card / Popover - systemGray4 (lighter than background) */
-  --card: oklch(0.32 0.005 264);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.32 0.005 264);
-  --popover-foreground: oklch(0.985 0 0);
+  /* Card / Popover */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
 
-  /* Primary: Light Green (Green 500) */
-  --primary: oklch(0.623 0.188 145.371);
-  --primary-foreground: oklch(0.145 0 0);
-  /* Dark text on green */
+  /* Primary: Darker Green for light mode */
+  --primary: oklch(0.523 0.188 145.371);
+  --primary-foreground: oklch(0.98 0 0);
 
-  /* Secondary: systemGray4 */
-  --secondary: oklch(0.38 0.005 264);
-  --secondary-foreground: oklch(0.985 0 0);
+  /* Secondary */
+  --secondary: oklch(0.92 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
 
   /* Muted */
-  --muted: oklch(0.38 0.005 264);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted: oklch(0.94 0 0);
+  --muted-foreground: oklch(0.45 0 0);
 
-  /* Accent (Hover states) - systemGray4 */
-  --accent: oklch(0.38 0.005 264);
-  --accent-foreground: oklch(0.985 0 0);
+  /* Accent */
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.15 0 0);
 
   /* Destructive */
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
 
-  /* Borders / Input / Ring - systemGray3 (well visible) */
-  --border: oklch(0.52 0.005 264);
-  --input: oklch(0.52 0.005 264);
-  --ring: oklch(0.623 0.188 145.371);
-  /* Matching primary */
+  /* Borders / Input / Ring */
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.523 0.188 145.371);
 
   /* Charts */
-  --chart-1: oklch(0.623 0.188 145.371);
-  /* Green */
-  --chart-2: oklch(0.488 0.243 264.376);
-  /* Purple/Blue */
-  --chart-3: oklch(0.769 0.188 70.08);
-  /* Orange */
-  --chart-4: oklch(0.627 0.265 303.9);
-  /* Pink */
-  --chart-5: oklch(0.645 0.246 16.439);
-  /* Red */
+  --chart-1: oklch(0.523 0.188 145.371);
+  --chart-2: oklch(0.45 0.24 264);
+  --chart-3: oklch(0.65 0.19 70);
+  --chart-4: oklch(0.55 0.26 304);
+  --chart-5: oklch(0.55 0.25 16);
 
   /* Sidebar */
-  --sidebar: oklch(0.26 0.005 264);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.188 145.371);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.38 0.005 264);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.52 0.005 264);
-  --sidebar-ring: oklch(0.623 0.188 145.371);
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: oklch(0.523 0.188 145.371);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-ring: oklch(0.523 0.188 145.371);
 }
 
 .dark {
-  /* Apple systemGray5 palette - Better contrast */
-  --background: oklch(0.26 0.005 264);
+  /* Apple systemGray6 palette - Darkest */
+  --background: oklch(0.23 0.005 264);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.32 0.005 264);
+  --card: oklch(0.29 0.005 264);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.32 0.005 264);
+  --popover: oklch(0.29 0.005 264);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.623 0.188 145.371);
   --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.38 0.005 264);
+  --secondary: oklch(0.35 0.005 264);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.38 0.005 264);
+  --muted: oklch(0.35 0.005 264);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.38 0.005 264);
+  --accent: oklch(0.35 0.005 264);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  /* --destructive-foreground: oklch(0.985 0 0); */
-  --border: oklch(0.52 0.005 264);
-  --input: oklch(0.52 0.005 264);
+  --destructive: oklch(0.50 0.22 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.50 0.005 264);
+  --input: oklch(0.50 0.005 264);
   --ring: oklch(0.623 0.188 145.371);
   --chart-1: oklch(0.623 0.188 145.371);
   --chart-2: oklch(0.488 0.243 264.376);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.26 0.005 264);
+  --sidebar: oklch(0.23 0.005 264);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.623 0.188 145.371);
   --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.38 0.005 264);
+  --sidebar-accent: oklch(0.35 0.005 264);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.52 0.005 264);
+  --sidebar-border: oklch(0.50 0.005 264);
   --sidebar-ring: oklch(0.623 0.188 145.371);
 }
 
@@ -196,10 +189,13 @@
   }
 
   body {
-    /* Premium Dark Background with subtle mesh gradient - Apple systemGray5 */
-    background: radial-gradient(circle at top left, oklch(0.32 0.1 145 / 0.15), transparent 40%),
-      radial-gradient(circle at bottom right, oklch(0.32 0.2 260 / 0.1), transparent 40%),
-      oklch(0.26 0.005 264);
     @apply text-foreground overflow-x-hidden min-h-screen selection:bg-primary/20 selection:text-primary;
+  }
+
+  .dark body {
+    /* Premium Dark Background with subtle mesh gradient - Apple systemGray6 */
+    background: radial-gradient(circle at top left, oklch(0.3 0.1 145 / 0.15), transparent 40%),
+      radial-gradient(circle at bottom right, oklch(0.3 0.2 260 / 0.1), transparent 40%),
+      oklch(0.23 0.005 264);
   }
 }

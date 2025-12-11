@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
     const [isAdmin, setIsAdmin] = useState(false);
@@ -31,7 +32,7 @@ export function Header() {
                 <div className="ml-auto flex items-center gap-2">
                     {isAdmin && (
                         <Link href="/admin">
-                            <Button variant="ghost" size="icon" className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <Button variant="ghost" size="icon" className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">
                                 <Shield className="h-5 w-5" />
                                 <span className="sr-only">Admin</span>
                             </Button>
@@ -44,6 +45,7 @@ export function Header() {
                             <span className="sr-only">Conquistas</span>
                         </Button>
                     </Link>
+                    <ThemeToggle />
                     <Link href="/profile">
                         <Button variant="ghost" size="icon" className="rounded-full">
                             <User className="h-5 w-5" />
