@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
+import { formatDateBRT } from "@/lib/date";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2, Bell, X } from "lucide-react";
@@ -106,7 +107,7 @@ export default function NotificationsPage() {
                                     <div className="flex justify-between items-start">
                                         <h4 className={cn("font-semibold leading-none", !n.is_read ? "text-foreground" : "text-muted-foreground")}>{n.title}</h4>
                                         <span className="text-xs text-muted-foreground">
-                                            {new Date(n.created_at).toLocaleString('pt-BR')}
+                                            {formatDateBRT(n.created_at)}
                                         </span>
                                     </div>
                                     <p className="text-sm text-muted-foreground">

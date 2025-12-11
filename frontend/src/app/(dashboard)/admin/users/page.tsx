@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { formatDateOnlyBRT } from "@/lib/date";
 import { fetchAPI } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -184,7 +185,7 @@ export default function UsersPage() {
                                         <TableCell>{getStatusBadge(user.status)}</TableCell>
                                         <TableCell>{getRoleBadge(user.role)}</TableCell>
                                         <TableCell>
-                                            {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                                            {formatDateOnlyBRT(user.created_at)}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Link href={`/admin/users/${user.id}`}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
+import { formatDateBRT } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,7 +150,7 @@ export default function AdminNotificationsPage() {
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">
-                                                    {new Date(n.created_at).toLocaleString('pt-BR')}
+                                                    {formatDateBRT(n.created_at)}
                                                 </TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">
                                                     {n.user_email}
