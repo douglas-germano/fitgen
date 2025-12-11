@@ -23,6 +23,13 @@ export default function DashboardLayout({
         } else {
             // eslint-disable-next-line
             setIsAuthenticated(true);
+
+            // Setup automatic token refresh
+            const { setupTokenRefresh } = require("@/lib/auth");
+            const cleanup = setupTokenRefresh();
+
+            // Cleanup on unmount
+            return cleanup;
         }
     }, []); // Run only once on mount
 
