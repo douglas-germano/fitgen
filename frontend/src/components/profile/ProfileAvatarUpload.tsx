@@ -52,7 +52,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
             // Check lib/api.ts logic if possible. Assuming standard fetch for formData often easier.
 
             const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/profile/image`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/profile/image`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -90,7 +90,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
         xl: "h-20 w-20"
     };
 
-    const imageUrl = preview || (currentImage ? (currentImage.startsWith("http") ? currentImage : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/static/${currentImage}`) : null);
+    const imageUrl = preview || (currentImage ? (currentImage.startsWith("http") ? currentImage : `${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/static/${currentImage}`) : null);
 
     // Quick fix for relative paths if backend returns 'uploads/...' and not full URL
     // Ideally backend returns full URL or we construct it properly.

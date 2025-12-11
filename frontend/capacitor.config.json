@@ -1,9 +1,9 @@
 {
   "appId": "com.douglas.fitgen",
   "appName": "fitgen",
-  "webDir": "public",
+  "webDir": "out",
   "server": {
-    "url": "https://fitgen.suacozinha.site",
+    "url": "https://fitgen.suacozinha.site/login",
     "cleartext": false
   },
   "ios": {
