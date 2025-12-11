@@ -1,0 +1,53 @@
+services:
+  backend:
+    build: ./backend
+    container_name: fitgen_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - ./backend/.env
+    environment:
+      - FLASK_APP=wsgi.py
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    # Command removed to use Dockerfile default (gunicorn)
+    depends_on:
+      - redis
+    networks:
+      - fitgen_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: fitgen_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - fitgen_network
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: https://fitgen.suacozinha.site/api
+    container_name: fitgen_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # Volumes removed for production build to use built artifacts
+    environment:
+      - NEXT_PUBLIC_API_URL=https://fitgen.suacozinha.site/api
+    depends_on:
+      - backend
+    networks:
+      - fitgen_network
+
+networks:
+  fitgen_network:
+    driver: bridge
+
+volumes:
+  redis_data:
