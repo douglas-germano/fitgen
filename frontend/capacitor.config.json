@@ -1,0 +1,20 @@
+{
+  "appId": "com.douglas.fitgen",
+  "appName": "fitgen",
+  "webDir": "out",
+  "server": {
+    "url": "https://fitgen.suacozinha.site",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
