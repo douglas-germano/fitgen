@@ -81,6 +81,7 @@ def create_app(config_name='default'):
     from app.routes.notifications import notifications_bp
     from app.routes.progress import progress_bp
     from app.routes.webhooks import webhooks_bp
+    from app.routes.chat import chat_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
@@ -99,6 +100,7 @@ def create_app(config_name='default'):
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(progress_bp, url_prefix='/api/progress')
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
+    app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
     
     @app.route('/health')

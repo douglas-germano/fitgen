@@ -10,19 +10,26 @@ class NutritionAnalyzerService:
         images_data can be bytes (single) or list of dicts (multiple)
         """
         prompt = """
-        Você é um nutricionista especialista. Analise esta imagem de comida e forneça uma estimativa nutricional precisa.
+        Você é um nutricionista especialista. Analise esta imagem e forneça uma estimativa nutricional precisa.
+        
+        A imagem pode conter:
+        - Refeições completas (pratos preparados)
+        - Alimentos individuais (frutas, vegetais, carnes, etc.)
+        - Bebidas (sucos, refrigerantes, cafés, shakes, água de coco, etc.)
+        - Alimentos processados e embalados (barras de cereais, bolachas, chips, chocolates, etc.)
+        - Lanches rápidos (sanduíches, salgados, etc.)
         """
         
         if description:
             prompt += f"\nContexto adicional fornecido pelo usuário: {description}\n"
             
         prompt += """
-        Identifique o prato e estime:
+        Identifique o(s) alimento(s)/bebida(s) e estime:
         1. Calorias totais (kcal)
         2. Proteínas (g)
         3. Carboidratos (g)
         4. Gorduras (g)
-        5. Nome do prato/alimentos identificados
+        5. Nome do alimento/bebida ou prato identificado
 
         FORMATO JSON:
         {
@@ -33,9 +40,13 @@ class NutritionAnalyzerService:
             "fats": 28
         }
         
-        Se não for possível identificar comida na imagem, retorne:
+        EXEMPLOS:
+        - Para bebidas: {"name": "Suco de Laranja (300ml)", "calories": 120, "protein": 2, "carbs": 28, "fats": 0}
+        - Para snacks: {"name": "Barra de Cereais", "calories": 110, "protein": 2, "carbs": 23, "fats": 2}
+        
+        Se não for possível identificar alimentos ou bebidas na imagem, retorne:
         {
-            "error": "Não foi possível identificar alimentos nesta imagem."
+            "error": "Não foi possível identificar alimentos ou bebidas nesta imagem."
         }
         """
         

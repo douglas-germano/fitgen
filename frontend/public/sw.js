@@ -1,4 +1,4 @@
-// Service Worker for Web Push Notifications
+// Service Worker for Web Push Notifications - v2.0.0 (Chat UI Update)
 
 self.addEventListener('push', function (event) {
     console.log('[Service Worker] Push received:', event);

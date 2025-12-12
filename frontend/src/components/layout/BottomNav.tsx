@@ -7,16 +7,15 @@ import {
     Dumbbell,
     Utensils,
     Activity,
-    User,
-    Droplets
+    Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
     { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
     { href: "/workouts", label: "Treino", icon: Dumbbell },
+    { href: "/coach", label: "IA Coach", icon: Sparkles, isCenter: true },
     { href: "/diet", label: "Dieta", icon: Utensils },
-    { href: "/hydration", label: "Água", icon: Droplets },
     { href: "/metrics", label: "Medidas", icon: Activity },
 ];
 
@@ -35,14 +34,35 @@ export function BottomNav() {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "flex flex-col items-center justify-center py-2 px-1 min-w-[64px] rounded-md transition-colors",
+                                "flex flex-col items-center justify-center min-w-[64px] rounded-md transition-all",
+                                item.isCenter && "relative -mt-6",
                                 isActive
                                     ? "text-primary"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
-                            <Icon className={cn("h-5 w-5 mb-1", isActive && "fill-current")} />
-                            <span className="text-[10px] font-medium">{item.label}</span>
+                            {item.isCenter ? (
+                                // Botão central destacado com gradiente
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 rounded-full blur-md opacity-50" />
+                                    <div className={cn(
+                                        "relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all",
+                                        isActive
+                                            ? "bg-gradient-to-br from-primary to-primary/80 scale-110"
+                                            : "bg-gradient-to-br from-primary/90 to-primary/70"
+                                    )}>
+                                        <Icon className="h-6 w-6 text-primary-foreground" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <Icon className={cn("h-5 w-5 mb-1", isActive && "fill-current")} />
+                            )}
+                            <span className={cn(
+                                "text-[10px] font-medium",
+                                item.isCenter && "mt-1"
+                            )}>
+                                {item.label}
+                            </span>
                         </Link>
                     );
                 })}

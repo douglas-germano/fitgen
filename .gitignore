@@ -6,3 +6,5 @@ backend/.env
 __pycache__/
 **/__pycache__/
 *.pyc
+backend/firebase-credentials.json
+backend/vapid-private-key.pem

@@ -14,7 +14,8 @@ import {
     X,
     Trophy,
     Settings,
-    Activity
+    Activity,
+    Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeToken } from "@/lib/api";
@@ -26,6 +27,7 @@ const navItems = [
     { href: "/diet", label: "Dieta", icon: Utensils },
     { href: "/hydration", label: "Hidratação", icon: Droplets },
     { href: "/metrics", label: "Métricas", icon: Activity },
+    { href: "/coach", label: "Coach Virtual", icon: Bot },
 ];
 
 export function Sidebar({ className }: { className?: string }) {
