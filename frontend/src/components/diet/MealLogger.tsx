@@ -52,7 +52,7 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
                     formData.append("images", file);
                 });
 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/nutrition/estimate-image`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/nutrition/estimate`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -60,7 +60,10 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
                     body: formData
                 });
 
-                if (!response.ok) throw new Error("Falha na estimativa");
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.msg || "Falha na estimativa");
+                }
                 body = await response.json();
 
             } else {
@@ -71,9 +74,9 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
             }
 
             setEstimatedFood(body);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error("Erro ao analisar alimento. Tente novamente.");
+            toast.error(error.message || "Erro ao analisar alimento. Tente novamente.");
         } finally {
             setIsEstimating(false);
         }

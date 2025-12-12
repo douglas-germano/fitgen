@@ -209,7 +209,7 @@ export default function WorkoutSessionPage() {
 
             setFinishStats({
                 duration: res.duration,
-                calories: Math.floor(res.duration * 0.15) // Mock calorie calc if backend doesn't return
+                calories: res.calories || 0  // Use backend calories
             });
             setSuccessModalOpen(true);
             confetti({

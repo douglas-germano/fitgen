@@ -127,7 +127,7 @@ export default function MetricsPage() {
                         <DialogHeader>
                             <DialogTitle>Nova Medição</DialogTitle>
                             <DialogDescription>
-                                Preencha os campos que deseja atualizar hoje.
+                                Preencha apenas o peso. % Gordura e Massa Muscular são calculados automaticamente.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -157,6 +157,7 @@ export default function MetricsPage() {
                                     <Label>Massa Muscular (kg)</Label>
                                     <Input
                                         type="number"
+                                        placeholder="Auto (vazio)"
                                         step="0.1"
                                         className="bg-background/50 border-white/10"
                                         value={newData.muscle_mass_kg}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Send, Bell } from "lucide-react";
+import { Loader2, Send, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminNotificationsPage() {
@@ -16,15 +16,24 @@ export default function AdminNotificationsPage() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+    const perPage = 20;
+
     // Broadcast Form
     const [title, setTitle] = useState("");
     const [message, setMessage] = useState("");
 
-    const loadNotifications = async () => {
+    const loadNotifications = async (page = 1) => {
         setLoading(true);
         try {
-            const data = await fetchAPI("/admin/notifications?per_page=20");
+            const data = await fetchAPI(`/admin/notifications?page=${page}&per_page=${perPage}`);
             setNotifications(data.items);
+            setTotalPages(data.pages);
+            setTotal(data.total);
+            setCurrentPage(page);
         } catch (error) {
             console.error(error);
         } finally {
@@ -33,7 +42,7 @@ export default function AdminNotificationsPage() {
     };
 
     useEffect(() => {
-        loadNotifications();
+        loadNotifications(1);
     }, []);
 
     const handleBroadcast = async (e: React.FormEvent) => {
@@ -51,11 +60,23 @@ export default function AdminNotificationsPage() {
             toast.success("Notificação enviada para todos os usuários!");
             setTitle("");
             setMessage("");
-            loadNotifications(); // Refresh list
+            loadNotifications(1); // Refresh list and go to first page
         } catch (error) {
             toast.error("Erro ao enviar notificação.");
         } finally {
             setSending(false);
+        }
+    };
+
+    const handlePreviousPage = () => {
+        if (currentPage > 1) {
+            loadNotifications(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            loadNotifications(currentPage + 1);
         }
     };
 
@@ -111,10 +132,15 @@ export default function AdminNotificationsPage() {
                 {/* History List */}
                 <Card className="md:col-span-2 glass-card animate-fade-in-up delay-100">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Bell className="h-5 w-5 text-muted-foreground" />
-                            Histórico de Notificações
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <Bell className="h-5 w-5 text-muted-foreground" />
+                                Histórico de Notificações
+                            </CardTitle>
+                            <div className="text-sm text-muted-foreground">
+                                Total: {total} notificações
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="rounded-md border border-white/10 overflow-hidden">
@@ -161,6 +187,37 @@ export default function AdminNotificationsPage() {
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                                <div className="text-sm text-muted-foreground">
+                                    Página {currentPage} de {totalPages}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handlePreviousPage}
+                                        disabled={currentPage === 1}
+                                        className="bg-background/50 border-white/10"
+                                    >
+                                        <ChevronLeft className="h-4 w-4 mr-1" />
+                                        Anterior
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleNextPage}
+                                        disabled={currentPage === totalPages}
+                                        className="bg-background/50 border-white/10"
+                                    >
+                                        Próxima
+                                        <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

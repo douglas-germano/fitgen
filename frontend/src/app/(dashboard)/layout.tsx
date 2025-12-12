@@ -7,6 +7,8 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { getToken } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function DashboardLayout({
     children,
@@ -15,6 +17,9 @@ export default function DashboardLayout({
 }) {
     const router = useRouter();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // Initialize push notifications
+    usePushNotifications();
 
     useEffect(() => {
         const token = getToken();
@@ -42,24 +47,26 @@ export default function DashboardLayout({
     }
 
     return (
-        <div className="flex min-h-screen bg-background text-foreground">
-            {/* Sidebar for Desktop */}
-            <aside className="hidden md:block w-64 shrink-0 bg-card border-r border-border fixed inset-y-0 z-20">
-                <Sidebar />
-            </aside>
+        <NotificationProvider>
+            <div className="flex min-h-screen bg-background text-foreground">
+                {/* Sidebar for Desktop */}
+                <aside className="hidden md:block w-64 shrink-0 bg-card border-r border-border fixed inset-y-0 z-20">
+                    <Sidebar />
+                </aside>
 
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 md:pl-64 transition-all duration-300">
-                <Header />
-                <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden">
-                    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 w-full mb-16 md:mb-0">
-                        {children}
-                    </div>
-                </main>
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col min-w-0 md:pl-64 transition-all duration-300">
+                    <Header />
+                    <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden">
+                        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 w-full mb-16 md:mb-0">
+                            {children}
+                        </div>
+                    </main>
+                </div>
+
+                {/* Bottom Nav for Mobile */}
+                <BottomNav />
             </div>
-
-            {/* Bottom Nav for Mobile */}
-            <BottomNav />
-        </div>
+        </NotificationProvider>
     );
 }

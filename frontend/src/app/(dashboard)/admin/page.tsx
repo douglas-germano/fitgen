@@ -96,9 +96,8 @@ export default function AdminPage() {
                 </Card>
             </div>
 
-            {/* Quick Actions / Navigation */}
             <h2 className="text-lg font-semibold mt-8 mb-4">Gerenciamento</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up delay-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up delay-200">
                 <Card className="glass-card cursor-pointer hover:bg-white/5 transition-all hover:scale-105 duration-300 group" onClick={() => router.push('/admin/users')}>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
@@ -109,6 +108,20 @@ export default function AdminPage() {
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
                             Visualizar, editar, suspender ou excluir usuários do sistema.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="glass-card cursor-pointer hover:bg-white/5 transition-all hover:scale-105 duration-300 group" onClick={() => router.push('/admin/workouts')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                            <Activity className="h-5 w-5" />
+                            Gerenciar Treinos
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                            Visualizar, deletar e regenerar planos de treino dos usuários.
                         </p>
                     </CardContent>
                 </Card>

@@ -4,12 +4,15 @@ import { fetchAPI } from "@/lib/api";
 type DateRange = { from?: Date | undefined; to?: Date | undefined };
 import { format } from "date-fns";
 
-export function useNutritionHistory(filterType: "week" | "month" | "custom", dateRange?: DateRange) {
+export function useNutritionHistory(filterType: "day" | "week" | "month" | "custom", dateRange?: DateRange) {
     return useQuery({
         queryKey: ["nutrition-history", filterType, dateRange?.from, dateRange?.to],
         queryFn: async () => {
             let url = "/nutrition/history";
-            if (filterType === "week") {
+            if (filterType === "day") {
+                // For day filter, use daily endpoint which returns meals array
+                url = "/nutrition/daily";
+            } else if (filterType === "week") {
                 url += "?days=7";
             } else if (filterType === "month") {
                 url += "?days=30";

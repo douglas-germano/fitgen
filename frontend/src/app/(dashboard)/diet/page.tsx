@@ -65,7 +65,7 @@ export default function DietPage() {
         if (!editData) return;
         setLoading(true);
         try {
-            await fetchAPI(`/ nutrition / log / ${editData.id} `, {
+            await fetchAPI(`/nutrition/log/${editData.id}`, {
                 method: "PUT",
                 body: JSON.stringify({
                     name: editData.name,
@@ -92,7 +92,7 @@ export default function DietPage() {
         if (!deleteId) return;
 
         try {
-            await fetchAPI(`/ nutrition / log / ${deleteId} `, { method: "DELETE" });
+            await fetchAPI(`/nutrition/log/${deleteId}`, { method: "DELETE" });
             toast.success("Refeição excluída com sucesso!");
             fetchData();
         } catch (error) {
@@ -327,26 +327,35 @@ export default function DietPage() {
                         <CardContent>
                             <div className="space-y-4">
                                 {dailyStats?.meals && dailyStats.meals.length > 0 ? (
-                                    dailyStats.meals.map((meal: any) => (
-                                        <div key={meal.id} className="flex items-center justify-between border-b border-white/5 pb-4 last:border-0 last:pb-0">
-                                            <div className="space-y-1">
-                                                <p className="text-sm font-medium leading-none">{meal.name}</p>
-                                                <p className="text-xs text-muted-foreground capitalize">{meal.meal_type}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="text-right mr-3">
-                                                    <p className="font-medium">{meal.calories} kcal</p>
-                                                    <p className="text-xs text-muted-foreground">P:{meal.macro_protein}g C:{meal.macro_carbs}g G:{meal.macro_fats}g</p>
+                                    <>
+                                        {dailyStats.meals.slice(0, 3).map((meal: any) => (
+                                            <div key={meal.id} className="flex items-center justify-between border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-medium leading-none">{meal.name}</p>
+                                                    <p className="text-xs text-muted-foreground capitalize">{meal.meal_type}</p>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleEdit(meal)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={() => setDeleteId(meal.id)}>
-                                                    <Trash2 className="h-4 w-4" />
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-right mr-3">
+                                                        <p className="font-medium">{meal.calories} kcal</p>
+                                                        <p className="text-xs text-muted-foreground">P:{meal.macro_protein}g C:{meal.macro_carbs}g G:{meal.macro_fats}g</p>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleEdit(meal)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={() => setDeleteId(meal.id)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {dailyStats.meals.length > 3 && (
+                                            <div className="text-center pt-2">
+                                                <Button variant="link" size="sm" className="text-xs text-muted-foreground" onClick={() => router.push('/diet/history')}>
+                                                    +{dailyStats.meals.length - 3} mais refeições · Ver todas
                                                 </Button>
                                             </div>
-                                        </div>
-                                    ))
+                                        )}
+                                    </>
                                 ) : (
                                     <div className="text-center py-8 text-muted-foreground">
                                         <Utensils className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -356,17 +365,6 @@ export default function DietPage() {
                             </div>
                         </CardContent>
                     </Card>
-                </div>
-            </div>
-
-            {/* Bottom - Weekly Chart */}
-            <div className="w-full animate-fade-in-up delay-300">
-                <WeeklyMacrosChart data={historyData} title="Resumo da Semana" />
-                <div className="flex justify-end mt-4">
-                    <Button onClick={() => router.push("/diet/history")} variant="outline" className="w-full md:w-auto">
-                        <Activity className="mr-2 h-4 w-4" />
-                        Histórico Completo
-                    </Button>
                 </div>
             </div>
 

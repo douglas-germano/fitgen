@@ -294,3 +294,161 @@ def broadcast_notification():
         
     count = NotificationService.broadcast_notification(title, message, type)
     return jsonify({"msg": f"Notification sent to {count} users"}), 200
+
+# --- Workout Management ---
+
+@admin_bp.route('/workouts', methods=['GET'])
+def list_workouts():
+    """
+    List all workout plans with pagination and filtering
+    """
+    from app.models.workout import WorkoutPlan, WorkoutDay
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    user_id = request.args.get('user_id', '')
+    is_active = request.args.get('is_active', 'all')
+    
+    query = WorkoutPlan.query
+    
+    # Filter by user
+    if user_id:
+        query = query.filter_by(user_id=user_id)
+    
+    # Filter by active status
+    if is_active != 'all':
+        query = query.filter_by(is_active=(is_active == 'true'))
+    
+    # Join with User for sorting/display
+    query = query.join(User, WorkoutPlan.user_id == User.id)
+    
+    pagination = query.order_by(WorkoutPlan.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    result = []
+    for plan in pagination.items:
+        # Count days
+        num_days = WorkoutDay.query.filter_by(workout_plan_id=plan.id).count()
+        
+        result.append({
+            "id": plan.id,
+            "user": {
+                "id": plan.user_id,
+                "name": plan.user.name or plan.user.email.split('@')[0],
+                "email": plan.user.email
+            },
+            "name": plan.name,
+            "description": plan.description,
+            "is_active": plan.is_active,
+            "generated_by_ai": plan.generated_by_ai,
+            "created_at": plan.created_at.isoformat() if plan.created_at else None,
+            "num_days": num_days
+        })
+    
+    return jsonify({
+        "workouts": result,
+        "total": pagination.total,
+        "pages": pagination.pages,
+        "current_page": page,
+        "per_page": per_page
+    })
+
+@admin_bp.route('/workouts/<uuid:plan_id>', methods=['GET'])
+def get_workout_detail(plan_id):
+    """
+    Get specific workout plan with all days and exercises
+    """
+    from app.models.workout import WorkoutPlan
+    
+    plan = WorkoutPlan.query.get_or_404(plan_id)
+    
+    # Build full structure
+    days_data = []
+    for day in plan.days:
+        exercises_data = []
+        for ex in day.exercises:
+            exercises_data.append({
+                "id": ex.id,
+                "name": ex.name,
+                "sets": ex.sets,
+                "reps": ex.reps,
+                "rest_seconds": ex.rest_seconds,
+                "weight_kg": ex.weight_kg,
+                "notes": ex.notes,
+                "order": ex.order
+            })
+        
+        days_data.append({
+            "id": day.id,
+            "name": day.name,
+            "day_of_week": day.day_of_week,
+            "muscle_groups": day.muscle_groups,
+            "order": day.order,
+            "exercises": exercises_data
+        })
+    
+    return jsonify({
+        "id": plan.id,
+        "user": {
+            "id": plan.user_id,
+            "name": plan.user.name or plan.user.email.split('@')[0],
+            "email": plan.user.email
+        },
+        "name": plan.name,
+        "description": plan.description,
+        "is_active": plan.is_active,
+        "generated_by_ai": plan.generated_by_ai,
+        "created_at": plan.created_at.isoformat() if plan.created_at else None,
+        "days": days_data
+    })
+
+@admin_bp.route('/workouts/<uuid:plan_id>', methods=['DELETE'])
+def delete_workout(plan_id):
+    """
+    Delete workout plan and all associated data (cascade)
+    """
+    from app.models.workout import WorkoutPlan
+    
+    plan = WorkoutPlan.query.get_or_404(plan_id)
+    
+    # Store user info for response
+    user_name = plan.user.name or plan.user.email
+    
+    # Delete will cascade to days and exercises
+    db.session.delete(plan)
+    db.session.commit()
+    
+    return jsonify({"msg": f"Workout plan deleted successfully for user {user_name}"}), 200
+
+@admin_bp.route('/workouts/<uuid:plan_id>/regenerate', methods=['POST'])
+def regenerate_workout(plan_id):
+    """
+    Regenerate workout for a user (deactivate old, create new)
+    """
+    from app.models.workout import WorkoutPlan
+    from app.services.workout_generator import WorkoutGenerator
+    
+    plan = WorkoutPlan.query.get_or_404(plan_id)
+    user = plan.user
+    
+    if not user.profile:
+        return jsonify({"msg": "User has no profile for workout generation"}), 400
+    
+    # Deactivate current plan
+    plan.is_active = False
+    
+    # Generate new plan
+    try:
+        generator = WorkoutGenerator(user.id)
+        new_plan = generator.generate()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "msg": "Workout regenerated successfully",
+            "new_plan_id": new_plan.id
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Failed to regenerate: {str(e)}"}), 500

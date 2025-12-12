@@ -1,3 +1,9 @@
+from datetime import datetime, timedelta
+from app.extensions import db
+from app.models.user import UserProfile
+from app.models.user_streak import UserStreak
+from app.models.achievements import Achievement, UserAchievement
+
 class GamificationService:
     # XP Constants
     XP_WORKOUT_COMPLETE = 100
@@ -39,7 +45,7 @@ class GamificationService:
             streak_record = UserStreak(user_id=user_id)
             db.session.add(streak_record)
         
-        # Use Cuiaba Timezone for consistency with other services
+        # Use BRT Timezone for consistency with other services
         from app.utils.timezone import get_today_cuiaba
         today = get_today_cuiaba()
         
@@ -105,7 +111,8 @@ class GamificationService:
             if ach:
                 existing = UserAchievement.query.filter_by(user_id=user_id, achievement_id=ach.id).first()
                 if not existing:
-                    ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=datetime.utcnow())
+                    from app.utils.timezone import now_cuiaba
+                    ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=now_cuiaba())
                     db.session.add(ua)
                     db.session.commit()
                     
@@ -154,7 +161,8 @@ class GamificationService:
             if ach:
                 existing = UserAchievement.query.filter_by(user_id=user_id, achievement_id=ach.id).first()
                 if not existing:
-                    ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=datetime.utcnow())
+                    from app.utils.timezone import now_cuiaba
+                    ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=now_cuiaba())
                     db.session.add(ua)
                     db.session.commit()
                     return ach.name

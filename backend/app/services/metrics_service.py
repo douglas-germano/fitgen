@@ -38,6 +38,47 @@ class MetricsService:
             return None
 
     @staticmethod
+    def calculate_muscle_mass(weight_kg, height_cm, gender, body_fat_percentage=None):
+        """
+        Calculates estimated muscle mass in kg.
+        
+        Two approaches:
+        1. If body fat % is known: Muscle ≈ Lean Mass × 0.5
+           Lean Mass = Weight × (1 - Body Fat % / 100)
+        
+        2. If body fat % unknown: Use Boer formula for Lean Mass × 0.5
+           Boer Formula for Fat-Free Mass (FFM):
+           - Male: FFM = (0.407 × weight) + (0.267 × height_cm) - 19.2
+           - Female: FFM = (0.252 × weight) + (0.473 × height_cm) - 48.3
+        
+        Muscle mass is approximately 50% of lean/fat-free mass.
+        """
+        if not weight_kg or not height_cm or not gender:
+            return None
+            
+        try:
+            is_male = str(gender).lower() == 'male'
+            
+            # Approach 1: If we have body fat percentage
+            if body_fat_percentage is not None and body_fat_percentage > 0:
+                lean_mass = weight_kg * (1 - body_fat_percentage / 100)
+                muscle_mass = lean_mass * 0.5
+                return round(muscle_mass, 1)
+            
+            # Approach 2: Use Boer formula for lean mass
+            if is_male:
+                ffm = (0.407 * weight_kg) + (0.267 * height_cm) - 19.2
+            else:
+                ffm = (0.252 * weight_kg) + (0.473 * height_cm) - 48.3
+            
+            muscle_mass = ffm * 0.5
+            return round(max(muscle_mass, 0), 1)
+            
+        except Exception as e:
+            print(f"Error calculating muscle mass: {e}")
+            return None
+
+    @staticmethod
     def log_metric(user_id, data):
         """
         Logs a new body metric record.
@@ -80,6 +121,18 @@ class MetricsService:
                     )
                     if calculated_fat is not None:
                         metric.body_fat_percentage = calculated_fat
+                        fat = calculated_fat  # Use for muscle calculation
+                
+                # Auto-calculate Muscle Mass if not provided
+                if not muscle and profile.height_cm:
+                    calculated_muscle = MetricsService.calculate_muscle_mass(
+                        weight,
+                        profile.height_cm,
+                        profile.gender,
+                        body_fat_percentage=fat  # Use provided or calculated fat
+                    )
+                    if calculated_muscle is not None:
+                        metric.muscle_mass_kg = calculated_muscle
         
         db.session.commit()
         return metric

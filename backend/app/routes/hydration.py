@@ -4,7 +4,8 @@ from app.extensions import db
 from app.models.hydration import HydrationLog, HydrationGoal
 from datetime import datetime, timedelta
 from sqlalchemy import func
-from app.utils.timezone import now_cuiaba, get_today_cuiaba
+from app.utils.timezone import now_cuiaba, get_today_cuiaba, to_cuiaba
+from collections import defaultdict
 
 hydration_bp = Blueprint('hydration', __name__)
 
@@ -222,22 +223,25 @@ def get_hydration_history():
     today = get_today_cuiaba()
     thirty_days_ago = today - timedelta(days=30)
     
-    # Efficiently query daily sums
-    logs = db.session.query(
-        func.date(HydrationLog.logged_at).label('date'),
-        func.sum(HydrationLog.amount_ml).label('total')
-    ).filter(
+    # Get all logs from last 30 days
+    logs = HydrationLog.query.filter(
         HydrationLog.user_id == user_id,
         HydrationLog.logged_at >= thirty_days_ago
-    ).group_by(
-        func.date(HydrationLog.logged_at)
-    ).order_by(
-        func.date(HydrationLog.logged_at).asc()
-    ).all()
+    ).order_by(HydrationLog.logged_at.asc()).all()
     
-    data = [{
-        "date": log.date.isoformat(),
-        "value": int(log.total)
-    } for log in logs]
+    # Group by date in Cuiabá timezone
+    daily_totals = defaultdict(int)
+    
+    for log in logs:
+        # Convert to Cuiabá timezone to get correct date
+        cuiaba_dt = to_cuiaba(log.logged_at) if log.logged_at.tzinfo else log.logged_at
+        date_key = cuiaba_dt.date().isoformat()
+        daily_totals[date_key] += log.amount_ml
+    
+    # Convert to sorted list
+    data = [
+        {"date": date, "value": int(total)}
+        for date, total in sorted(daily_totals.items())
+    ]
     
     return jsonify(data), 200

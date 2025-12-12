@@ -169,6 +169,22 @@ def finish_session(session_id):
     duration = (session.completed_at - session.started_at).total_seconds()
     session.total_duration_seconds = int(duration)
     
+    # Calculate calories burned using MET formula
+    # MET (Metabolic Equivalent of Task) * weight_kg * hours = calories
+    from app.models.user import User
+    user = User.query.get(user_id)
+    
+    if user and user.profile and user.profile.weight_kg:
+        weight_kg = user.profile.weight_kg
+        hours = duration / 3600
+        met_value = 6.0  # Moderate-intensity weight training
+        calories = met_value * weight_kg * hours
+        session.calories_burned = round(calories, 1)
+    else:
+        # Fallback: 5 calories per minute estimate
+        minutes = duration / 60
+        session.calories_burned = round(minutes * 5, 1)
+    
     db.session.commit()
     
     # Gamification: Update Workout Streak
@@ -178,7 +194,11 @@ def finish_session(session_id):
     except Exception as e:
         print(f"Gamification error: {e}")
 
-    return jsonify({"msg": "Session finished", "duration": session.total_duration_seconds}), 200
+    return jsonify({
+        "msg": "Session finished", 
+        "duration": session.total_duration_seconds,
+        "calories": session.calories_burned
+    }), 200
 
 @exercises_bp.route('/history', methods=['GET'])
 @jwt_required()
