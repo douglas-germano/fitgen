@@ -54,11 +54,13 @@ DIRETRIZES:
 8. Seja encorajador mas honesto sobre desafios
 
 IMPORTANTE - USO DE FUNÇÕES:
-🔴 VOCÊ TEM ACESSO A FUNÇÕES QUE DEVEM SER USADAS OBRIGATORIAMENTE:
-- Quando o usuário mencionar que COMEU algo: CHAME a função log_meal com estimativas nutricionais
-- Quando o usuário mencionar que BEBEU água: CHAME a função log_water
-- NUNCA apenas confirme ou diga que registrou - EXECUTE A FUNÇÃO PRIMEIRO!
-- Após executar a função, confirme o registro com os dados retornados
+🚨 REGRA ABSOLUTA - VOCÊ **DEVE** CHAMAR AS FUNÇÕES APROPRIADAS:
+- Quando usuário disser "comi", "almocei", "jantei", "tomei café" ou mencionar QUALQUER alimento → EXECUTE log_meal IMEDIATAMENTE
+- Quando usuário disser "bebi água", "tomei água" ou mencionar água → EXECUTE log_water IMEDIATAMENTE  
+- Quando usuário disser "pesei", "meu peso é" → EXECUTE log_body_metric IMEDIATAMENTE
+- PROIBIDO responder "registrei" sem executar a função primeiro
+- Se você NÃO chamar a função quando deveria, o registro NÃO será salvo no banco de dados
+- Após executar a função, confirme com os dados retornados pela função
 
 EXEMPLOS DE BOM COACHING:
 ❌ "Você precisa treinar mais"
@@ -72,7 +74,7 @@ IMPORTANTE: Nunca invente dados. Se não tiver informação, diga "não tenho es
         return instruction
     
     @staticmethod
-    def chat(user_context, message_history, new_message):
+    def chat(user_context, message_history, new_message, media_attachments=None):
         """
         Envia mensagem e recebe resposta do coach
         
@@ -80,6 +82,7 @@ IMPORTANTE: Nunca invente dados. Se não tiver informação, diga "não tenho es
             user_context: dict com contexto do usuário
             message_history: lista de dict com role e content
             new_message: string com nova mensagem do usuário
+            media_attachments: lista de dict com 'mime_type' e 'data' (bytes)
             
         Returns:
             dict com {response, tokens_used, response_time_ms}
@@ -92,22 +95,20 @@ IMPORTANTE: Nunca invente dados. Se não tiver informação, diga "não tenho es
             # Monta instrução do sistema
             system_instruction = CoachGeminiService.build_system_instruction(user_context)
             
-            # Monta prompt completo
-            # Primeira mensagem: inclui system instruction
+            # Monta prompt textual
             if len(message_history) == 0:
-                full_prompt = f"""{system_instruction}
+                text_prompt = f"""{system_instruction}
 
 USUÁRIO: {new_message}
 
 COACH:"""
             else:
-                # Mensagens subsequentes: inclui histórico
                 conversation = ""
                 for msg in message_history[-10:]:  # Últimas 10 mensagens
                     role_label = "USUÁRIO" if msg['role'] == 'user' else "COACH"
                     conversation += f"{role_label}: {msg['content']}\n\n"
                 
-                full_prompt = f"""{system_instruction}
+                text_prompt = f"""{system_instruction}
 
 HISTÓRICO DA CONVERSA:
 {conversation}
@@ -115,6 +116,17 @@ HISTÓRICO DA CONVERSA:
 USUÁRIO: {new_message}
 
 COACH:"""
+
+            # Prepara conteúdo (Multimodal ou Texto)
+            if media_attachments:
+                content = [text_prompt]
+                for media in media_attachments:
+                    content.append({
+                        "mime_type": media['mime_type'],
+                        "data": media['data']
+                    })
+            else:
+                content = text_prompt
            
             # Create function executor that includes user_id
             user_id = user_context.get('user_info', {}).get('user_id') or user_context.get('user_id')
@@ -134,7 +146,7 @@ COACH:"""
             # Envia mensagem com function calling
             start_time = time.time()
             response_text = gemini.generate_with_functions(
-                full_prompt, 
+                content, 
                 COACH_FUNCTION_DECLARATIONS,
                 function_executor
             )

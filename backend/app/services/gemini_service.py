@@ -89,12 +89,50 @@ class GeminiService:
                 pass
             return None
     
-    def generate_with_functions(self, prompt, function_declarations, function_executor, max_iterations=5):
+    def transcribe_audio(self, audio_data, mime_type="audio/ogg"):
+        """
+        Transcribes audio using Gemini's native audio support
+        
+        Args:
+            audio_data: Audio file content as bytes
+            mime_type: MIME type of the audio
+            
+        Returns:
+            Transcribed text string or None if failed
+        """
+        try:
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            
+            # Create audio part for Gemini
+            audio_part = {
+                "mime_type": mime_type,
+                "data": audio_data
+            }
+            
+            prompt = "Transcreva o áudio em português. Retorne apenas o texto transcrito, sem comentários adicionais."
+            
+            response = model.generate_content([prompt, audio_part])
+            
+            if response and response.text:
+                transcription = response.text.strip()
+                print(f"🎤 Audio transcribed: {transcription}")
+                return transcription
+            else:
+                print("⚠️ No transcription returned from Gemini")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error transcribing audio: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def generate_with_functions(self, content, function_declarations, function_executor, max_iterations=5):
         """
         Generates response with function calling support.
         
         Args:
-            prompt: The conversation prompt
+            content: The conversation content (String prompt or List of parts)
             function_declarations: List of function declarations for Gemini
             function_executor: Callable that executes functions by name
             max_iterations: Maximum number of function call rounds
@@ -104,7 +142,7 @@ class GeminiService:
         """
         try:
             print(f"🔧 DEBUG: Starting function calling with {len(function_declarations)} declarations")
-            print(f"🔧 DEBUG: Declarations: {function_declarations}")
+            # print(f"🔧 DEBUG: Declarations: {function_declarations}")
             
             # Create model with tools and tool config to encourage function calling
             tool_config = genai.protos.ToolConfig(
@@ -120,8 +158,11 @@ class GeminiService:
             )
             
             chat = model_with_tools.start_chat()
-            print(f"🔧 DEBUG: Sending prompt: {prompt[:100]}...")
-            response = chat.send_message(prompt)
+            
+            prompt_preview = str(content)[:100] if isinstance(content, str) else "Multimodal Content"
+            print(f"🔧 DEBUG: Sending prompt: {prompt_preview}...")
+            
+            response = chat.send_message(content)
             
             print(f"🔧 DEBUG: Got response, candidates: {len(response.candidates) if response.candidates else 0}")
             
