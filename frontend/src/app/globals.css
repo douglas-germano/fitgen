@@ -140,6 +140,12 @@
   --sidebar-accent-foreground: oklch(0.15 0 0);
   --sidebar-border: oklch(0.88 0 0);
   --sidebar-ring: oklch(0.523 0.188 145.371);
+
+  /* Safe Area Variables */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 .dark {
@@ -216,6 +222,31 @@
   .delay-300 {
     animation-delay: 300ms;
   }
+
+  /* Safe Area Utilities */
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .pl-safe {
+    padding-left: var(--safe-left);
+  }
+
+  .pr-safe {
+    padding-right: var(--safe-right);
+  }
+
+  .min-h-safe-screen {
+    min-height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+  }
+
+  .h-safe-screen {
+    height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+  }
 }
 
 @keyframes fadeInUp {
@@ -237,6 +268,7 @@
 
   /* Apple HIG: Tipografia base otimizada */
   html {
+    @apply bg-background;
     /* Dynamic Type: permite que texto escale com preferências do usuário */
     font-size: clamp(14px, calc(1rem + ((1vw - 3.2px) * 0.1)), 20px);
     -webkit-text-size-adjust: 100%;
@@ -245,6 +277,7 @@
 
   body {
     @apply text-foreground overflow-x-hidden min-h-screen selection:bg-primary/20 selection:text-primary;
+    overscroll-behavior-y: none;
     /* Apple HIG: Body text padrão 17px */
     font-size: 17px;
     line-height: 1.47;

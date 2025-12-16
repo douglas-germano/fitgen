@@ -58,7 +58,7 @@ export default function DashboardLayout({
                 <div className="flex-1 flex flex-col min-w-0 md:pl-64 transition-all duration-300">
                     <Header />
                     <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden">
-                        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 w-full mb-16 md:mb-0">
+                        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 w-full mb-28 md:mb-0">
                             {children}
                         </div>
                     </main>

@@ -1,22 +1,38 @@
+import { getStorageItem, setStorageItem, removeStorageItem, getStorageItemSync } from './storage';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
 
+/**
+ * Get token synchronously (for immediate use in requests)
+ * Note: This uses sync storage which works on web but may not be
+ * up-to-date on Capacitor. For critical checks, use getTokenAsync()
+ */
 export const getToken = (): string | null => {
     if (typeof window !== "undefined") {
-        return localStorage.getItem("token");
+        return getStorageItemSync("token");
     }
     return null;
 };
 
-export const setToken = (token: string) => {
-    if (typeof window !== "undefined") {
-        localStorage.setItem("token", token);
-    }
+/**
+ * Get token asynchronously (recommended for Capacitor)
+ */
+export const getTokenAsync = async (): Promise<string | null> => {
+    return await getStorageItem("token");
 };
 
-export const removeToken = () => {
-    if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-    }
+/**
+ * Set token (async to support Capacitor)
+ */
+export const setToken = async (token: string): Promise<void> => {
+    await setStorageItem("token", token);
+};
+
+/**
+ * Remove token (async to support Capacitor)
+ */
+export const removeToken = async (): Promise<void> => {
+    await removeStorageItem("token");
 }
 
 interface FetchOptions extends RequestInit {

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchAPI, setToken } from "@/lib/api";
+import { setStorageItem } from "@/lib/storage";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,10 +46,12 @@ export default function RegisterPage() {
 
             // Auto-login logic
             if (data.access_token) {
-                setToken(data.access_token);
-                if (typeof window !== "undefined" && data.refresh_token) {
-                    localStorage.setItem("refresh_token", data.refresh_token);
-                }
+                // Store tokens using async storage layer
+                await Promise.all([
+                    setToken(data.access_token),
+                    setStorageItem("refresh_token", data.refresh_token)
+                ]);
+
                 toast.success("Conta criada! Vamos configurar seu perfil.");
                 router.push("/onboarding");
             } else {

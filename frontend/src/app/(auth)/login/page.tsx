@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchAPI, setToken } from "@/lib/api";
+import { setStorageItem } from "@/lib/storage";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -22,7 +24,7 @@ export default function LoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError("");
+        setError(""); // Clear previous errors
 
         try {
             const data = await fetchAPI("/auth/login", {
@@ -32,12 +34,13 @@ export default function LoginPage() {
             });
 
             if (data) {
-                // Save tokens
-                setToken(data.access_token);
-                // Also save refresh token (manually for now as api.ts helper setToken only does one)
-                if (typeof window !== "undefined" && data.refresh_token) {
-                    localStorage.setItem("refresh_token", data.refresh_token);
-                }
+                // Store tokens using async storage layer
+                await Promise.all([
+                    setToken(data.access_token),
+                    setStorageItem("refresh_token", data.refresh_token)
+                ]);
+
+                toast.success("Login realizado com sucesso!");
 
                 // Redirect based on onboarding status
                 if (data.onboarding_completed) {
@@ -46,8 +49,8 @@ export default function LoginPage() {
                     router.push("/onboarding");
                 }
             }
-        } catch (err: any) {
-            setError(err.message || "Falha ao realizar login");
+        } catch (error: any) {
+            setError(error.message || "Falha ao realizar login");
         } finally {
             setLoading(false);
         }
@@ -108,7 +111,7 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col gap-4 text-center text-sm text-muted-foreground border-t border-white/5 pt-6 mt-2">
                 <p>
                     Não tem uma conta?{" "}
-                    <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
+                    <Link href="https://pay.kiwify.com.br/14AVh4x" className="font-medium text-primary hover:underline underline-offset-4">
                         Comece grátis
                     </Link>
                 </p>

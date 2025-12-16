@@ -30,7 +30,7 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-              <Link href="/checkout">
+              <Link href="https://pay.kiwify.com.br/14AVh4x">
                 <Button size="lg" className="text-lg px-8 h-14 shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300">
                   Começar Teste Grátis
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -266,7 +266,7 @@ export default function LandingPage() {
                   ))}
                 </div>
 
-                <Link href="/checkout" className="block">
+                <Link href="https://pay.kiwify.com.br/14AVh4x" className="block">
                   <Button size="lg" className="w-full text-lg h-16 shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_0_30px_rgba(var(--primary),0.5)] transition-all hover:scale-[1.02]">
                     Começar Agora
                     <Trophy className="ml-2 h-5 w-5" />
@@ -306,7 +306,7 @@ export default function LandingPage() {
               Junte-se a milhares de pessoas que já transformaram seus corpos com treinos inteligentes
             </p>
 
-            <Link href="/checkout">
+            <Link href="https://pay.kiwify.com.br/14AVh4x">
               <Button size="lg" className="text-lg px-12 h-20 shadow-xl shadow-primary/20 hover:scale-105 transition-all text-xl">
                 Iniciar Teste Grátis de 7 Dias
                 <ArrowRight className="ml-3 h-6 w-6" />

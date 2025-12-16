@@ -275,7 +275,7 @@ export default function DietPage() {
                                 <CardDescription>Crie um plano personalizado para atingir seus objetivos mais rápido.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Button onClick={() => router.push("/diet/onboarding")} variant="outline" className="w-full sm:w-auto">
+                                <Button onClick={() => router.push("/onboarding/diet")} variant="outline" className="w-full sm:w-auto">
                                     Criar Plano Agora
                                 </Button>
                             </CardContent>

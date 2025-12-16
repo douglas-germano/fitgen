@@ -2,9 +2,9 @@ from flask import Flask
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from app.config import config
-from app.extensions import db, migrate, jwt, swagger
-from app.utils.logger import setup_logger
+from app.shared.config import config
+from app.shared.extensions import db, migrate, jwt, swagger
+from app.shared.utils.logger import setup_logger
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -57,31 +57,32 @@ def create_app(config_name='default'):
     setup_logger(app)
 
     # Import models to ensure they are registered with SQLAlchemy
-    from app import models
+    # Import model registry to ensure all models are known to SQLAlchemy
+    from app.shared import model_registry
     
     # Register commands
     from app.commands import seed_command, promote_user_command
     app.cli.add_command(seed_command)
     app.cli.add_command(promote_user_command)
 
-    from app.routes.auth import auth_bp
-    from app.routes.onboarding import onboarding_bp
-    from app.routes.workouts import workouts_bp
-    from app.routes.exercises import exercises_bp
-    from app.routes.nutrition import nutrition_bp
-    from app.routes.nutrition_history import nutrition_history_bp
-    from app.routes.diet import diet_bp
-    from app.routes.hydration import hydration_bp
-    from app.routes.gamification import gamification_bp
-    from app.routes.metrics import metrics_bp
-    from app.routes.profile import profile_bp
-    from app.routes.subscriptions import subscriptions_bp
-    from app.routes.admin import admin_bp
-    from app.routes.feedback import feedback_bp
-    from app.routes.notifications import notifications_bp
-    from app.routes.progress import progress_bp
-    from app.routes.webhooks import webhooks_bp
-    from app.routes.chat import chat_bp
+    from app.modules.identity.interface.routes.auth import auth_bp
+    from app.modules.identity.interface.routes.onboarding import onboarding_bp
+    from app.modules.training.interface.routes_workouts import workouts_bp
+    from app.modules.training.interface.routes_exercises import exercises_bp
+    from app.modules.nutrition.interface.routes_nutrition import nutrition_bp
+    from app.modules.nutrition.interface.routes_history import nutrition_history_bp
+    from app.modules.nutrition.interface.routes_diet import diet_bp
+    from app.modules.nutrition.interface.routes_hydration import hydration_bp
+    from app.modules.gamification.interface.routes import gamification_bp
+    from app.modules.analytics.interface.routes_metrics import metrics_bp
+    from app.modules.identity.interface.routes.profile import profile_bp
+    from app.modules.identity.interface.routes.subscriptions import subscriptions_bp
+    from app.modules.identity.interface.routes.admin import admin_bp
+    from app.modules.communication.interface.routes_feedback import feedback_bp
+    from app.modules.communication.interface.routes_notifications import notifications_bp
+    from app.modules.analytics.interface.routes_progress import progress_bp
+    from app.modules.communication.interface.routes_webhooks import webhooks_bp
+    from app.modules.coach.interface.routes import chat_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
@@ -101,6 +102,9 @@ def create_app(config_name='default'):
     app.register_blueprint(progress_bp, url_prefix='/api/progress')
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
+    
+    from app.modules.communication.interface.routes_whatsapp import whatsapp_bp
+    app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
 
     
     @app.route('/health')

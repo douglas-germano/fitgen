@@ -6,11 +6,13 @@
     "url": "https://fitgen.suacozinha.site/login",
     "cleartext": false
   },
+  "backgroundColor": "#11001C",
   "ios": {
-    "contentInset": "automatic"
+    "contentInset": "never"
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true
   },
   "plugins": {
     "SplashScreen": {

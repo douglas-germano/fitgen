@@ -1,7 +1,7 @@
 import click
 from flask.cli import with_appcontext
-from app.extensions import db
-from app.models.achievements import Achievement
+from app.shared.extensions import db
+from app.modules.gamification.domain.achievements import Achievement
 
 ACHIEVEMENTS_DATA = [
     # Consistência
@@ -48,7 +48,7 @@ def seed_command():
 @with_appcontext
 def promote_user_command(email):
     """Promote a user to admin role"""
-    from app.models.user import User
+    from app.modules.identity.domain.models import User
     
     user = User.query.filter_by(email=email).first()
     

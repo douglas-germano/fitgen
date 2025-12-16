@@ -105,7 +105,7 @@ export default function OnboardingPage() {
             await fetchAPI("/onboarding/generate-workout", { method: "POST" });
 
             toast.success("Perfil configurado com sucesso!");
-            router.push("/dashboard");
+            router.push("/onboarding/diet");
         } catch (error) {
             console.error("Onboarding failed", error);
             toast.error("Erro ao salvar perfil. Tente novamente.");

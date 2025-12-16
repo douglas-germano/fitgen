@@ -5,7 +5,8 @@ import { fetchAPI } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, TrendingUp, Scale, Activity, Ruler, Calendar } from "lucide-react";
+import { Loader2, Plus, TrendingUp, Scale, Activity, Ruler, Calendar, HeartPulse, Flame } from "lucide-react";
+import { useUser } from "@/hooks/useDashboard";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -14,12 +15,16 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { chartColors, chartConfig } from '@/lib/chart-config';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { WorkoutVolumeCard } from "@/components/dashboard/WorkoutVolumeCard";
 
 export default function MetricsPage() {
+    const { data: user } = useUser();
     const [loading, setLoading] = useState(true);
     const [weightHistory, setWeightHistory] = useState<any[]>([]);
     const [fatHistory, setFatHistory] = useState<any[]>([]);
     const [muscleHistory, setMuscleHistory] = useState<any[]>([]);
+    const [leanMassHistory, setLeanMassHistory] = useState<any[]>([]);
+    const [workoutVolume, setWorkoutVolume] = useState<any>(null);
 
     // Log Modal State
     const [isLogOpen, setIsLogOpen] = useState(false);
@@ -35,10 +40,11 @@ export default function MetricsPage() {
     const fetchHistory = async () => {
         try {
             // Parallel fetch for different metric types
-            const [weights, fats, muscles] = await Promise.all([
+            const [weights, fats, muscles, dashboard] = await Promise.all([
                 fetchAPI("/metrics/history?type=weight&limit=30"),
                 fetchAPI("/metrics/history?type=fat&limit=30"),
-                fetchAPI("/metrics/history?type=muscle&limit=30")
+                fetchAPI("/metrics/history?type=muscle&limit=30"),
+                fetchAPI("/metrics/dashboard")
             ]);
 
             // Format dates for charts
@@ -51,6 +57,32 @@ export default function MetricsPage() {
             setWeightHistory(formatDate(weights));
             setFatHistory(formatDate(fats));
             setMuscleHistory(formatDate(muscles));
+            setWorkoutVolume(dashboard?.workout_volume || null);
+
+            // Calculate Lean Mass using Boer Formula
+            if (user?.height_cm && user?.gender && weights.length > 0) {
+                const leanMass = weights.map((weightData: any) => {
+                    const weight = weightData.value;
+                    let leanMassValue = 0;
+
+                    if (user.gender === 'male') {
+                        // Boer formula for men: 0.407 × Weight + 0.267 × Height - 19.2
+                        leanMassValue = (0.407 * weight) + (0.267 * user.height_cm) - 19.2;
+                    } else {
+                        // Boer formula for women: 0.252 × Weight + 0.473 × Height - 48.3
+                        leanMassValue = (0.252 * weight) + (0.473 * user.height_cm) - 48.3;
+                    }
+
+                    return {
+                        date: weightData.date,
+                        value: parseFloat(leanMassValue.toFixed(1)),
+                        formattedDate: weightData.formattedDate,
+                        fullDate: weightData.fullDate
+                    };
+                });
+
+                setLeanMassHistory(leanMass);
+            }
         } catch (error) {
             toast.error("Erro ao carregar histórico.");
         } finally {
@@ -106,6 +138,35 @@ export default function MetricsPage() {
     const currentWeight = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].value : "--";
     const currentFat = fatHistory.length > 0 ? fatHistory[fatHistory.length - 1].value + "%" : "--";
     const currentMuscle = muscleHistory.length > 0 ? muscleHistory[muscleHistory.length - 1].value + "kg" : "--";
+    // Calculos de IMC e em metrics/page.tsx
+    let bmiValue = "--";
+    let bmiClassification = "";
+    let bmrValue = "--";
+
+    if (user?.height_cm && currentWeight !== "--") {
+        const heightM = user.height_cm / 100;
+        const weight = typeof currentWeight === 'number' ? currentWeight : parseFloat(currentWeight);
+
+        // IMC
+        const bmi = weight / (heightM * heightM);
+        bmiValue = bmi.toFixed(1);
+
+        if (bmi < 18.5) bmiClassification = "Abaixo";
+        else if (bmi < 24.9) bmiClassification = "Normal";
+        else if (bmi < 29.9) bmiClassification = "Sobrepeso";
+        else bmiClassification = "Obesidade";
+
+        // TMB (Harris-Benedict)
+        if (user.age && user.gender) {
+            let bmr = 0;
+            if (user.gender === 'male') {
+                bmr = 88.36 + (13.4 * weight) + (4.8 * user.height_cm) - (5.7 * user.age);
+            } else {
+                bmr = 447.6 + (9.2 * weight) + (3.1 * user.height_cm) - (4.3 * user.age);
+            }
+            bmrValue = Math.round(bmr).toString();
+        }
+    }
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -193,38 +254,72 @@ export default function MetricsPage() {
             </div>
 
             {/* Overview Cards */}
-            <div className="grid gap-4 md:grid-cols-3 animate-fade-in-up delay-100">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-6 animate-fade-in-up delay-100">
+                {/* Workout Volume Card */}
+                {workoutVolume && (
+                    <WorkoutVolumeCard volumeData={workoutVolume} />
+                )}
+
                 <Card className="glass-card shadow-lg shadow-blue-900/10 border-l-4 border-l-blue-500 hover:scale-[1.02] transition-transform">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Peso Atual</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                            <Scale className="h-4 w-4 text-blue-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">Peso</CardTitle>
+                        <div className="h-6 w-6 rounded-full bg-blue-500/10 flex items-center justify-center">
+                            <Scale className="h-3 w-3 text-blue-500" />
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold leading-none">{currentWeight} <span className="text-sm font-normal text-muted-foreground">kg</span></div>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl md:text-2xl font-bold leading-none">{currentWeight} <span className="text-xs font-normal text-muted-foreground">kg</span></div>
                     </CardContent>
                 </Card>
                 <Card className="glass-card shadow-lg shadow-orange-900/10 border-l-4 border-l-orange-500 hover:scale-[1.02] transition-transform">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Gordura Corporal</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-orange-500/10 flex items-center justify-center">
-                            <Activity className="h-4 w-4 text-orange-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">Gordura</CardTitle>
+                        <div className="h-6 w-6 rounded-full bg-orange-500/10 flex items-center justify-center">
+                            <Activity className="h-3 w-3 text-orange-500" />
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold leading-none">{currentFat}</div>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl md:text-2xl font-bold leading-none">{currentFat}</div>
                     </CardContent>
                 </Card>
                 <Card className="glass-card shadow-lg shadow-green-900/10 border-l-4 border-l-green-500 hover:scale-[1.02] transition-transform">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Massa Muscular</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                            <TrendingUp className="h-4 w-4 text-green-500" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">Músculo</CardTitle>
+                        <div className="h-6 w-6 rounded-full bg-green-500/10 flex items-center justify-center">
+                            <TrendingUp className="h-3 w-3 text-green-500" />
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold leading-none">{currentMuscle}</div>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl md:text-2xl font-bold leading-none">{currentMuscle}</div>
+                    </CardContent>
+                </Card>
+
+                {/* IMC Card */}
+                <Card className="glass-card shadow-lg shadow-purple-900/10 border-l-4 border-l-purple-500 hover:scale-[1.02] transition-transform">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">IMC</CardTitle>
+                        <div className="h-6 w-6 rounded-full bg-purple-500/10 flex items-center justify-center">
+                            <HeartPulse className="h-3 w-3 text-purple-500" />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-xl md:text-2xl font-bold leading-none">{bmiValue}</span>
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase truncate">{bmiClassification || "--"}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* TMB Card */}
+                <Card className="glass-card shadow-lg shadow-red-900/10 border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground">TMB</CardTitle>
+                        <div className="h-6 w-6 rounded-full bg-red-500/10 flex items-center justify-center">
+                            <Flame className="h-3 w-3 text-red-500" />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl md:text-2xl font-bold leading-none">{bmrValue} <span className="text-xs font-normal text-muted-foreground">kcal</span></div>
                     </CardContent>
                 </Card>
             </div>
@@ -244,6 +339,7 @@ export default function MetricsPage() {
                             <TabsTrigger value="weight" className="rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-500">Peso</TabsTrigger>
                             <TabsTrigger value="fat" className="rounded-md data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-500">% Gordura</TabsTrigger>
                             <TabsTrigger value="muscle" className="rounded-md data-[state=active]:bg-green-500/20 data-[state=active]:text-green-500">Massa Muscular</TabsTrigger>
+                            <TabsTrigger value="leanmass" className="rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-500">Massa Magra</TabsTrigger>
                         </TabsList>
 
                         {/* Chart Gradients */}
@@ -262,6 +358,10 @@ export default function MetricsPage() {
                                     <linearGradient id="colorMuscle" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
                                         <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorLeanMass" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                             </svg>
@@ -353,6 +453,31 @@ export default function MetricsPage() {
                                     <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
                                         <TrendingUp className="h-12 w-12 mb-2" />
                                         <p>Sem dados de massa muscular.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="leanmass">
+                            <div className="h-[300px] w-full mt-4">
+                                {leanMassHistory.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={leanMassHistory}>
+                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
+                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
+                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
+                                            <Tooltip
+                                                contentStyle={chartConfig.tooltip}
+                                                labelStyle={{ color: chartColors.axis }}
+                                            />
+                                            <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorLeanMass)" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                                        <TrendingUp className="h-12 w-12 mb-2" />
+                                        <p>Massa magra calculada pela Fórmula de Boer.</p>
+                                        <p className="text-xs mt-1">Registre seu peso para ver a evolução.</p>
                                     </div>
                                 )}
                             </div>
