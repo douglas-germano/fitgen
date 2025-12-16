@@ -70,6 +70,17 @@ def register():
         current_app.logger.warning(f'Registration attempt with existing email: {validated_data["email"]}')
         return jsonify({"msg": "Email já cadastrado"}), 409
     
+    # Sanitize and validate phone
+    phone = validated_data.get('phone')
+    if phone:
+        # Remove non-digits
+        import re
+        phone = re.sub(r'\D', '', phone)
+        # Check if phone already exists
+        if User.query.filter_by(phone=phone).first():
+            current_app.logger.warning(f'Registration attempt with existing phone: {phone}')
+            return jsonify({"msg": "WhatsApp já cadastrado"}), 409
+
     # Hash password
     hashed_password = generate_password_hash(validated_data['password'])
     
@@ -77,7 +88,8 @@ def register():
     new_user = User(
         email=validated_data['email'],
         password_hash=hashed_password,
-        name=validated_data['name']
+        name=validated_data['name'],
+        phone=phone
     )
     
     db.session.add(new_user)

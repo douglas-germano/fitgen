@@ -20,6 +20,11 @@ class RegisterSchema(Schema):
         validate=validate.Length(min=8),
         error_messages={'required': 'Senha é obrigatória'}
     )
+    phone = fields.Str(
+        required=False,
+        validate=validate.Length(min=10, max=15),
+        metadata={"description": "WhatsApp number (optional but recommended)"}
+    )
 
 class LoginSchema(Schema):
     email = fields.Email(

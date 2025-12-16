@@ -12,6 +12,9 @@ services:
       - FLASK_APP=wsgi.py
       - FLASK_ENV=production
       - FLASK_DEBUG=0
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     # Command removed to use Dockerfile default (gunicorn)
     depends_on:
       - redis

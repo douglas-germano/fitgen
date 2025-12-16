@@ -305,8 +305,8 @@ def log_meal():
                 Meal.consumed_at <= end_of_day
             ).all()
             
-            total_cals = sum(m.calories for m in daily_meals)
-            total_protein = sum(m.protein_g for m in daily_meals)
+            total_cals = sum((m.calories or 0) for m in daily_meals)
+            total_protein = sum((m.protein_g or 0) for m in daily_meals)
             
             # 1. Calorie Danger
             if total_cals > tdee:
@@ -477,10 +477,10 @@ def get_daily_nutrition():
         Meal.consumed_at <= end_of_day
     ).all()
     
-    total_cals = sum(m.calories for m in meals)
-    total_protein = sum(m.protein_g for m in meals)
-    total_carbs = sum(m.carbs_g for m in meals)
-    total_fats = sum(m.fat_g for m in meals)
+    total_cals = sum((m.calories or 0) for m in meals)
+    total_protein = sum((m.protein_g or 0) for m in meals)
+    total_carbs = sum((m.carbs_g or 0) for m in meals)
+    total_fats = sum((m.fat_g or 0) for m in meals)
     
     meal_list = [{
         "id": str(m.id),
@@ -607,10 +607,10 @@ def get_nutrition_history():
         m_date = m.consumed_at.date().isoformat()
         
         if m_date in history:
-            history[m_date]["calories"] += m.calories
-            history[m_date]["protein"] += m.protein_g
-            history[m_date]["carbs"] += m.carbs_g
-            history[m_date]["fats"] += m.fat_g
+            history[m_date]["calories"] += (m.calories or 0)
+            history[m_date]["protein"] += (m.protein_g or 0)
+            history[m_date]["carbs"] += (m.carbs_g or 0)
+            history[m_date]["fats"] += (m.fat_g or 0)
             history[m_date]["meal_count"] += 1
             
     # Convert dict to sorted list

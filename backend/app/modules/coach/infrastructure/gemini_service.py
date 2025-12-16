@@ -9,7 +9,7 @@ class GeminiService:
             raise ValueError("GEMINI_API_KEY environment variable not set")
         
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.model = genai.GenerativeModel('gemini-2.5-pro')
 
     def generate_json(self, prompt):
         """
@@ -101,7 +101,7 @@ class GeminiService:
             Transcribed text string or None if failed
         """
         try:
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel('gemini-2.5-pro')
             
             # Create audio part for Gemini
             audio_part = {
@@ -152,7 +152,7 @@ class GeminiService:
             )
             
             model_with_tools = genai.GenerativeModel(
-                'gemini-2.0-flash',
+                'gemini-2.5-pro',
                 tools=function_declarations,
                 tool_config=tool_config
             )

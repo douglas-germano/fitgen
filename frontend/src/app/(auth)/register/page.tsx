@@ -20,7 +20,8 @@ export default function RegisterPage() {
         name: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        phone: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +41,8 @@ export default function RegisterPage() {
                 body: JSON.stringify({
                     name: formData.name,
                     email: formData.email,
-                    password: formData.password
+                    password: formData.password,
+                    phone: formData.phone || undefined
                 }),
             });
 
@@ -97,6 +99,21 @@ export default function RegisterPage() {
                             required
                             className="bg-background/50 border-white/10 focus:ring-primary/20 backdrop-blur-sm"
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">WhatsApp / Celular (Opcional)</Label>
+                        <Input
+                            id="phone"
+                            placeholder="Ex: 11999990000"
+                            value={formData.phone}
+                            onChange={(e) => {
+                                // Only allow numbers
+                                const val = e.target.value.replace(/\D/g, "");
+                                setFormData({ ...formData, phone: val });
+                            }}
+                            className="bg-background/50 border-white/10 focus:ring-primary/20 backdrop-blur-sm"
+                        />
+                        <p className="text-xs text-muted-foreground"> Apenas números com DDD (Ex: 11999999999) </p>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="password">Senha</Label>
