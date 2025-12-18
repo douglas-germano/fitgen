@@ -1,14 +1,21 @@
 from flask import Flask
+import os
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from app.shared.config import config
-from app.shared.extensions import db, migrate, jwt, swagger
+from app.shared.extensions import db, migrate, jwt, swagger, cache
 from app.shared.utils.logger import setup_logger
 
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+    
+    # Configure ProxyFix for Nginx
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+    )
     
     # Swagger Configuration
     app.config['SWAGGER'] = {
@@ -29,11 +36,16 @@ def create_app(config_name='default'):
     }})
     
     # Initialize Rate Limiter (in-memory for development, use Redis in production)
+    # Initialize Rate Limiter
+    redis_host = os.environ.get('REDIS_HOST', 'localhost')
+    redis_port = os.environ.get('REDIS_PORT', 6379)
+    redis_uri = f"redis://{redis_host}:{redis_port}"
+    
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
         default_limits=["2000 per day", "500 per hour"],
-        storage_uri="memory://",  # Use "redis://localhost:6379" in production
+        storage_uri=redis_uri,
         strategy="fixed-window"
     )
     # Store limiter in app for access in routes
@@ -52,6 +64,7 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
     jwt.init_app(app)
     swagger.init_app(app)
+    cache.init_app(app)
     
     # Setup logging
     setup_logger(app)

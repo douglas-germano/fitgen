@@ -1,379 +1,610 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowRight, ArrowLeft, Check, Dumbbell, Calendar, Target, Activity, HeartPulse } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, ArrowRight, ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
+import { AILoading } from "@/components/ui/ai-loading";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+// --- Types ---
+interface FormData {
+    gender: string;
+    age: string;
+    weight_kg: string;
+    height_cm: string;
+    fitness_goal: string;
+    target_weight_kg: string;
+    routine_activity: string;
+    training_days_count: string;
+    experience_level: string;
+    training_location: string;
+    injuries: string;
+    diet_restriction: string;
+    allergies: string;
+    meals_per_day: string;
+    dislikes: string;
+    extra_info: string;
+}
+
+// --- Option Card Component (Mobile Optimized) ---
+interface OptionProps {
+    value: string;
+    label: string;
+    selected: boolean;
+    onClick: () => void;
+    description?: string;
+}
+
+function OptionCard({ value, label, selected, onClick, description }: OptionProps) {
+    return (
+        <div
+            onClick={onClick}
+            className={cn(
+                "relative flex flex-col p-5 cursor-pointer rounded-2xl border-2 transition-all duration-200 touch-manipulation active:scale-[0.98]",
+                selected
+                    ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.15)]"
+                    : "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10"
+            )}
+        >
+            <div className={cn("font-bold text-lg", selected ? "text-primary" : "text-foreground")}>
+                {label}
+            </div>
+            {description && (
+                <div className="text-sm text-muted-foreground mt-1 leading-snug">{description}</div>
+            )}
+            {selected && (
+                <div className="absolute top-5 right-5 text-primary animate-in zoom-in spin-in-90 duration-300">
+                    <Check className="w-6 h-6" />
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- Config ---
+const TOTAL_STEPS = 16;
 
 export default function OnboardingPage() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("Iniciando...");
 
-    // Form State
-    const [formData, setFormData] = useState({
-        // Step 1: Biometrics
+    // Smooth scroll to top on step change
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [step]);
+
+    const [formData, setFormData] = useState<FormData>({
+        gender: "",
         age: "",
-        gender: "male",
-        height_cm: "",
         weight_kg: "",
-
-        // Step 2: Experience & Lifestyle
-        experience_level: "beginner",
-        activity_level: "sedentary",
-
-        // Step 3: Goals
-        fitness_goal: "weight_loss",
+        height_cm: "",
+        fitness_goal: "",
         target_weight_kg: "",
-
-        // Step 4: Availability
-        available_days: [] as string[], // ['monday', 'wednesday']
-        workout_duration_minutes: "60",
-
-        // Step 5: Config
-        equipment: "gym",
+        routine_activity: "",
+        training_days_count: "",
+        experience_level: "",
+        training_location: "",
         injuries: "",
-        dietary_restrictions: "",
+        diet_restriction: "Nenhuma restrição", // Default
+        allergies: "Não",
+        meals_per_day: "",
+        dislikes: "",
+        extra_info: ""
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const toggleDay = (day: string) => {
-        setFormData(prev => {
-            const days = prev.available_days.includes(day)
-                ? prev.available_days.filter(d => d !== day)
-                : [...prev.available_days, day];
-            return { ...prev, available_days: days };
-        });
+    const handleOptionSelect = (key: keyof FormData, value: string) => {
+        setFormData(prev => ({ ...prev, [key]: value }));
+        // Auto-advance for single selection steps could be nice, 
+        // but 'Next' button is safer for misclicks. 
+        // Let's keep manual Next for consistency, or auto-advance on simple choices?
+        // User asked for "optimized", auto-advance is optimized.
+        // Let's auto-advance after 300ms for simple choice questions.
+        // Except for multi-choice or complex ones. 
+        // Actually, let's keep it manual to avoid "Wait I clicked wrong".
     };
 
-    const handleNext = () => {
-        if (step === 1 && (!formData.age || !formData.height_cm || !formData.weight_kg)) {
-            toast.error("Por favor, preencha todos os campos obrigatórios.");
-            return;
-        }
-        if (step === 3 && (!formData.target_weight_kg)) {
-            // Optional: Auto-fill target weight with current weight if empty? 
-            // Better to enforce or default. Let's default if empty.
-            if (!formData.target_weight_kg) setFormData({ ...formData, target_weight_kg: formData.weight_kg });
-        }
-        if (step === 4 && formData.available_days.length === 0) {
-            toast.error("Por favor, selecione pelo menos um dia para treinar.");
-            return;
-        }
-        setStep(step + 1);
+    const nextStep = () => {
+        // Validation per step
+        const val = formData;
+        if (step === 1 && !val.gender) return toast.error("Selecione uma opção.");
+        if (step === 2 && !val.age) return toast.error("Informe sua idade.");
+        if (step === 3 && !val.weight_kg) return toast.error("Informe seu peso.");
+        if (step === 4 && !val.height_cm) return toast.error("Informe sua altura.");
+        if (step === 5 && !val.fitness_goal) return toast.error("Selecione seu objetivo.");
+        // Step 6 is target weight, optional? Let's say optional or default to current.
+        if (step === 7 && !val.routine_activity) return toast.error("Selecione sua rotina.");
+        if (step === 8 && !val.training_days_count) return toast.error("Selecione os dias.");
+        if (step === 9 && !val.experience_level) return toast.error("Selecione sua experiência.");
+        if (step === 10 && !val.training_location) return toast.error("Selecione onde vai treinar.");
+        // 11 Injuries is optional/input
+        // 12 Diet Restr has default
+        // 13 Allergies has default
+        if (step === 14 && !val.meals_per_day) return toast.error("Selecione quantas refeições.");
+
+        if (step < TOTAL_STEPS) setStep(step + 1);
+        else handleSubmit();
     };
 
-    const handleBack = () => setStep(step - 1);
+    const prevStep = () => {
+        if (step > 1) setStep(step - 1);
+    };
 
     const handleSubmit = async () => {
         setIsLoading(true);
         try {
-            // Sort days to be nice
-            const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            const sortedDays = [...formData.available_days].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+            // --- Logic Mapping (Same as before) ---
+            let daysMap: Record<string, string[]> = {
+                "2": ["tuesday", "thursday"],
+                "3": ["monday", "wednesday", "friday"],
+                "4": ["monday", "tuesday", "thursday", "friday"],
+                "5": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                "6": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+            };
+            const selectedDays = daysMap[formData.training_days_count] || daysMap["3"];
 
-            // 1. Submit Onboarding Data
+            let backendGoalProfile = "improve_health";
+            let backendGoalDiet = "saude";
+
+            switch (formData.fitness_goal) {
+                case "Perder gordura":
+                    backendGoalProfile = "lose_weight";
+                    backendGoalDiet = "emagrecimento";
+                    break;
+                case "Ganhar massa muscular":
+                    backendGoalProfile = "gain_muscle";
+                    backendGoalDiet = "ganho_massa";
+                    break;
+                case "Perder gordura e ganhar massa (recomposição)":
+                    backendGoalProfile = "gain_muscle";
+                    backendGoalDiet = "ganho_massa";
+                    break;
+                case "Melhorar condicionamento físico":
+                    backendGoalProfile = "improve_health";
+                    backendGoalDiet = "saude";
+                    break;
+                case "Manter o peso atual com mais saúde":
+                    backendGoalProfile = "maintain";
+                    backendGoalDiet = "manutencao";
+                    break;
+            }
+
+            let equipmentMap: Record<string, string> = {
+                "Academia completa": "gym",
+                "Academia básica (poucos equipamentos)": "gym_basic",
+                "Em casa com equipamentos (halteres, barras, etc.)": "home_dumbbells",
+                "Em casa sem equipamentos (apenas peso corporal)": "bodyweight"
+            };
+            const equipment = equipmentMap[formData.training_location] || "gym";
+
+            let routineMap: Record<string, string> = {
+                "Sedentária": "sedentary",
+                "Levemente ativa": "lightly_active",
+                "Moderadamente ativa": "moderately_active",
+                "Muito ativa": "very_active"
+            };
+            // Need to match exact strings from OptionCards
+            // Or just use includes
+            const act = formData.routine_activity;
+            let activity = "sedentary";
+            if (act.includes("Sedentária")) activity = "sedentary";
+            if (act.includes("Levemente")) activity = "lightly_active";
+            if (act.includes("Moderadamente")) activity = "moderately_active";
+            if (act.includes("Muito ativa")) activity = "very_active";
+
+            let outputExp = "beginner";
+            if (formData.experience_level.includes("Intermediário")) outputExp = "intermediate";
+            if (formData.experience_level.includes("Avançado")) outputExp = "advanced";
+
+            // --- API Calls ---
+            setLoadingMessage("Salvando seu perfil...");
             await fetchAPI("/onboarding", {
                 method: "POST",
                 body: JSON.stringify({
+                    gender: formData.gender === "Masculino" ? "male" : "female",
                     age: parseInt(formData.age),
-                    gender: formData.gender,
-                    height_cm: parseFloat(formData.height_cm),
                     current_weight_kg: parseFloat(formData.weight_kg),
+                    height_cm: parseFloat(formData.height_cm),
                     target_weight_kg: parseFloat(formData.target_weight_kg || formData.weight_kg),
-                    fitness_goal: formData.fitness_goal,
-                    experience_level: formData.experience_level,
-                    activity_level: formData.activity_level,
-                    available_days: sortedDays,
-                    workout_duration_minutes: parseInt(formData.workout_duration_minutes),
-                    equipment_available: [formData.equipment], // Sending as array for compatibility
-                    injuries_limitations: formData.injuries,
-                    dietary_restrictions: formData.dietary_restrictions
-                }),
+                    fitness_goal: backendGoalProfile,
+                    experience_level: outputExp,
+                    activity_level: activity,
+                    available_days: selectedDays,
+                    workout_duration_minutes: 60,
+                    equipment_available: [equipment],
+                    injuries_limitations: `${formData.injuries}. ${formData.extra_info ? 'Obs: ' + formData.extra_info : ''}`,
+                    dietary_restrictions: formData.diet_restriction
+                })
             });
 
-            // 2. Trigger Workout Generation
+            setLoadingMessage("Configurando preferências...");
+            await fetchAPI("/diet/onboarding", {
+                method: "POST",
+                body: JSON.stringify({
+                    goal: backendGoalDiet,
+                    restrictions: [formData.diet_restriction],
+                    allergies: formData.allergies === "Não" ? "" : formData.allergies,
+                    dislikes: formData.dislikes + (formData.extra_info ? `\n\n[OBSERVAÇÃO]: ${formData.extra_info}` : ""),
+                    meals_per_day: parseInt(formData.meals_per_day.split(" ")[0]),
+                    budget: "300_500",
+                    ingredient_access: "basicos",
+                    cooks_at_home: "sim_todas",
+                    prep_time: "30_60",
+                    calorie_goal: 2000
+                })
+            });
+
+            setLoadingMessage("Criando seu treino com IA...");
             await fetchAPI("/onboarding/generate-workout", { method: "POST" });
 
-            toast.success("Perfil configurado com sucesso!");
-            router.push("/onboarding/diet");
+            setLoadingMessage("Montando dieta personalizada...");
+            await fetchAPI("/diet/generate", { method: "POST" });
+
+            toast.success("Tudo pronto!");
+            router.push("/dashboard");
+
         } catch (error) {
-            console.error("Onboarding failed", error);
-            toast.error("Erro ao salvar perfil. Tente novamente.");
-        } finally {
+            console.error(error);
+            toast.error("Erro ao configurar perfil. Tente novamente.");
             setIsLoading(false);
         }
     };
 
-    const daysOfWeek = [
-        { id: 'monday', label: 'Seg', full: 'Segunda' },
-        { id: 'tuesday', label: 'Ter', full: 'Terça' },
-        { id: 'wednesday', label: 'Qua', full: 'Quarta' },
-        { id: 'thursday', label: 'Qui', full: 'Quinta' },
-        { id: 'friday', label: 'Sex', full: 'Sexta' },
-        { id: 'saturday', label: 'Sáb', full: 'Sábado' },
-        { id: 'sunday', label: 'Dom', full: 'Domingo' },
-    ];
+    // Calculate progress
+    const progress = (step / TOTAL_STEPS) * 100;
 
     return (
-        <div className="flex items-center justify-center">
-            <Card className="w-full max-w-2xl glass-card shadow-2xl border-white/10 animate-fade-in-up">
-                <CardHeader>
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex space-x-1">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                                <div
-                                    key={s}
-                                    className={`h-1.5 w-8 rounded-full transition-all duration-300 ${s <= step ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary),0.6)]' : 'bg-white/10'}`}
-                                />
-                            ))}
-                        </div>
-                        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Etapa {step} de 5</span>
+        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+            {isLoading && <AILoading mode="workout" />}
+
+            <Card className="w-full max-w-lg glass-card shadow-2xl border-white/10 animate-fade-in-up min-h-[600px] flex flex-col">
+                <CardHeader className="pb-6">
+                    {/* Progress Bar */}
+                    <div className="w-full h-1.5 bg-white/10 rounded-full mb-6 overflow-hidden">
+                        <div
+                            className="h-full bg-primary transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            style={{ width: `${progress}%` }}
+                        />
                     </div>
-                    <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
-                        {step === 1 && "Vamos começar pelo básico"}
-                        {step === 2 && "Seu Estilo de Vida"}
-                        {step === 3 && "Qual é o seu objetivo?"}
-                        {step === 4 && "Disponibilidade para Treinar"}
-                        {step === 5 && "Detalhes Finais"}
-                    </CardTitle>
-                    <CardDescription>
-                        {step === 1 && "Precisamos desses dados para calcular seu metabolismo."}
-                        {step === 2 && "Para adaptar o volume e intensidade dos treinos."}
-                        {step === 3 && "Defina onde você quer chegar."}
-                        {step === 4 && "A IA vai criar um plano que se encaixa na sua rotina."}
-                        {step === 5 && "Equipamentos e cuidados especiais."}
-                    </CardDescription>
+
+                    <div className="flex justify-between items-center text-sm text-muted-foreground uppercase tracking-wider font-mono">
+                        <span>Pergunta {step} de {TOTAL_STEPS}</span>
+                        {step > 1 && <span className="cursor-pointer hover:text-white" onClick={prevStep}>Voltar</span>}
+                    </div>
                 </CardHeader>
 
-                <CardContent className="space-y-6 min-h-[300px]">
+                <CardContent className="flex-1 flex flex-col justify-center gap-6">
+
+                    {/* 1. GENDER */}
                     {step === 1 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="space-y-2">
-                                <Label htmlFor="gender">Gênero Biológico</Label>
-                                <select
-                                    id="gender" name="gender"
-                                    className="flex h-10 w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-0 backdrop-blur-sm"
-                                    value={formData.gender} onChange={handleChange}
-                                >
-                                    <option value="male" className="bg-background">Masculino</option>
-                                    <option value="female" className="bg-background">Feminino</option>
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="age">Idade</Label>
-                                <Input id="age" name="age" type="number" placeholder="Anos" value={formData.age} onChange={handleChange} className="bg-background/50 border-white/10 focus:ring-primary/20" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="height_cm">Altura (cm)</Label>
-                                <Input id="height_cm" name="height_cm" type="number" placeholder="175" value={formData.height_cm} onChange={handleChange} className="bg-background/50 border-white/10 focus:ring-primary/20" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="weight_kg">Peso Atual (kg)</Label>
-                                <Input id="weight_kg" name="weight_kg" type="number" step="0.1" placeholder="70.5" value={formData.weight_kg} onChange={handleChange} className="bg-background/50 border-white/10 focus:ring-primary/20" />
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
+                                Qual é o seu sexo biológico?
+                            </h2>
+                            <div className="grid grid-cols-1 gap-4">
+                                {["Masculino", "Feminino"].map(opt => (
+                                    <OptionCard
+                                        key={opt} label={opt} value={opt}
+                                        selected={formData.gender === opt}
+                                        onClick={() => handleOptionSelect("gender", opt)}
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}
 
+                    {/* 2. AGE */}
                     {step === 2 && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="space-y-3">
-                                <Label>Nível de Experiência em Treino</Label>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {[
-                                        { val: 'beginner', label: 'Iniciante', desc: 'Nunca treinei ou estou parado há meses.' },
-                                        { val: 'intermediate', label: 'Intermediário', desc: 'Treino regularmente há pelo menos 6 meses.' },
-                                        { val: 'advanced', label: 'Avançado', desc: 'Treino intenso e consistente há anos.' },
-                                    ].map((opt) => (
-                                        <div
-                                            key={opt.val}
-                                            onClick={() => setFormData({ ...formData, experience_level: opt.val })}
-                                            className={cn(
-                                                "p-4 rounded-lg border cursor-pointer transition-all duration-200 hover:bg-white/5",
-                                                formData.experience_level === opt.val
-                                                    ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(var(--primary),0.1)]"
-                                                    : "border-white/10 bg-background/30"
-                                            )}
-                                        >
-                                            <div className={`font-semibold ${formData.experience_level === opt.val ? 'text-primary' : 'text-foreground'}`}>{opt.label}</div>
-                                            <div className="text-sm text-muted-foreground">{opt.desc}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Qual a sua idade?</h2>
+                            <Input
+                                name="age" type="number" autoFocus
+                                value={formData.age} onChange={handleChange}
+                                className="h-20 text-5xl text-center bg-transparent border-b-2 border-white/20 rounded-none focus:border-primary px-0 focus-visible:ring-0 placeholder:text-white/10"
+                                placeholder="0"
+                            />
+                        </div>
+                    )}
 
-                            <div className="space-y-2">
-                                <Label htmlFor="activity_level">Nível de Atividade Diária (Trabalho/Rotina)</Label>
-                                <select
-                                    id="activity_level" name="activity_level"
-                                    className="flex h-10 w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-0 backdrop-blur-sm"
-                                    value={formData.activity_level} onChange={handleChange}
-                                >
-                                    <option value="sedentary" className="bg-background">Sedentário (Trabalho sentado, pouco movimento)</option>
-                                    <option value="lightly_active" className="bg-background">Levemente Ativo (Caminhadas ocasionais)</option>
-                                    <option value="moderately_active" className="bg-background">Moderadamente Ativo (Trabalho de pé/movimento)</option>
-                                    <option value="very_active" className="bg-background">Muito Ativo (Trabalho braçal pesado)</option>
-                                </select>
+                    {/* 3. WEIGHT */}
+                    {step === 3 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Qual o seu peso atual (kg)?</h2>
+                            <Input
+                                name="weight_kg" type="number" step="0.1" autoFocus
+                                value={formData.weight_kg} onChange={handleChange}
+                                className="h-20 text-5xl text-center bg-transparent border-b-2 border-white/20 rounded-none focus:border-primary px-0 focus-visible:ring-0 placeholder:text-white/10"
+                                placeholder="0.0"
+                            />
+                        </div>
+                    )}
+
+                    {/* 4. HEIGHT */}
+                    {step === 4 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Qual a sua altura (cm)?</h2>
+                            <Input
+                                name="height_cm" type="number" autoFocus
+                                value={formData.height_cm} onChange={handleChange}
+                                className="h-20 text-5xl text-center bg-transparent border-b-2 border-white/20 rounded-none focus:border-primary px-0 focus-visible:ring-0 placeholder:text-white/10"
+                                placeholder="170"
+                            />
+                        </div>
+                    )}
+
+                    {/* 5. GOAL */}
+                    {step === 5 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold leading-tight">Qual é o seu principal objetivo?</h2>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    "Perder gordura",
+                                    "Ganhar massa muscular",
+                                    "Perder gordura e ganhar massa (recomposição)",
+                                    "Melhorar condicionamento físico",
+                                    "Manter o peso atual com mais saúde"
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt} label={opt} value={opt}
+                                        selected={formData.fitness_goal === opt}
+                                        onClick={() => handleOptionSelect("fitness_goal", opt)}
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}
 
-                    {step === 3 && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 6. TARGET WEIGHT */}
+                    {step === 6 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Qual sua meta de peso (kg)?</h2>
+                            <CardDescription className="text-lg">Se não tiver meta específica, pode repetir seu peso atual.</CardDescription>
+                            <Input
+                                name="target_weight_kg" type="number" step="0.1" autoFocus
+                                value={formData.target_weight_kg} onChange={handleChange}
+                                className="h-20 text-5xl text-center bg-transparent border-b-2 border-white/20 rounded-none focus:border-primary px-0 focus-visible:ring-0 placeholder:text-white/10"
+                                placeholder={formData.weight_kg || "70"}
+                            />
+                        </div>
+                    )}
+
+                    {/* 7. ROUTINE */}
+                    {step === 7 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold leading-tight">Como é sua rotina diária?</h2>
+                            <div className="grid grid-cols-1 gap-3">
                                 {[
-                                    { val: 'weight_loss', label: 'Perder Peso', icon: ArrowRight },
-                                    { val: 'muscle_gain', label: 'Hipertrofia', icon: Dumbbell },
-                                    { val: 'endurance', label: 'Condicionamento', icon: HeartPulse },
-                                    { val: 'maintenance', label: 'Manter Saúde', icon: Activity },
-                                ].map((goal) => (
+                                    { l: "Sedentária", d: "Trabalho sentado, pouca movimentação" },
+                                    { l: "Levemente ativa", d: "Caminhadas curtas, algumas tarefas em pé" },
+                                    { l: "Moderadamente ativa", d: "Em movimento boa parte do dia" },
+                                    { l: "Muito ativa", d: "Trabalho físico ou sempre em movimento" },
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt.l} label={opt.l} value={opt.l} description={opt.d}
+                                        selected={formData.routine_activity.includes(opt.l)}
+                                        onClick={() => handleOptionSelect("routine_activity", opt.l + " (" + opt.d + ")")}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 8. DAYS */}
+                    {step === 8 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Quantos dias por semana vai treinar?</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                {["2", "3", "4", "5", "6"].map(d => (
                                     <div
-                                        key={goal.val}
-                                        onClick={() => setFormData({ ...formData, fitness_goal: goal.val })}
+                                        key={d}
+                                        onClick={() => handleOptionSelect("training_days_count", d)}
                                         className={cn(
-                                            "flex items-center space-x-4 p-4 rounded-lg border cursor-pointer transition-all duration-200 hover:bg-white/5 hover:scale-[1.02]",
-                                            formData.fitness_goal === goal.val
-                                                ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(var(--primary),0.15)]"
-                                                : "border-white/10 bg-background/30"
+                                            "h-24 rounded-2xl flex items-center justify-center cursor-pointer border-2 transition-all text-3xl font-bold",
+                                            formData.training_days_count === d
+                                                ? "bg-primary border-primary text-primary-foreground shadow-lg"
+                                                : "bg-white/5 border-white/10 hover:bg-white/10"
                                         )}
                                     >
-                                        <goal.icon className={cn("h-6 w-6", formData.fitness_goal === goal.val ? "text-primary" : "text-muted-foreground")} />
-                                        <span className={cn("font-medium", formData.fitness_goal === goal.val ? "text-primary" : "text-foreground")}>{goal.label}</span>
+                                        {d} Dias
                                     </div>
                                 ))}
                             </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="target_weight_kg">Peso Alvo (kg)</Label>
-                                <Input
-                                    id="target_weight_kg"
-                                    name="target_weight_kg"
-                                    type="number"
-                                    step="0.1"
-                                    placeholder={formData.weight_kg || "70"}
-                                    value={formData.target_weight_kg}
-                                    onChange={handleChange}
-                                    className="bg-background/50 border-white/10 focus:ring-primary/20"
-                                />
-                                <p className="text-xs text-muted-foreground">Opcional. Se não preencher, usaremos seu peso atual.</p>
-                            </div>
                         </div>
                     )}
 
-                    {step === 4 && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="space-y-3">
-                                <Label className="text-base">Quais dias você pode treinar?</Label>
-                                <p className="text-sm text-muted-foreground mb-2">Selecione os dias da semana disponíveis.</p>
-                                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                                    {daysOfWeek.map((day) => (
-                                        <div
-                                            key={day.id}
-                                            onClick={() => toggleDay(day.id)}
-                                            className={cn(
-                                                "flex flex-col items-center justify-center p-3 rounded-md border cursor-pointer transition-all duration-200 aspect-square",
-                                                formData.available_days.includes(day.id)
-                                                    ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20 transform scale-105"
-                                                    : "border-white/10 bg-background/30 text-muted-foreground hover:bg-white/10 hover:border-white/20"
-                                            )}
-                                        >
-                                            <span className="font-bold text-lg leading-none">{day.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <p className="text-sm text-muted-foreground text-right">
-                                    {formData.available_days.length} dias selecionados
-                                </p>
-                            </div>
-
-                            <div className="space-y-3">
-                                <Label htmlFor="workout_duration_minutes">Tempo Disponível por Treino</Label>
-                                <div className="flex items-center space-x-4 bg-background/30 p-4 rounded-lg border border-white/5">
-                                    <Input
-                                        id="workout_duration_minutes"
-                                        name="workout_duration_minutes"
-                                        type="range"
-                                        min="20"
-                                        max="120"
-                                        step="10"
-                                        value={formData.workout_duration_minutes}
-                                        onChange={handleChange}
-                                        className="flex-1 cursor-pointer accent-primary"
+                    {/* 9. EXPERIENCE */}
+                    {step === 9 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Experiência com musculação?</h2>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    { l: "Iniciante", d: "Menos de 6 meses ou nunca treinei" },
+                                    { l: "Intermediário", d: "6 meses a 2 anos constante" },
+                                    { l: "Avançado", d: "Mais de 2 anos constante" },
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt.l} label={opt.l} value={opt.l} description={opt.d}
+                                        selected={formData.experience_level.includes(opt.l)}
+                                        onClick={() => handleOptionSelect("experience_level", opt.l + " (" + opt.d + ")")}
                                     />
-                                    <span className="font-bold w-24 text-right tabular-nums text-primary">{formData.workout_duration_minutes} min</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 10. LOCATION */}
+                    {step === 10 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Onde você vai treinar?</h2>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    "Academia completa",
+                                    "Academia básica (poucos equipamentos)",
+                                    "Em casa com equipamentos (halteres, barras, etc.)",
+                                    "Em casa sem equipamentos (apenas peso corporal)"
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt} label={opt} value={opt}
+                                        selected={formData.training_location === opt}
+                                        onClick={() => handleOptionSelect("training_location", opt)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 11. INJURIES */}
+                    {step === 11 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Possui alguma lesão ou limitação?</h2>
+                            <div className="space-y-4">
+                                <OptionCard
+                                    label="Não possuo limitações" value="Não possuo limitações"
+                                    selected={formData.injuries === "Não possuo limitações"}
+                                    onClick={() => handleOptionSelect("injuries", "Não possuo limitações")}
+                                />
+                                <div>
+                                    <Label className="mb-2 block text-muted-foreground">Ou descreva sua lesão:</Label>
+                                    <Textarea
+                                        name="injuries"
+                                        placeholder="Ex: Dor no joelho esquerdo..."
+                                        value={formData.injuries === "Não possuo limitações" ? "" : formData.injuries}
+                                        onChange={(e) => handleOptionSelect("injuries", e.target.value)}
+                                        className="bg-white/5 border-white/10 min-h-[100px] text-lg"
+                                    />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {step === 5 && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            <div className="space-y-2">
-                                <Label htmlFor="equipment">Equipamento Disponível</Label>
-                                <select
-                                    id="equipment" name="equipment"
-                                    className="flex h-10 w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-0 backdrop-blur-sm"
-                                    value={formData.equipment} onChange={handleChange}
-                                >
-                                    <option value="gym" className="bg-background">Academia Completa</option>
-                                    <option value="home_dumbbells" className="bg-background">Em Casa (Halteres/Elásticos)</option>
-                                    <option value="bodyweight" className="bg-background">Em Casa (Apenas Peso do Corpo)</option>
-                                </select>
+                    {/* 12. DIET RESTR */}
+                    {step === 12 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Segue alguma restrição alimentar?</h2>
+                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                                {[
+                                    "Nenhuma restrição",
+                                    "Vegetariano",
+                                    "Vegano",
+                                    "Low carb / Cetogênica",
+                                    "Sem lactose",
+                                    "Sem glúten"
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt} label={opt} value={opt}
+                                        selected={formData.diet_restriction === opt}
+                                        onClick={() => handleOptionSelect("diet_restriction", opt)}
+                                    />
+                                ))}
                             </div>
+                        </div>
+                    )}
 
-                            <div className="space-y-2">
-                                <Label htmlFor="injuries">Lesões ou Limitações (Opcional)</Label>
-                                <Input
-                                    id="injuries"
-                                    name="injuries"
-                                    placeholder="Ex: Dor lombar, joelho direito..."
-                                    value={formData.injuries}
-                                    onChange={handleChange}
-                                    className="bg-background/50 border-white/10 focus:ring-primary/20"
+                    {/* 13. ALLERGIES */}
+                    {step === 13 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Tem alergia a algum alimento?</h2>
+                            <div className="space-y-4">
+                                <OptionCard
+                                    label="Não" value="Não"
+                                    selected={formData.allergies === "Não"}
+                                    onClick={() => handleOptionSelect("allergies", "Não")}
                                 />
+                                <div>
+                                    <Label className="mb-2 block text-muted-foreground">Ou liste as alergias:</Label>
+                                    <Textarea
+                                        placeholder="Ex: Amendoim, Camarão..."
+                                        value={formData.allergies === "Não" ? "" : formData.allergies}
+                                        onChange={(e) => handleOptionSelect("allergies", e.target.value)}
+                                        className="bg-white/5 border-white/10 min-h-[100px] text-lg"
+                                    />
+                                </div>
                             </div>
+                        </div>
+                    )}
 
-                            <div className="space-y-2">
-                                <Label htmlFor="dietary_restrictions">Restrições Alimentares (Opcional)</Label>
-                                <Input
-                                    id="dietary_restrictions"
-                                    name="dietary_restrictions"
-                                    placeholder="Ex: Vegano, Intolerante à lactose..."
-                                    value={formData.dietary_restrictions}
-                                    onChange={handleChange}
-                                    className="bg-background/50 border-white/10 focus:ring-primary/20"
-                                />
+                    {/* 14. MEALS */}
+                    {step === 14 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Quantas refeições por dia?</h2>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    "3 refeições",
+                                    "4 refeições",
+                                    "5 refeições",
+                                    "6 ou mais refeições"
+                                ].map(opt => (
+                                    <OptionCard
+                                        key={opt} label={opt} value={opt}
+                                        selected={formData.meals_per_day === opt}
+                                        onClick={() => handleOptionSelect("meals_per_day", opt)}
+                                    />
+                                ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* 15. DISLIKES */}
+                    {step === 15 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Alimentos que não gosta?</h2>
+                            <CardDescription className="text-lg">Liste alimentos que você quer evitar na dieta.</CardDescription>
+                            <Textarea
+                                name="dislikes"
+                                placeholder="Ex: Fígado, Jiló, Peixe..."
+                                value={formData.dislikes}
+                                onChange={handleChange}
+                                className="bg-white/5 border-white/10 min-h-[150px] text-lg"
+                                autoFocus
+                            />
+                        </div>
+                    )}
+
+                    {/* 16. EXTRA INFO */}
+                    {step === 16 && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                            <h2 className="text-3xl font-bold">Mais alguma informação?</h2>
+                            <CardDescription className="text-lg">Contexto livre para a IA personalizar seu plano.</CardDescription>
+                            <Textarea
+                                name="extra_info"
+                                placeholder="Ex: Trabalho à noite, não sei cozinhar..."
+                                value={formData.extra_info}
+                                onChange={handleChange}
+                                className="bg-white/5 border-white/10 min-h-[150px] text-lg"
+                                autoFocus
+                            />
                         </div>
                     )}
 
                 </CardContent>
 
-                <CardFooter className="flex justify-between border-t border-white/5 p-6 bg-white/5">
-                    <Button variant="ghost" onClick={handleBack} disabled={step === 1 || isLoading} className="hover:bg-white/10">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                    </Button>
-
-                    {step < 5 ? (
-                        <Button onClick={handleNext} className="shadow-lg shadow-primary/20 hover:shadow-primary/40">
-                            Próximo <ArrowRight className="ml-2 h-4 w-4" />
+                <CardFooter className="pt-6 border-t border-white/5">
+                    {step < TOTAL_STEPS ? (
+                        <Button
+                            onClick={nextStep}
+                            className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20 rounded-xl"
+                        >
+                            Próximo <ArrowRight className="ml-2 w-5 h-5" />
                         </Button>
                     ) : (
-                        <Button onClick={handleSubmit} disabled={isLoading} className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[140px] shadow-lg shadow-primary/20 hover:shadow-primary/40 animate-pulse">
-                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
-                                <>
-                                    Finalizar <Check className="ml-2 h-4 w-4" />
-                                </>
-                            )}
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isLoading}
+                            className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-purple-600 shadow-[0_0_20px_rgba(var(--primary),0.4)] animate-pulse rounded-xl"
+                        >
+                            {isLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : "Finalizar e Gerar"}
                         </Button>
                     )}
                 </CardFooter>

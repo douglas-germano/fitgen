@@ -37,14 +37,16 @@ export function NotificationBell() {
 
                 // If it's not the first load, and the ID is different from last seen, IT IS NEW
                 if (!isFirstLoad && lastNotificationIdRef.current && latest.id !== lastNotificationIdRef.current) {
-                    // Trigger popup
-                    toast(latest.title, {
-                        description: latest.message,
-                        action: {
-                            label: "Ver",
-                            onClick: () => router.push("/notifications"),
-                        },
-                    });
+                    // Only show toast if window is visible (otherwise SW handles it)
+                    if (!document.hidden) {
+                        toast(latest.title, {
+                            description: latest.message,
+                            action: {
+                                label: "Ver",
+                                onClick: () => router.push("/notifications"),
+                            },
+                        });
+                    }
                 }
 
                 lastNotificationIdRef.current = latest.id;

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Sparkles, Camera, Image as ImageIcon, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api";
+import { AILoading } from "@/components/ui/ai-loading";
 
 interface MealLoggerProps {
     open: boolean;
@@ -128,6 +129,7 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
                 // Let's clear after a delay to avoid jumpiness or assume parent handles
             }
         }}>
+            {isEstimating && <AILoading mode="diet" />}
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Adicionar com IA</DialogTitle>

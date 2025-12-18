@@ -16,6 +16,7 @@ import { useRef } from "react";
 import { toast } from "sonner";
 import { WeeklyMacrosChart } from "@/components/diet/WeeklyMacrosChart";
 import { MealLogger } from "@/components/diet/MealLogger";
+import { AILoading } from "@/components/ui/ai-loading";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -179,6 +180,9 @@ export default function DietPage() {
 
     return (
         <div className="space-y-6 animate-fade-in-up">
+            {/* AI Loading Overlay - Controlled by state passed to MealLogger or global context.
+                For now, I'll just prep the import. I need to see MealLogger first.
+             */}
             {/* Header Stats */}
             <div className="flex items-center justify-between px-4 md:px-8 pt-6">
                 <div>

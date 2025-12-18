@@ -7,9 +7,14 @@ class DeviceToken(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    token = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    token = db.Column(db.String(255), nullable=True, unique=True, index=True)
     platform = db.Column(db.String(20), nullable=False)  # 'ios' or 'android' or 'web'
     device_name = db.Column(db.String(100))
+
+    # Web Push specific fields
+    subscription_endpoint = db.Column(db.Text) # Endpoints can be very long
+    subscription_p256dh = db.Column(db.String(255))
+    subscription_auth = db.Column(db.String(100))
     
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

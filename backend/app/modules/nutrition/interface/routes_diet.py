@@ -1,11 +1,17 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.shared.extensions import db
+from app.shared.extensions import db, cache
 from app.modules.nutrition.domain.diet import DietPreference, DietPlan
 from app.modules.coach.infrastructure.gemini_service import GeminiService
 from datetime import datetime
 import uuid
 import json
+
+
+def make_cache_key(*args, **kwargs):
+    """Create a unique cache key based on user ID"""
+    user_id = get_jwt_identity()
+    return f"diet_plan:{user_id}"
 
 diet_bp = Blueprint('diet', __name__)
 
@@ -206,6 +212,9 @@ Retorne APENAS um JSON válido com esta estrutura:
         # Deactivate old plans
         DietPlan.query.filter_by(user_id=user_id, is_active=True).update({'is_active': False})
         
+        # Invalidate cache
+        cache.delete(f"diet_plan:{user_id}")
+        
         # Save new plan
         new_plan = DietPlan(
             user_id=user_id,
@@ -232,6 +241,7 @@ Retorne APENAS um JSON válido com esta estrutura:
 
 @diet_bp.route('/plan', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=3600, key_prefix=make_cache_key)
 def get_current_diet_plan():
     """
     Get user's active diet plan
@@ -372,6 +382,9 @@ def regenerate_day_plan():
             current_weekly[day] = new_day_plan
             plan.weekly_plan = current_weekly
             
+            # Invalidate cache
+            cache.delete(f"diet_plan:{user_id}")
+            
             # db.session.add(plan) # Not strictly needed if object is attached, but safe
             db.session.commit()
             
@@ -428,6 +441,9 @@ def update_shopping_list():
 
     # Update shopping list
     plan.shopping_list = shopping_list
+    
+    # Invalidate cache
+    cache.delete(f"diet_plan:{user_id}")
     
     db.session.commit()
 
