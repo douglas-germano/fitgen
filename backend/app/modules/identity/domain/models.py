@@ -12,7 +12,8 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), default='user')  # 'user' or 'admin'
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    subscription_status = db.Column(db.String(50), default='active')  # 'active', 'suspended'
+    subscription_status = db.Column(db.String(50), default='active')  # 'active', 'suspended', 'canceled', 'past_due'
+    subscription_expires_at = db.Column(db.DateTime, nullable=True)  # Data de expiração da assinatura
     onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
     profile_picture = db.Column(db.String(500), nullable=True) # URL or Path
     phone = db.Column(db.String(20), unique=True, nullable=True) # WhatsApp number
