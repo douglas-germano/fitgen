@@ -106,6 +106,9 @@ export default function AchievementsPage() {
                 />
             </div>
 
+            {/* Mini Leaderboard */}
+            <MiniLeaderboard />
+
             {/* Achievements Grid */}
             <div>
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -190,5 +193,147 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
                 <div className="absolute -top-10 -right-10 h-32 w-32 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
             )}
         </Card>
+    )
+}
+
+function MiniLeaderboard() {
+    const [leaderboard, setLeaderboard] = useState<any[]>([])
+    const [userPosition, setUserPosition] = useState<any>(null)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const loadLeaderboard = async () => {
+            try {
+                const { fetchAPI } = await import("@/lib/api")
+
+                // Get current user
+                const userData = await fetchAPI("/profile/me")
+                setCurrentUserId(userData.id)
+
+                // Get full leaderboard
+                const data = await fetchAPI("/gamification/leaderboard")
+
+                // Get top 5
+                const top5 = data.slice(0, 5)
+                setLeaderboard(top5)
+
+                // Find user position if not in top 5
+                const userEntry = data.find((entry: any) => entry.user_id === userData.id)
+                if (userEntry && userEntry.rank > 5) {
+                    setUserPosition(userEntry)
+                }
+            } catch (error) {
+                console.error("Failed to load leaderboard:", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        loadLeaderboard()
+    }, [])
+
+    if (loading) {
+        return null
+    }
+
+    return (
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-yellow-500" />
+                Ranking
+            </h2>
+
+            <Card className="glass-card overflow-hidden">
+                <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                        {leaderboard.map((entry, index) => (
+                            <LeaderboardEntry
+                                key={entry.user_id}
+                                entry={entry}
+                                isCurrentUser={entry.user_id === currentUserId}
+                            />
+                        ))}
+
+                        {userPosition && (
+                            <>
+                                <div className="px-4 py-2 text-center text-xs text-muted-foreground bg-muted/30">
+                                    ...
+                                </div>
+                                <LeaderboardEntry
+                                    entry={userPosition}
+                                    isCurrentUser={true}
+                                />
+                            </>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+function LeaderboardEntry({ entry, isCurrentUser }: { entry: any; isCurrentUser: boolean }) {
+    const getRankIcon = (rank: number) => {
+        const colors = {
+            1: "text-yellow-500",
+            2: "text-gray-400",
+            3: "text-amber-700"
+        }
+
+        if (rank <= 3) {
+            return <Trophy className={`h-5 w-5 ${colors[rank as keyof typeof colors]}`} />
+        }
+        return <span className="text-lg font-bold text-muted-foreground">#{rank}</span>
+    }
+
+    return (
+        <div
+            className={`flex items-center gap-3 p-3 ${isCurrentUser ? 'bg-primary/10 border-l-4 border-l-primary' : ''
+                }`}
+        >
+            {/* Rank */}
+            <div className="flex items-center justify-center w-10">
+                {getRankIcon(entry.rank)}
+            </div>
+
+            {/* Avatar */}
+            <div className="relative">
+                {entry.profile_picture ? (
+                    <img
+                        src={entry.profile_picture}
+                        alt={entry.name}
+                        className="h-10 w-10 rounded-full object-cover ring-2 ring-border"
+                    />
+                ) : (
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center ring-2 ring-border">
+                        <span className="text-white font-semibold text-sm">
+                            {entry.name.charAt(0).toUpperCase()}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Name */}
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate text-sm">
+                    {entry.name}
+                    {isCurrentUser && (
+                        <span className="ml-2 text-xs text-primary">(Você)</span>
+                    )}
+                </p>
+            </div>
+
+            {/* Level */}
+            <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded-full">
+                <Zap className="h-3 w-3 text-primary fill-primary" />
+                <span className="font-bold text-xs">{entry.level}</span>
+            </div>
+
+            {/* Medals */}
+            <div className="flex items-center gap-1">
+                <Award className="h-3 w-3 text-yellow-500" />
+                <span className="font-semibold text-xs">{entry.medals_count}</span>
+            </div>
+        </div>
     )
 }

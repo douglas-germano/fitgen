@@ -5,7 +5,7 @@ from flask_jwt_extended import (
     get_jwt_identity, get_jwt
 )
 from marshmallow import ValidationError
-from app.shared.extensions import db
+from app.shared.extensions import db, limiter
 from app.modules.identity.domain.models import User
 from app.modules.identity.interface.schemas import RegisterSchema, LoginSchema
 from app.shared.utils.password import validate_password_strength
@@ -15,6 +15,7 @@ import secrets
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("10 per minute")
 def register():
     """
     Register new user with validation
@@ -45,9 +46,6 @@ def register():
       409:
         description: Email already exists
     """
-    # Get limiter from app
-    limiter = current_app.limiter
-    limiter.limit("10 per minute")(lambda: None)()  # Rate limit: 10 registrations per minute
     
     data = request.get_json()
     
@@ -162,8 +160,13 @@ def login():
             "status": "suspended"
         }), 403
     
+    
     access_token = create_access_token(identity=str(user.id))
     refresh_token = create_refresh_token(identity=str(user.id))
+    
+    # Update last login timestamp
+    user.last_login = datetime.utcnow()
+    db.session.commit()
     
     # Check onboarding status
     onboarding_done = user.onboarding_completed

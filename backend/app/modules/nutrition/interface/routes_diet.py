@@ -90,7 +90,16 @@ def save_diet_preferences():
         )
         db.session.add(pref)
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving diet preferences: {str(e)}")
+        return jsonify({"msg": "Database error", "details": str(e)}), 500
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Unexpected error saving diet preferences: {str(e)}")
+        return jsonify({"msg": "An unexpected error occurred"}), 500
     
     return jsonify({
         "msg": "Preferences saved",

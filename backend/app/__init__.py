@@ -1,10 +1,8 @@
 from flask import Flask
 import os
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from app.shared.config import config
-from app.shared.extensions import db, migrate, jwt, swagger, cache
+from app.shared.extensions import db, migrate, jwt, swagger, cache, limiter
 from app.shared.utils.logger import setup_logger
 
 def create_app(config_name='default'):
@@ -41,13 +39,11 @@ def create_app(config_name='default'):
     redis_port = os.environ.get('REDIS_PORT', 6379)
     redis_uri = f"redis://{redis_host}:{redis_port}"
     
-    limiter = Limiter(
-        app=app,
-        key_func=get_remote_address,
-        default_limits=["2000 per day", "500 per hour"],
-        storage_uri=redis_uri,
-        strategy="fixed-window"
-    )
+    # Configure Rate Limiter
+    app.config['RATELIMIT_STORAGE_URI'] = redis_uri
+    app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+    
+    limiter.init_app(app)
     # Store limiter in app for access in routes
     app.limiter = limiter
     

@@ -15,6 +15,9 @@ class Achievement(db.Model):
     
     requirement_type = db.Column(db.String(50))
     requirement_value = db.Column(db.Float)
+    
+    # Relationship to user achievements
+    user_achievements = db.relationship('UserAchievement', back_populates='achievement', lazy='dynamic')
 
 class UserAchievement(db.Model):
     __tablename__ = 'user_achievements'
@@ -24,3 +27,7 @@ class UserAchievement(db.Model):
     achievement_id = db.Column(UUID(as_uuid=True), db.ForeignKey('achievements.id'), nullable=False)
     
     unlocked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    achievement = db.relationship('Achievement', back_populates='user_achievements')
+    user = db.relationship('User', backref='achievements')

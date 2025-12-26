@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { User, Camera, Loader2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { fetchAPI } from "@/lib/api";
+import { getToken } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -46,12 +46,13 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
 
         setUploading(true);
         try {
-            // Need to handle FormData specifically with fetchAPI wrapper or fetch directly
-            // fetchAPI usually handles JSON, let's see logic. 
-            // If fetchAPI sets Content-Type to json automatically, it breaks FormData.
-            // Check lib/api.ts logic if possible. Assuming standard fetch for formData often easier.
+            // Use getToken from @/lib/api to handle Capacitor storage correctly
+            const token = getToken();
 
-            const token = localStorage.getItem("token");
+            if (!token) {
+                throw new Error("Não autenticado");
+            }
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/profile/image`, {
                 method: "POST",
                 headers: {
@@ -60,7 +61,10 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
                 body: formData
             });
 
-            if (!response.ok) throw new Error("Falha no upload");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.msg || "Falha no upload");
+            }
 
             const data = await response.json();
 
@@ -69,7 +73,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
 
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao atualizar foto.");
+            toast.error(error instanceof Error ? error.message : "Erro ao atualizar foto.");
             setPreview(null); // Revert preview
         } finally {
             setUploading(false);
@@ -92,12 +96,6 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
 
     const imageUrl = preview || (currentImage ? (currentImage.startsWith("http") ? currentImage : `${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/static/${currentImage}`) : null);
 
-    // Quick fix for relative paths if backend returns 'uploads/...' and not full URL
-    // Ideally backend returns full URL or we construct it properly.
-    // If backend returns 'uploads/profile_pics/file.png', we need to prepend API_URL (or static base)
-    // Adjust logic based on real backend response. 
-    // Backend sets `user.profile_picture` as relative path.
-
     return (
         <div className={cn("relative group", className)}>
             <div
@@ -112,9 +110,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
                         alt={userName || "Profile"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                            // Fallback if image fails to load
                             e.currentTarget.style.display = 'none';
-                            // Show icon instead (can be done by state but quick fix via CSS/DOM hiding)
                         }}
                     />
                 ) : (
@@ -146,12 +142,6 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
                 accept="image/png, image/jpeg, image/jpg, image/gif"
                 onChange={handleFileChange}
             />
-
-            {/* Optional: Button trigger if not hovering image */}
-            {/* <Button variant="outline" size="sm" className="mt-4" onClick={() => fileInputRef.current?.click()}>
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Carregar Imagem
-            </Button> */}
         </div>
     );
 }

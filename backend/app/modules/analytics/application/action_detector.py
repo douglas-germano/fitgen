@@ -69,6 +69,33 @@ def detect_action_from_text(text: str) -> Optional[Dict[str, Any]]:
                 'amount_display': f'{amount_ml}ml'
             }
     
-    # TODO: Add meal detection, weight logging, etc.
+    # Weight detection
+    weight_patterns = [
+        r'pesei\s+(\d+(?:[.,]\d+)?)\s*kg',
+        r'estou\s+com\s+(\d+(?:[.,]\d+)?)\s*kg',
+        r'meu\s+peso\s+é\s+(\d+(?:[.,]\d+)?)',
+        r'peso\s+atual\s+(\d+(?:[.,]\d+)?)'
+    ]
+    
+    for pattern in weight_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            weight = float(match.group(1).replace(',', '.'))
+            return {
+                'type': 'log_weight',
+                'params': {'weight': weight},
+                'button_text': f'Registrar peso: {weight}kg?',
+                'amount_display': f'{weight}kg'
+            }
+
+    # Meal detection (simple keyword matching for now)
+    meal_keywords = ['comi', 'almocei', 'jantei', 'lanche', 'café']
+    if any(word in text_lower for word in meal_keywords):
+        return {
+            'type': 'log_meal',
+            'params': {},
+            'button_text': 'Registrar refeição?',
+            'amount_display': 'Refeição'
+        }
     
     return None

@@ -17,6 +17,7 @@ class User(db.Model):
     onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
     profile_picture = db.Column(db.String(500), nullable=True) # URL or Path
     phone = db.Column(db.String(20), unique=True, nullable=True) # WhatsApp number
+    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
     
     # Password Reset
     reset_token = db.Column(db.String(100), nullable=True)

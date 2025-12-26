@@ -66,7 +66,9 @@ def get_workout_details(plan_id):
         description: Plan not found
     """
     user_id = uuid.UUID(get_jwt_identity())
-    plan = WorkoutPlan.query.filter_by(id=plan_id, user_id=user_id).first()
+    plan = WorkoutPlan.query.options(
+        joinedload(WorkoutPlan.days).joinedload(WorkoutDay.exercises).joinedload(Exercise.exercise_library)
+    ).filter_by(id=plan_id, user_id=user_id).first()
     
     if not plan:
         return jsonify({"msg": "Plan not found"}), 404

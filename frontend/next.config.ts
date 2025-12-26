@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   output: "standalone",
-  turbopack: {},
+  // turbopack: {}, // Disabled due to memory constraints
   async rewrites() {
     return [
       {

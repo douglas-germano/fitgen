@@ -85,7 +85,7 @@ class GamificationService:
             setattr(streak_record, last_date_attr, today)
             
         # Check longest
-        longest = getattr(streak_record, longest_streak_attr)
+        longest = getattr(streak_record, longest_streak_attr) or 0
         if new_streak > longest:
             setattr(streak_record, longest_streak_attr, new_streak)
             
