@@ -2,9 +2,24 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Check, Dumbbell, Target, TrendingUp, Calendar, Award, Shield } from "lucide-react";
+import {
+  Check,
+  Dumbbell,
+  Target,
+  TrendingUp,
+  Award,
+  Shield,
+  Clock,
+  Home,
+  Building2,
+  LineChart,
+  BadgeCheck,
+  Info,
+} from "lucide-react";
 
 export default function LandingPage() {
+  const checkoutUrl = "https://pay.kiwify.com.br/14AVh4x";
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       {/* Hero Section */}
@@ -12,67 +27,166 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
         <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <h1 className="text-5xl font-bold tracking-tight sm:text-7xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
-              Você não precisa de mais motivação.
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-sm text-muted-foreground">
+              <BadgeCheck className="h-4 w-4 text-primary" />
+              Treinos personalizados e ajustados continuamente
+            </div>
+
+            <h1 className="mt-6 text-5xl font-bold tracking-tight sm:text-7xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              Treino personalizado que se adapta à sua rotina e à sua evolução.
             </h1>
-            <p className="mt-6 text-2xl sm:text-3xl font-semibold text-foreground/90 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150">
-              Precisa de um plano de treino que se adapte a você.
+
+            <p className="mt-6 text-lg sm:text-xl leading-8 text-muted-foreground animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150">
+              O FitGen cria um plano de treino adequado ao seu nível, objetivos e tempo disponível — e ajusta a progressão
+              conforme você executa e registra seus treinos. Sem planilhas genéricas. Sem “achismo”.
             </p>
-            <p className="mt-8 text-lg leading-8 text-muted-foreground animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
-              O FitGen é um aplicativo que cria e ajusta seus treinos automaticamente,
-              com base no seu corpo, rotina e evolução real.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-              <Link href="https://pay.kiwify.com.br/14AVh4x">
-                <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
-                  Começar meu teste gratuito agora
+
+            <div className="mt-10 flex items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+              <Link href={checkoutUrl}>
+                <Button
+                  size="lg"
+                  className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
+                >
+                  Começar teste gratuito de 7 dias
                 </Button>
               </Link>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground animate-in fade-in duration-1000 delay-700">
+
+            <p className="mt-4 text-sm text-muted-foreground animate-in fade-in duration-1000 delay-500">
               7 dias grátis • Cancele quando quiser • Sem fidelidade
             </p>
-          </div>
-        </div>
-      </section>
 
-      {/* Problem Section */}
-      <section className="py-24 sm:py-32 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-destructive/90">
-              O problema não é falta de disciplina.
-              <br />
-              É falta de adaptação.
-            </h2>
-            <p className="mt-6 text-lg leading-8 text-muted-foreground">
-              A maioria das pessoas começa a treinar com vontade, mas desiste por um motivo simples:
-              seguem planos genéricos que não consideram tempo, limitações físicas, nível real ou rotina.
-            </p>
-            <p className="mt-4 text-lg font-semibold text-foreground">
-              O resultado é previsível: dores, estagnação ou abandono.
-            </p>
-            <div className="mt-8 p-6 bg-destructive/10 border-2 border-destructive/20 rounded-lg">
-              <p className="text-base text-foreground/90 font-medium">
-                Treinos fixos não funcionam para pessoas reais com rotinas variáveis.
-              </p>
+            {/* Trust mini-grid */}
+            <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                {
+                  icon: Clock,
+                  title: "Compatível com rotinas curtas",
+                  desc: "Treinos ajustados ao tempo que você realmente tem.",
+                },
+                {
+                  icon: LineChart,
+                  title: "Progressão baseada em execução",
+                  desc: "Ajustes conforme seu desempenho e histórico.",
+                },
+                {
+                  icon: Shield,
+                  title: "Cancelamento simples",
+                  desc: "Sem burocracia para cancelar quando quiser.",
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-border bg-card/50 p-6 text-left hover:bg-card transition-colors"
+                >
+                  <item.icon className="h-6 w-6 text-primary" />
+                  <p className="mt-3 font-semibold">{item.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Solution Section */}
+      {/* Problem / Context */}
+      <section className="py-24 sm:py-32 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              A maioria das pessoas não falha por falta de disciplina.
+              <span className="text-primary"> Falha por seguir um plano que não se encaixa.</span>
+            </h2>
+
+            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-card p-8">
+                <p className="text-lg font-semibold">O que acontece na prática</p>
+                <ul className="mt-4 space-y-3 text-muted-foreground">
+                  {[
+                    "Treinos genéricos ignoram rotina, tempo e limitações.",
+                    "A intensidade costuma estar errada (excesso ou subcarga).",
+                    "Sem ajuste, a evolução trava e o treino perde sentido.",
+                    "O resultado vira dor, frustração e abandono.",
+                  ].map((t, i) => (
+                    <li key={i} className="flex gap-3">
+                      <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-8">
+                <p className="text-lg font-semibold">O que normalmente tentam fazer</p>
+                <div className="mt-4 space-y-4 text-muted-foreground">
+                  <div className="rounded-xl border border-border bg-muted/40 p-4">
+                    Trocar o treino toda semana sem critério.
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/40 p-4">
+                    Seguir planilhas prontas que não consideram seu nível.
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/40 p-4">
+                    Aumentar carga ou volume “no impulso”, sem progressão.
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
+                  <p className="text-foreground font-semibold">O problema real</p>
+                  <p className="mt-2 text-muted-foreground">
+                    Falta um sistema que acompanhe execução e ajuste o plano com consistência.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-10 text-lg text-muted-foreground">
+              Treino que funciona não é o mais “difícil”. É o que você consegue executar com regularidade e evoluir
+              com progressão coerente.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Solution */}
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              O FitGen resolve isso criando um plano de treino dinâmico, que evolui com você.
+              O FitGen foi criado para resolver o ponto que quase todos ignoram: adaptação contínua.
             </h2>
             <p className="mt-6 text-lg leading-8 text-muted-foreground">
-              Você informa seus objetivos, nível atual e rotina.
-              <br />
-              O sistema gera o treino ideal e ajusta conforme seu progresso.
+              Você começa com um plano compatível com o seu contexto. A partir daí, o sistema ajusta volume, intensidade
+              e progressão com base no que você executa — para manter evolução consistente sem “achismo”.
             </p>
+          </div>
+
+          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+            {[
+              {
+                icon: Target,
+                title: "Plano alinhado ao seu objetivo",
+                desc: "Emagrecimento, condicionamento, força ou ganho de massa, respeitando seu nível atual.",
+              },
+              {
+                icon: TrendingUp,
+                title: "Ajuste conforme histórico real",
+                desc: "O treino evolui conforme sua execução e feedback, mantendo progressão sustentável.",
+              },
+              {
+                icon: Dumbbell,
+                title: "Treino em casa ou academia",
+                desc: "O plano se adapta ao ambiente e ao equipamento disponível.",
+              },
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-border bg-card p-8 hover:shadow-xl hover:border-primary/40 transition-all"
+              >
+                <item.icon className="h-10 w-10 text-primary" />
+                <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
+                <p className="mt-2 text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -81,40 +195,57 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32 bg-muted/30">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-12">
-              O funcionamento é simples
-            </h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-12">Como funciona</h2>
           </div>
-          <div className="mx-auto mt-16 max-w-5xl">
+
+          <div className="mx-auto max-w-5xl">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {[
                 {
                   step: "1",
-                  title: "Você informa seus dados e objetivos",
+                  title: "Defina objetivo, nível e disponibilidade",
+                  desc: "Você informa sua rotina, experiência e ambiente de treino.",
                   icon: Target,
                 },
                 {
                   step: "2",
-                  title: "O FitGen monta seu plano personalizado",
+                  title: "Receba um plano compatível com seu contexto",
+                  desc: "Sem generalidades: treino dimensionado para você executar de verdade.",
                   icon: Dumbbell,
                 },
                 {
                   step: "3",
-                  title: "A cada treino, o sistema ajusta volume, carga e intensidade",
+                  title: "Registre e evolua com ajustes automáticos",
+                  desc: "O sistema ajusta progressão conforme seu histórico e resposta ao treino.",
                   icon: TrendingUp,
                 },
               ].map((item, index) => (
                 <div
                   key={index}
-                  className="relative flex flex-col items-center p-8 bg-card rounded-2xl border border-border hover:border-primary/50 transition-all hover:shadow-xl"
+                  className="relative flex flex-col p-8 bg-card rounded-2xl border border-border hover:border-primary/50 transition-all hover:shadow-xl"
                 >
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold shadow-lg">
+                  <div className="absolute -top-4 left-8 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold shadow-lg">
                     {item.step}
                   </div>
-                  <item.icon className="h-12 w-12 text-primary mt-4 mb-4" />
-                  <h3 className="text-lg font-semibold text-center">{item.title}</h3>
+                  <item.icon className="h-10 w-10 text-primary mt-6 mb-4" />
+                  <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <p className="mt-2 text-muted-foreground">{item.desc}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-10 rounded-2xl border border-border bg-card p-8">
+              <div className="flex items-start gap-4">
+                <Info className="h-6 w-6 text-primary mt-1" />
+                <div>
+                  <p className="font-semibold">Importante</p>
+                  <p className="mt-1 text-muted-foreground">
+                    O FitGen auxilia na construção e ajuste do treino com base nas informações fornecidas e no seu
+                    histórico. Se você tem lesões, dores persistentes ou condições clínicas, busque liberação médica
+                    antes de iniciar qualquer rotina de treino.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -125,27 +256,59 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-12">
-              Com o FitGen, você:
+              O que muda quando você treina com um sistema
             </h2>
           </div>
-          <div className="mx-auto mt-16 max-w-4xl">
-            <ul className="space-y-4">
-              {[
-                "Treina com um plano realmente compatível com seu nível",
-                "Evita lesões por excesso ou subcarga",
-                "Evolui com ajustes automáticos, sem achismo",
-                "Treina em casa ou na academia",
-                "Acompanha sua evolução de forma clara",
-              ].map((benefit, index) => (
-                <li
-                  key={index}
-                  className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <Check className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                  <span className="text-lg text-foreground/90">{benefit}</span>
-                </li>
-              ))}
-            </ul>
+
+          <div className="mx-auto mt-16 max-w-5xl grid grid-cols-1 gap-6 md:grid-cols-2">
+            {[
+              {
+                title: "Treino coerente com seu nível",
+                desc: "Você começa no ponto certo e evolui com progressão planejada, reduzindo risco de excesso ou subcarga.",
+              },
+              {
+                title: "Mais consistência, menos fricção",
+                desc: "Quando o treino cabe na rotina, a frequência aumenta — e o resultado aparece como consequência.",
+              },
+              {
+                title: "Evolução mensurável",
+                desc: "Histórico e acompanhamento para você entender o que está funcionando e por quê.",
+              },
+              {
+                title: "Flexibilidade sem bagunça",
+                desc: "Mudou a rotina? O plano se ajusta sem você precisar recomeçar do zero.",
+              },
+            ].map((item, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-border bg-card p-8 hover:border-primary/40 hover:shadow-xl transition-all"
+              >
+                <div className="flex items-start gap-4">
+                  <Check className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="text-lg font-semibold">{item.title}</p>
+                    <p className="mt-2 text-muted-foreground">{item.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mx-auto mt-14 max-w-5xl rounded-2xl border border-border bg-muted/30 p-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="flex items-center gap-3">
+                <Home className="h-5 w-5 text-primary" />
+                <p className="text-muted-foreground">Treino em casa</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-primary" />
+                <p className="text-muted-foreground">Treino na academia</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-primary" />
+                <p className="text-muted-foreground">Rotinas curtas ou completas</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -153,15 +316,26 @@ export default function LandingPage() {
       {/* Differential */}
       <section className="py-24 sm:py-32 bg-primary/5">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-5xl">
             <div className="bg-card border-2 border-primary/20 rounded-2xl p-8 md:p-12 shadow-xl">
               <Award className="h-12 w-12 text-primary mb-6" />
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">
-                Diferente de aplicativos com treinos prontos, o FitGen não entrega um plano fixo.
+                Treino pronto não é personalização. É apenas conteúdo.
               </h2>
               <p className="text-lg text-muted-foreground">
-                Ele reage às suas respostas e adapta o treino continuamente, como um treinador faria.
+                O FitGen não entrega uma planilha fixa. Ele opera como um sistema: você executa, registra, e o plano é
+                ajustado para manter progressão e aderência à rotina.
               </p>
+              <div className="mt-8">
+                <Link href={checkoutUrl}>
+                  <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                    Começar teste gratuito de 7 dias
+                  </Button>
+                </Link>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  7 dias grátis • Cancele quando quiser • Sem fidelidade
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -171,27 +345,29 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">
-              Acesso completo ao FitGen
-            </h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">Acesso completo ao FitGen</h2>
+
             <div className="mt-10 flex flex-col items-center gap-6">
               <div className="text-center">
                 <p className="text-5xl font-bold tracking-tight">R$ 19,90</p>
                 <p className="text-lg text-muted-foreground mt-2">por mês</p>
               </div>
+
               <p className="text-lg text-muted-foreground max-w-xl">
-                Você pode testar gratuitamente por 7 dias e cancelar quando quiser.
+                Teste por 7 dias. Se fizer sentido para sua rotina, continue. Se não fizer, cancele em poucos cliques.
               </p>
-              <Link href="https://pay.kiwify.com.br/14AVh4x">
+
+              <Link href={checkoutUrl}>
                 <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
-                  Começar meu teste gratuito agora
+                  Começar teste gratuito de 7 dias
                 </Button>
               </Link>
-              <div className="mt-8 p-6 bg-muted/50 rounded-lg border border-border max-w-xl">
+
+              <div className="mt-8 p-6 bg-muted/50 rounded-2xl border border-border max-w-xl">
                 <Shield className="h-8 w-8 text-primary mx-auto mb-4" />
                 <p className="text-sm text-center text-foreground/90">
-                  <strong>Garantia Total:</strong> Se o FitGen não se encaixar na sua rotina, basta cancelar.
-                  Sem fidelidade, sem burocracia.
+                  <strong>Sem fidelidade.</strong> Se o FitGen não se encaixar na sua rotina, basta cancelar. Sem taxas,
+                  sem burocracia.
                 </p>
               </div>
             </div>
@@ -203,80 +379,59 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32 bg-muted/30">
         <div className="mx-auto max-w-4xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Perguntas Frequentes
-            </h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Perguntas frequentes</h2>
           </div>
+
           <div className="space-y-6">
             {[
               {
                 q: "O que é o FitGen?",
-                a: "O FitGen é um aplicativo que cria e ajusta planos de treino de forma personalizada, com base nos seus objetivos, nível físico, rotina e evolução ao longo do tempo."
+                a: "O FitGen é um aplicativo que cria e ajusta planos de treino de forma personalizada, com base nos seus objetivos, nível físico, rotina e evolução ao longo do tempo.",
               },
               {
-                q: "O FitGen substitui um personal trainer?",
-                a: "O FitGen não é um personal presencial, mas funciona como um sistema de treino inteligente. Ele ajusta volume, intensidade e progressão automaticamente, algo que treinos prontos ou planilhas não fazem."
-              },
-              {
-                q: "O FitGen serve para iniciantes?",
-                a: "Sim. O plano é criado de acordo com o seu nível atual. Quem nunca treinou começa com treinos básicos e seguros, com evolução gradual."
+                q: "Serve para iniciantes?",
+                a: "Sim. O plano é montado de acordo com seu nível atual. Você começa com um treino adequado e evolui de forma gradual.",
               },
               {
                 q: "Preciso treinar em academia?",
-                a: "Não. O FitGen adapta os treinos para: Treino em casa, Academia, Poucos ou nenhum equipamento. Você informa o que tem disponível, e o plano é ajustado."
+                a: "Não. O FitGen adapta o plano para treino em casa ou na academia, considerando o equipamento disponível.",
               },
               {
                 q: "Quanto tempo preciso treinar por dia?",
-                a: "O tempo varia conforme seu objetivo e disponibilidade. O FitGen cria treinos compatíveis com rotinas curtas ou mais longas, de forma realista."
+                a: "O FitGen ajusta o treino ao tempo que você informa ter disponível, criando rotinas curtas ou completas de forma realista.",
               },
               {
                 q: "O plano muda com o tempo?",
-                a: "Sim. O diferencial do FitGen é justamente o ajuste contínuo. Conforme seu desempenho e feedback, o treino é recalculado."
+                a: "Sim. Conforme seu histórico e feedback, o sistema ajusta progressão, volume e intensidade para manter evolução consistente.",
               },
               {
-                q: "O FitGen cria dieta também?",
-                a: "O FitGen pode fornecer orientações alimentares gerais e plano de hidratação. Ele não substitui acompanhamento nutricional clínico."
+                q: "O FitGen cria dieta?",
+                a: "O FitGen pode oferecer orientações gerais e hidratação. Não substitui acompanhamento nutricional clínico.",
               },
               {
                 q: "É seguro para quem tem limitações físicas?",
-                a: "O sistema considera restrições informadas pelo usuário. Ainda assim, pessoas com lesões ou condições específicas devem buscar liberação médica antes de iniciar qualquer treino."
+                a: "O sistema considera restrições informadas, mas quem possui lesões, dores persistentes ou condições clínicas deve buscar liberação médica antes de iniciar treinos.",
               },
               {
-                q: "Preciso entender de musculação para usar?",
-                a: "Não. Os treinos são descritos de forma clara e objetiva, facilitando a execução mesmo para iniciantes."
-              },
-              {
-                q: "Funciona para quem quer emagrecer?",
-                a: "Sim. O FitGen ajusta treinos e intensidade conforme o objetivo informado, incluindo emagrecimento, ganho de força ou condicionamento."
-              },
-              {
-                q: "Funciona para quem quer ganhar massa muscular?",
-                a: "Sim. Os planos consideram progressão de carga, volume e descanso, respeitando o nível do usuário."
-              },
-              {
-                q: "Como funciona o período de teste?",
-                a: "Você pode testar o FitGen gratuitamente por 7 dias. Durante esse período, tem acesso às funcionalidades principais."
+                q: "Como funciona o teste gratuito?",
+                a: "Você tem 7 dias para testar. Se fizer sentido para sua rotina, continue. Se não fizer, você pode cancelar.",
               },
               {
                 q: "Posso cancelar quando quiser?",
-                a: "Sim. O cancelamento pode ser feito a qualquer momento, sem fidelidade ou taxas adicionais."
+                a: "Sim. Cancelamento a qualquer momento, sem fidelidade.",
               },
               {
-                q: "Qual o valor do FitGen?",
-                a: "O acesso completo custa R$19,90 por mês após o período de teste gratuito."
+                q: "Qual o valor?",
+                a: "R$ 19,90 por mês após o período de teste gratuito.",
               },
               {
-                q: "Meus dados ficam seguros?",
-                a: "Sim. As informações são utilizadas apenas para personalização dos treinos e funcionamento do aplicativo."
-              },
-              {
-                q: "Para quem o FitGen não é indicado?",
-                a: "O FitGen não é indicado para: Quem busca acompanhamento médico ou fisioterapêutico, Quem não pretende seguir nenhum tipo de rotina de treino."
+                q: "Para quem não é indicado?",
+                a: "Para quem precisa de acompanhamento médico/fisioterapêutico específico, ou para quem não pretende seguir nenhuma rotina de treino.",
               },
             ].map((faq, index) => (
               <details
                 key={index}
-                className="group bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all"
+                className="group bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/50 transition-all"
               >
                 <summary className="flex cursor-pointer items-center justify-between p-6 font-semibold text-foreground list-none">
                   <span className="text-lg">{faq.q}</span>
@@ -289,9 +444,7 @@ export default function LandingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </summary>
-                <div className="px-6 pb-6 text-muted-foreground">
-                  {faq.a}
-                </div>
+                <div className="px-6 pb-6 text-muted-foreground">{faq.a}</div>
               </details>
             ))}
           </div>
@@ -301,18 +454,20 @@ export default function LandingPage() {
       {/* Final CTA */}
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-8">
-              Pronto para começar sua evolução?
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">
+              Se você quer evoluir sem depender de “treino pronto”, comece pelo teste.
             </h2>
-            <Link href="https://pay.kiwify.com.br/14AVh4x">
+            <p className="text-lg text-muted-foreground mb-10">
+              Você não precisa decidir agora. Teste por 7 dias, veja se o FitGen encaixa na sua rotina e, se não fizer
+              sentido, cancele.
+            </p>
+            <Link href={checkoutUrl}>
               <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
-                Começar meu teste gratuito agora
+                Começar teste gratuito de 7 dias
               </Button>
             </Link>
-            <p className="mt-6 text-sm text-muted-foreground">
-              7 dias grátis • Cancele quando quiser • Sem fidelidade
-            </p>
+            <p className="mt-6 text-sm text-muted-foreground">7 dias grátis • Cancele quando quiser • Sem fidelidade</p>
           </div>
         </div>
       </section>
