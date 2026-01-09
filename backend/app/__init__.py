@@ -35,23 +35,39 @@ def create_app(config_name='default'):
         "max_age": 600
     }})
     
+    
     # Initialize Rate Limiter with fallback to in-memory storage
+    redis_url = os.environ.get('REDIS_URL')
     redis_host = os.environ.get('REDIS_HOST')
     
-    if redis_host:
-        # Use Redis if available
+    if redis_url:
+        # Use REDIS_URL if provided (Railway format)
+        app.config['RATELIMIT_STORAGE_URI'] = redis_url
+        app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+        app.logger.info(f"Using Redis from REDIS_URL")
+    elif redis_host:
+        # Fallback to building URL from REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
         redis_port = os.environ.get('REDIS_PORT', 6379)
-        redis_uri = f"redis://{redis_host}:{redis_port}"
+        redis_password = os.environ.get('REDIS_PASSWORD')
+        
+        if redis_password:
+            redis_uri = f"redis://:{redis_password}@{redis_host}:{redis_port}"
+        else:
+            redis_uri = f"redis://{redis_host}:{redis_port}"
+            
         app.config['RATELIMIT_STORAGE_URI'] = redis_uri
         app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+        app.logger.info(f"Using Redis from REDIS_HOST: {redis_host}")
     else:
-        # Fallback to in-memory storage (for Railway/deployments without Redis)
+        # Fallback to in-memory storage (for deployments without Redis)
         app.config['RATELIMIT_STORAGE_URI'] = "memory://"
         app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+        app.logger.info("Using in-memory storage for rate limiting")
     
     limiter.init_app(app)
     # Store limiter in app for access in routes
     app.limiter = limiter
+    
     
     db.init_app(app)
     
