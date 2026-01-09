@@ -35,15 +35,19 @@ def create_app(config_name='default'):
         "max_age": 600
     }})
     
-    # Initialize Rate Limiter (in-memory for development, use Redis in production)
-    # Initialize Rate Limiter
-    redis_host = os.environ.get('REDIS_HOST', 'localhost')
-    redis_port = os.environ.get('REDIS_PORT', 6379)
-    redis_uri = f"redis://{redis_host}:{redis_port}"
+    # Initialize Rate Limiter with fallback to in-memory storage
+    redis_host = os.environ.get('REDIS_HOST')
     
-    # Configure Rate Limiter
-    app.config['RATELIMIT_STORAGE_URI'] = redis_uri
-    app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+    if redis_host:
+        # Use Redis if available
+        redis_port = os.environ.get('REDIS_PORT', 6379)
+        redis_uri = f"redis://{redis_host}:{redis_port}"
+        app.config['RATELIMIT_STORAGE_URI'] = redis_uri
+        app.config['RATELIMIT_STRATEGY'] = "fixed-window"
+    else:
+        # Fallback to in-memory storage (for Railway/deployments without Redis)
+        app.config['RATELIMIT_STORAGE_URI'] = "memory://"
+        app.config['RATELIMIT_STRATEGY'] = "fixed-window"
     
     limiter.init_app(app)
     # Store limiter in app for access in routes
