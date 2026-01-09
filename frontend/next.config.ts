@@ -7,10 +7,14 @@ const nextConfig: NextConfig = {
   // turbopack: {}, // Disabled due to memory constraints
   async rewrites() {
     const backendUrl = process.env.NODE_ENV === "development"
-      ? "http://backend:5000"
+      ? "http://localhost:5001"
       : "https://fitgen.suacozinha.site";
 
     return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
+      },
       {
         source: "/apidocs",
         destination: `${backendUrl}/apidocs`,

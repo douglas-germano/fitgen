@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,23 @@ export default function LoginPage() {
         password: ""
     });
 
+    const handleLoginSuccess = async (data: any) => {
+        // Store tokens using async storage layer
+        await Promise.all([
+            setToken(data.access_token),
+            setStorageItem("refresh_token", data.refresh_token)
+        ]);
+
+        toast.success("Login realizado com sucesso!");
+
+        // Redirect based on onboarding status
+        if (data.onboarding_completed) {
+            router.push("/dashboard");
+        } else {
+            router.push("/onboarding");
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -34,20 +52,7 @@ export default function LoginPage() {
             });
 
             if (data) {
-                // Store tokens using async storage layer
-                await Promise.all([
-                    setToken(data.access_token),
-                    setStorageItem("refresh_token", data.refresh_token)
-                ]);
-
-                toast.success("Login realizado com sucesso!");
-
-                // Redirect based on onboarding status
-                if (data.onboarding_completed) {
-                    router.push("/dashboard");
-                } else {
-                    router.push("/onboarding");
-                }
+                await handleLoginSuccess(data);
             }
         } catch (error: any) {
             setError(error.message || "Falha ao realizar login");
@@ -55,6 +60,8 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
+
 
     return (
         <Card className="glass-card shadow-2xl border-white/10">
@@ -107,12 +114,14 @@ export default function LoginPage() {
                         Entrar
                     </Button>
                 </form>
+
+
             </CardContent>
             <CardFooter className="flex flex-col gap-4 text-center text-sm text-muted-foreground border-t border-white/5 pt-6 mt-2">
                 <p>
                     Não tem uma conta?{" "}
                     <Link href="https://pay.kiwify.com.br/14AVh4x" className="font-medium text-primary hover:underline underline-offset-4">
-                        Comece grátis
+                        Comece hoje mesmo!
                     </Link>
                 </p>
             </CardFooter>

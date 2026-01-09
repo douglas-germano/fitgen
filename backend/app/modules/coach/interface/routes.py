@@ -8,7 +8,7 @@ from app.shared.utils.timezone import now_cuiaba
 
 chat_bp = Blueprint('chat', __name__)
 
-@chat_bp.route('/', methods=['POST'])
+@chat_bp.route('', methods=['POST'])
 @jwt_required()
 def send_message():
     """

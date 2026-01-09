@@ -415,3 +415,5 @@ def change_password():
     db.session.commit()
     
     return jsonify({"msg": "Senha alterada com sucesso"}), 200
+
+
