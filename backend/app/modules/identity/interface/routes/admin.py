@@ -9,8 +9,13 @@ import uuid
 admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.before_request
-@jwt_required()
 def check_admin():
+    if request.method == 'OPTIONS':
+        return
+        
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     print(f"Admin Access Check: User {user.email if user else 'None'} ({user_id}), Role: {user.role if user else 'None'}")
