@@ -26,7 +26,7 @@ export function Header() {
     }, []);
 
     return (
-        <header className="flex h-16 items-center border-b border-white/5 px-6 glass sticky top-0 z-30">
+        <header className="flex h-16 items-center border-b border-white/5 px-6 glass sticky top-0 z-30 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
             <div className="flex flex-1 items-center justify-between">
                 <h2 className="text-lg font-semibold md:hidden">FitGen</h2>
                 <div className="ml-auto flex items-center gap-2">
