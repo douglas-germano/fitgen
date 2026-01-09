@@ -6,7 +6,7 @@ pages_build_output_dir = ".vercel/output/static"
 [vars]
 # Defina suas variáveis de ambiente aqui. 
 # Nota: Para segredos, use 'wrangler pages secret put'
-NEXT_PUBLIC_API_URL = "https://api.suacozinha.site/api"
+NEXT_PUBLIC_API_URL = "https://fitgen-production.up.railway.app/api"
 
 # Configuração para KV Namespaces (se necessário)
 # [[kv_namespaces]]
