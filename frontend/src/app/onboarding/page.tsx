@@ -47,18 +47,20 @@ function OptionCard({ value, label, selected, onClick, description }: OptionProp
         <div
             onClick={onClick}
             className={cn(
-                "relative flex flex-col p-4 cursor-pointer rounded-xl border transition-all duration-200",
+                "relative flex flex-col p-4 cursor-pointer rounded-xl border transition-all duration-300",
                 selected
-                    ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
-                    : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                    ? "border-primary bg-primary/15 shadow-lg shadow-primary/10 backdrop-blur-sm"
+                    : "border-border/40 bg-secondary/30 hover:bg-secondary/50 hover:border-border/60 backdrop-blur-sm"
             )}
         >
-            <div className="font-medium text-base">{label}</div>
+            <div className={cn("font-medium text-base", selected ? "text-primary" : "text-foreground")}>
+                {label}
+            </div>
             {description && (
-                <div className="text-xs text-muted-foreground mt-1">{description}</div>
+                <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</div>
             )}
             {selected && (
-                <div className="absolute top-4 right-4 text-primary">
+                <div className="absolute top-4 right-4 text-primary animate-in fade-in zoom-in duration-300">
                     <Check className="w-5 h-5" />
                 </div>
             )}
@@ -236,25 +238,25 @@ export default function OnboardingPage() {
     const progress = (step / TOTAL_STEPS) * 100;
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-gradient-to-b from-background to-background/95">
+        <div className="min-h-screen w-full flex items-center justify-center p-4 pt-safe pb-safe bg-background/50">
             {isLoading && <AILoading mode="workout" />}
 
             <div className="w-full max-w-3xl animate-fade-in-up">
                 {/* Progress Indicator */}
-                <div className="mb-6 flex items-center justify-between">
-                    <div className="flex-1 bg-white/5 h-1.5 rounded-full overflow-hidden">
+                <div className="mb-8 flex items-center justify-between px-1">
+                    <div className="flex-1 bg-secondary/50 h-2 rounded-full overflow-hidden backdrop-blur-sm">
                         <div
-                            className="h-full bg-gradient-to-r from-primary to-purple-500 transition-all duration-300"
+                            className="h-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)] transition-all duration-500 ease-out"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
-                    <span className="ml-4 text-sm text-muted-foreground">
+                    <span className="ml-4 text-sm font-medium text-muted-foreground tabular-nums">
                         {step} / {TOTAL_STEPS}
                     </span>
                 </div>
 
                 {/* Main Card */}
-                <Card className="glass-card shadow-xl shadow-primary/5 border-white/10">
+                <Card className="glass border-white/5 shadow-2xl shadow-black/20">
                     <CardHeader className="space-y-2 pb-6">
                         {/* Dynamic Title & Description */}
                         {step === 1 && (
@@ -380,7 +382,7 @@ export default function OnboardingPage() {
                                     autoFocus
                                     value={formData.age}
                                     onChange={handleChange}
-                                    className="h-16 text-center text-3xl bg-white/5 border-white/10"
+                                    className="h-20 text-center text-4xl font-light bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm rounded-2xl"
                                     placeholder="25"
                                 />
                             </div>
@@ -396,7 +398,7 @@ export default function OnboardingPage() {
                                     autoFocus
                                     value={formData.weight_kg}
                                     onChange={handleChange}
-                                    className="h-16 text-center text-3xl bg-white/5 border-white/10"
+                                    className="h-20 text-center text-4xl font-light bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm rounded-2xl"
                                     placeholder="70.0"
                                 />
                             </div>
@@ -411,7 +413,7 @@ export default function OnboardingPage() {
                                     autoFocus
                                     value={formData.height_cm}
                                     onChange={handleChange}
-                                    className="h-16 text-center text-3xl bg-white/5 border-white/10"
+                                    className="h-20 text-center text-4xl font-light bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm rounded-2xl"
                                     placeholder="175"
                                 />
                             </div>
@@ -448,7 +450,7 @@ export default function OnboardingPage() {
                                     autoFocus
                                     value={formData.target_weight_kg}
                                     onChange={handleChange}
-                                    className="h-16 text-center text-3xl bg-white/5 border-white/10"
+                                    className="h-20 text-center text-4xl font-light bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm rounded-2xl"
                                     placeholder={formData.weight_kg || "70.0"}
                                 />
                             </div>
@@ -483,10 +485,10 @@ export default function OnboardingPage() {
                                         key={d}
                                         onClick={() => handleOptionSelect("training_days_count", d)}
                                         className={cn(
-                                            "h-20 rounded-xl cursor-pointer border flex flex-col items-center justify-center transition-all",
+                                            "h-20 rounded-xl cursor-pointer border flex flex-col items-center justify-center transition-all duration-300",
                                             formData.training_days_count === d
-                                                ? "bg-primary border-primary text-white shadow-md shadow-primary/30"
-                                                : "bg-white/5 border-white/10 hover:bg-white/10"
+                                                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25 scale-[1.02]"
+                                                : "bg-secondary/30 border-border/40 hover:bg-secondary/50 hover:border-border/60 backdrop-blur-sm"
                                         )}
                                     >
                                         <div className="text-2xl font-bold">{d}</div>
@@ -552,7 +554,7 @@ export default function OnboardingPage() {
                                         placeholder="Ex: Dor no joelho esquerdo..."
                                         value={formData.injuries === "Não possuo limitações" ? "" : formData.injuries}
                                         onChange={(e) => handleOptionSelect("injuries", e.target.value)}
-                                        className="bg-white/5 border-white/10"
+                                        className="bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm min-h-[100px] resize-none rounded-xl"
                                     />
                                 </div>
                             </div>
@@ -595,7 +597,7 @@ export default function OnboardingPage() {
                                         placeholder="Ex: Amendoim, Camarão..."
                                         value={formData.allergies === "Não" ? "" : formData.allergies}
                                         onChange={(e) => handleOptionSelect("allergies", e.target.value)}
-                                        className="bg-white/5 border-white/10"
+                                        className="bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm min-h-[100px] resize-none rounded-xl"
                                     />
                                 </div>
                             </div>
@@ -628,7 +630,7 @@ export default function OnboardingPage() {
                                 placeholder="Ex: Fígado, Jiló, Peixe..."
                                 value={formData.dislikes}
                                 onChange={handleChange}
-                                className="bg-white/5 border-white/10 min-h-[100px]"
+                                className="bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm min-h-[120px] resize-none rounded-xl p-4 text-base"
                                 autoFocus
                             />
                         )}
@@ -640,7 +642,7 @@ export default function OnboardingPage() {
                                 placeholder="Ex: Trabalho à noite, não sei cozinhar..."
                                 value={formData.extra_info}
                                 onChange={handleChange}
-                                className="bg-white/5 border-white/10 min-h-[100px]"
+                                className="bg-secondary/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 backdrop-blur-sm min-h-[120px] resize-none rounded-xl p-4 text-base"
                                 autoFocus
                             />
                         )}
@@ -664,7 +666,8 @@ export default function OnboardingPage() {
                         <Button
                             onClick={nextStep}
                             disabled={isLoading}
-                            className="flex-1 bg-gradient-to-r from-primary to-purple-600 hover:opacity-90"
+                            size="lg"
+                            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300"
                         >
                             {isLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

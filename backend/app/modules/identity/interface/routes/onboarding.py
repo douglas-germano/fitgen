@@ -173,7 +173,11 @@ def generate_workout():
             "plan_name": plan.name
         }), 200
     except Exception as e:
-        print(f"Error generating workout: {e}")
+        import traceback
+        with open("/var/www/fitgen/backend/debug_error.log", "a") as f:
+            f.write(f"Error generating workout: {e}\n")
+            f.write(traceback.format_exc())
+            f.write("\n" + "="*50 + "\n")
         return jsonify({"msg": "Failed to generate workout plan"}), 500
 
 @onboarding_bp.route('/status', methods=['GET'])

@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
+from sqlalchemy.orm import joinedload
 from datetime import datetime
 
 workouts_bp = Blueprint('workouts', __name__)

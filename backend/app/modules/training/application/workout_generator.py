@@ -1,27 +1,61 @@
+import logging
+import time
 from app.modules.coach.infrastructure.gemini_service import GeminiService
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from app.shared.extensions import db
 from datetime import datetime, timedelta
 
+logger = logging.getLogger(__name__)
+
 class WorkoutGeneratorService:
     def __init__(self):
         self.gemini = GeminiService()
 
     def generate_workout_plan(self, user, profile):
-        prompt = self._build_prompt(profile)
+        prompt, exercise_map = self._build_prompt(profile)
         
-        ai_response = self.gemini.generate_json(prompt)
+        ai_response = None
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                ai_response = self.gemini.generate_json(prompt)
+                if ai_response:
+                    break
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1} failed: {e}")
+                time.sleep(1) # Backoff
         
         if not ai_response:
+            logger.error("Failed to generate workout plan from AI after retries")
             raise Exception("Failed to generate workout plan from AI")
             
-        return self._save_plan_to_db(user, ai_response)
+        return self._save_plan_to_db(user, ai_response, exercise_map)
 
     def _build_prompt(self, profile):
-        # Fetch available exercises
-        available_exercises = [ex.name for ex in ExerciseLibrary.query.filter_by(is_active=True).all()]
-        exercises_list_str = "\n".join([f"- {name}" for name in available_exercises])
+        # Filter exercises based on profile (basic filtering for now, can be expanded)
+        # For simplicity and context limit, we might want to prioritize exercises
+        # But for now let's just use all active ones to ensure variety, but mapped by ID
+        query = ExerciseLibrary.query.filter_by(is_active=True)
+        
+        # Example simple filter: if beginner, maybe exclude 'advanced' (optional)
+        # if profile.experience_level and 'beginner' in profile.experience_level.lower():
+        #     query = query.filter(ExerciseLibrary.difficulty_level != 'advanced')
+            
+        available_exercises = query.all()
+        
+        # Create a map of Index -> (ID, Name) to send to AI
+        exercise_map = {}
+        exercises_list_parts = []
+        
+        for idx, ex in enumerate(available_exercises):
+            # Using 1-based index for AI friendliness
+            map_idx = idx + 1
+            exercise_map[map_idx] = {'id': ex.id, 'name': ex.name, 'obj': ex}
+            exercises_list_parts.append(f"{map_idx}. {ex.name} (Nível: {ex.difficulty_level}, Categoria: {ex.category})")
+            
+        exercises_list_str = "\n".join(exercises_list_parts)
 
         return f"""
         Você é um personal trainer profissional certificado. Crie um plano de treino personalizado com base nos seguintes dados do aluno:
@@ -43,14 +77,13 @@ class WorkoutGeneratorService:
         INSTRUÇÕES:
         1. Crie um plano de treino semanal otimizado para o objetivo do aluno
         2. Distribua os grupos musculares de forma equilibrada nos dias disponíveis
-        3. Para cada exercício, especifique: nome, séries, repetições, tempo de descanso
+        3. Para cada exercício, especifique: ID da lista, séries, repetições, tempo de descanso
         4. Considere as limitações físicas mencionadas
         5. Adapte ao equipamento disponível
-        6. IMPORTANTE: Mantenha o 'name' do exercício com menos de 50 caracteres.
-        7. IMPORTANTE: Mantenha 'reps' com menos de 50 caracteres (ex: '10-12' ou '3x15').
-        8. CRÍTICO: USE APENAS EXERCÍCIOS DA LISTA ABAIXO. NÃO INVENTE NOMES. SE O EXERCÍCIO NÃO ESTIVER NA LISTA, ESCOLHA UM SIMILAR DA LISTA.
-        
-        LISTA DE EXERCÍCIOS PERMITIDOS:
+        6. IMPORTANTE: Mantenha 'reps' com menos de 50 caracteres (ex: '10-12' ou '3x15').
+        7. CRÍTICO: USE APENAS EXERCÍCIOS DA LISTA ABAIXO. Retorne o 'exercise_id' correspondente ao número na lista.
+
+        LISTA DE EXERCÍCIOS DISPONÍVEIS (Use o número como ID):
         {exercises_list_str}
 
         FORMATO DE RESPOSTA (JSON):
@@ -64,8 +97,8 @@ class WorkoutGeneratorService:
               "muscle_groups": ["chest", "triceps"],
               "exercises": [
                 {{
-                  "name": "Supino Reto com Barra",
-                  "description": "Deite no banco...",
+                  "exercise_id": 12, 
+                  "name_observation": "Supino Reto (apenas para referência)",
                   "sets": 4,
                   "reps": "8-12",
                   "rest_seconds": 90,
@@ -76,9 +109,9 @@ class WorkoutGeneratorService:
           ],
           "recommendations": "Dicas gerais"
         }}
-        """
+        """, exercise_map
 
-    def _save_plan_to_db(self, user, data):
+    def _save_plan_to_db(self, user, data, exercise_map):
         # Deactivate old plans
         old_plans = WorkoutPlan.query.filter_by(user_id=user.id, is_active=True).all()
         for p in old_plans:
@@ -87,7 +120,7 @@ class WorkoutGeneratorService:
         # Create new plan
         new_plan = WorkoutPlan(
             user_id=user.id,
-            name=data.get('plan_name', 'Meu Plano de Treino'),
+            name=data.get('plan_name', 'Meu Plano de Treino')[:100],
             description=data.get('plan_description', '') + f"\n\nRecomendações: {data.get('recommendations', '')}",
             generated_by_ai=True,
             is_active=True,
@@ -111,15 +144,27 @@ class WorkoutGeneratorService:
             db.session.flush()
             
             for ex_idx, ex_data in enumerate(day_data.get('exercises', [])):
-                # Find library ID if exists
-                lib_exercise = ExerciseLibrary.query.filter(ExerciseLibrary.name.ilike(ex_data.get('name'))).first()
+                # Resolve Exercise from Map using ID
+                ex_id = ex_data.get('exercise_id')
+                mapped_ex = exercise_map.get(ex_id)
+                
+                lib_exercise = None
+                exercise_name = "Exercício Desconhecido"
+                
+                if mapped_ex:
+                    lib_exercise = mapped_ex['obj']
+                    exercise_name = lib_exercise.name
+                else:
+                    # Fallback if AI hallucinates an ID or uses old format
+                    if ex_data.get('name'):
+                         exercise_name = ex_data.get('name')[:100] # Increased limit
                 
                 exercise = Exercise(
                     workout_day_id=workout_day.id,
                     user_id=user.id,
-                    name=lib_exercise.name if lib_exercise else (ex_data.get('name')[:50] if ex_data.get('name') else 'Exercise'),
+                    name=exercise_name,
                     exercise_library_id=lib_exercise.id if lib_exercise else None,
-                    description=lib_exercise.description if lib_exercise else ex_data.get('description'),
+                    description=lib_exercise.description if lib_exercise else ex_data.get('description', ''),
                     sets=ex_data.get('sets'),
                     reps=str(ex_data.get('reps'))[:50] if ex_data.get('reps') else '10',
                     rest_seconds=ex_data.get('rest_seconds'),
