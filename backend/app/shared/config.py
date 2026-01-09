@@ -20,10 +20,14 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(seconds=int(os.environ.get('JWT_REFRESH_TOKEN_EXPIRES', 2592000)))  # 30 days
 
     # Cache Configuration
+    # Cache Configuration
     CACHE_TYPE = 'RedisCache'
-    CACHE_REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-    CACHE_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-    CACHE_REDIS_DB = 0
+    if os.environ.get('REDIS_URL'):
+        CACHE_REDIS_URL = os.environ.get('REDIS_URL')
+    else:
+        CACHE_REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+        CACHE_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+        CACHE_REDIS_DB = 0
     CACHE_DEFAULT_TIMEOUT = 300
 
 class DevelopmentConfig(Config):
