@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-// import { PushNotifications } from '@capacitor/push-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { fetchAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ export function usePushNotifications() {
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
             // Mobile: use Capacitor FCM
-            // initMobilePush(); // Disabled until Firebase is configured
+            initMobilePush();
         } else {
             // Web/PWA: use Web Push API
             initWebPush();
@@ -22,7 +22,6 @@ export function usePushNotifications() {
 
 // ========== MOBILE (Capacitor + FCM) ==========
 
-/*
 async function initMobilePush() {
     try {
         // 1. Check permission status
@@ -103,7 +102,6 @@ async function initMobilePush() {
         }
     });
 }
-*/
 
 // ========== WEB/PWA (Web Push API) ==========
 
