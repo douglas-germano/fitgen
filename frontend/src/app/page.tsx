@@ -1,320 +1,321 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import {
-  Check,
-  X,
-  Dumbbell,
-  Zap,
-  Trophy,
-  Target,
-  TrendingUp,
-  Shield,
-  Star,
-  ArrowRight,
-  Sparkles,
-  MessageCircle,
-  Clock,
-  Brain,
-  ChevronDown
-} from "lucide-react";
 import Link from "next/link";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Check, Dumbbell, Target, TrendingUp, Calendar, Award, Shield } from "lucide-react";
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-background overflow-x-hidden selection:bg-primary/20 selection:text-primary">
-
-      {/* Background Effects */}
-      <div className="fixed inset-0 -z-30 h-full w-full bg-background bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
-      <div className="fixed inset-0 -z-20 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]"></div>
-
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center pt-20 pb-16">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center text-center space-y-8 animate-fade-in-up">
-
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] animate-pulse hover:bg-primary/20 transition-colors cursor-default">
-              <Sparkles className="h-4 w-4" />
-              <span>O Futuro do Fitness Chegou</span>
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
+        <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-5xl font-bold tracking-tight sm:text-7xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              Você não precisa de mais motivação.
+            </h1>
+            <p className="mt-6 text-2xl sm:text-3xl font-semibold text-foreground/90 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-150">
+              Precisa de um plano de treino que se adapte a você.
+            </p>
+            <p className="mt-8 text-lg leading-8 text-muted-foreground animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+              O FitGen é um aplicativo que cria e ajusta seus treinos automaticamente,
+              com base no seu corpo, rotina e evolução real.
+            </p>
+            <div className="mt-10 flex items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+              <Link href="https://pay.kiwify.com.br/14AVh4x">
+                <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                  Começar meu teste gratuito agora
+                </Button>
+              </Link>
             </div>
+            <p className="mt-4 text-sm text-muted-foreground animate-in fade-in duration-1000 delay-700">
+              7 dias grátis • Cancele quando quiser • Sem fidelidade
+            </p>
+          </div>
+        </div>
+      </section>
 
-            {/* Headline */}
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h1 className="text-4xl font-extrabold tracking-tight lg:text-7xl">
-                Seu corpo, sua biologia.
-                <span className="block mt-2 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent drop-shadow-sm">
-                  Um treino único.
-                </span>
-              </h1>
-              <p className="mx-auto max-w-[700px] text-lg text-muted-foreground md:text-xl leading-relaxed">
-                Esqueça treinos genéricos de PDF. O <span className="text-primary font-semibold">FitGen</span> usa Inteligência Artificial para criar, adaptar e evoluir sua rotina dia após dia. É como ter um personal trainer de elite no seu bolso, 24/7.
+      {/* Problem Section */}
+      <section className="py-24 sm:py-32 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-destructive/90">
+              O problema não é falta de disciplina.
+              <br />
+              É falta de adaptação.
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              A maioria das pessoas começa a treinar com vontade, mas desiste por um motivo simples:
+              seguem planos genéricos que não consideram tempo, limitações físicas, nível real ou rotina.
+            </p>
+            <p className="mt-4 text-lg font-semibold text-foreground">
+              O resultado é previsível: dores, estagnação ou abandono.
+            </p>
+            <div className="mt-8 p-6 bg-destructive/10 border-2 border-destructive/20 rounded-lg">
+              <p className="text-base text-foreground/90 font-medium">
+                Treinos fixos não funcionam para pessoas reais com rotinas variáveis.
               </p>
             </div>
-
-            {/* CTA Buttons - Consistent Widths */}
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto min-w-[300px] justify-center pt-4">
-              <Link href="https://pay.kiwify.com.br/14AVh4x" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:min-w-[240px] h-14 text-base font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] transition-all duration-300">
-                  Começar Teste Grátis
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/login" className="w-full sm:w-auto">
-                <Button size="lg" variant="outline" className="w-full sm:min-w-[240px] h-14 text-base bg-background/50 backdrop-blur-sm border-white/10 hover:bg-white/5 hover:border-primary/20 transition-all duration-300">
-                  Já sou Aluno
-                </Button>
-              </Link>
-            </div>
-
-            <div className="pt-8 flex items-center justify-center gap-8 text-sm text-muted-foreground grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4" /> 7 Dias de Garantia
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4" /> Cancelamento Fácil
-              </div>
-            </div>
-
           </div>
         </div>
       </section>
 
-      {/* Comparison Section (Old Way vs New Way) */}
-      <section className="py-24 border-y border-white/5 bg-white/[0.02]">
-        <div className="container px-4 md:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Por que o FitGen é superior?</h2>
-            <p className="text-muted-foreground mt-4 text-lg">A evolução do personal trainer tradicional.</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* The Old Way */}
-            <Card className="bg-background/20 border-red-500/10 shadow-none relative overflow-hidden group">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-red-500/20 to-red-500/0"></div>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-red-500/80">
-                  <X className="h-6 w-6" /> O Jeito Antigo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  "Treinos genéricos (copia e cola)",
-                  "Personal caro (R$ 300+ /mês)",
-                  "Horários restritos e inflexíveis",
-                  "Demora para ajustar o plano",
-                  "Sem acompanhamento diário"
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 text-muted-foreground group-hover:text-red-400/80 transition-colors">
-                    <X className="h-5 w-5 shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* The FitGen Way */}
-            <Card className="bg-gradient-to-b from-primary/5 to-background border-primary/20 shadow-2xl shadow-primary/5 relative overflow-hidden group transform md:-translate-y-4 md:scale-105 transition-all">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-primary to-primary/50"></div>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary">
-                  <Check className="h-6 w-6" /> O Jeito FitGen
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  "100% Personalizado pela IA",
-                  "Acessível (R$ 19,90/mês)",
-                  "Treine onde e quando quiser",
-                  "Ajustes em tempo real",
-                  "Coach disponível no WhatsApp 24/7"
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 font-medium text-foreground group-hover:text-primary transition-colors">
-                    <Check className="h-5 w-5 shrink-0 mt-0.5 text-primary" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+      {/* Solution Section */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              O FitGen resolve isso criando um plano de treino dinâmico, que evolui com você.
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              Você informa seus objetivos, nível atual e rotina.
+              <br />
+              O sistema gera o treino ideal e ajusta conforme seu progresso.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* How It Works (Steps) */}
-      <section className="py-24 relative">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-        <div className="container px-4 md:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tighter md:text-5xl">Como funciona</h2>
-            <p className="mt-4 text-muted-foreground text-xl">Sua jornada para o corpo ideal em 3 passos</p>
+      {/* How it Works */}
+      <section className="py-24 sm:py-32 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-12">
+              O funcionamento é simples
+            </h2>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-12 relative max-w-6xl mx-auto">
-            {/* Connector Line for Desktop */}
-            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-transparent via-primary/20 to-transparent -z-10"></div>
-
-            {[
-              {
-                icon: MessageCircle,
-                title: "1. Converse",
-                desc: "Conte seus objetivos, limitações e equipamentos para nossa IA no cadastro ou WhatsApp."
-              },
-              {
-                icon: Brain,
-                title: "2. A IA Cria",
-                desc: "Nossos algoritmos analisam seus dados e geram o plano perfeito para sua biologia."
-              },
-              {
-                icon: TrendingUp,
-                title: "3. Evolua",
-                desc: "Faça o treino, dê feedback e a IA ajusta a intensidade para o próximo dia."
-              }
-            ].map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <div key={i} className="flex flex-col items-center text-center group">
-                  <div className="w-24 h-24 rounded-3xl bg-background border border-white/10 shadow-xl flex items-center justify-center mb-6 group-hover:border-primary/50 group-hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.3)] transition-all duration-500 relative z-10">
-                    <Icon className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+          <div className="mx-auto mt-16 max-w-5xl">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+              {[
+                {
+                  step: "1",
+                  title: "Você informa seus dados e objetivos",
+                  icon: Target,
+                },
+                {
+                  step: "2",
+                  title: "O FitGen monta seu plano personalizado",
+                  icon: Dumbbell,
+                },
+                {
+                  step: "3",
+                  title: "A cada treino, o sistema ajusta volume, carga e intensidade",
+                  icon: TrendingUp,
+                },
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="relative flex flex-col items-center p-8 bg-card rounded-2xl border border-border hover:border-primary/50 transition-all hover:shadow-xl"
+                >
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold shadow-lg">
+                    {item.step}
                   </div>
-                  <h3 className="text-xl font-bold mb-3">{step.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed px-4">
-                    {step.desc}
-                  </p>
+                  <item.icon className="h-12 w-12 text-primary mt-4 mb-4" />
+                  <h3 className="text-lg font-semibold text-center">{item.title}</h3>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="py-24 bg-white/[0.02]">
-        <div className="container px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-center mb-16 tracking-tight">Quem usa, recomenda</h2>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {[
-              {
-                name: "Ricardo S.",
-                role: "Empresário",
-                content: "Não tenho tempo a perder. O FitGen me dá exatamente o que preciso fazer em 40min. Resultados incríveis em 2 meses."
-              },
-              {
-                name: "Juliana M.",
-                role: "Mãe e Advogada",
-                content: "O melhor é poder treinar em casa quando meus filhos dormem. A IA adaptou tudo para os pesos que tenho na sala.",
-              },
-              {
-                name: "Pedro H.",
-                role: "Dev",
-                content: "Achei que era papo de marketing, mas a progressão de carga é muito inteligente. Evoluí mais aqui do que na academia cara."
-              }
-            ].map((d, i) => (
-              <Card key={i} className="bg-white/5 border-white/5 hover:bg-white/10 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex gap-1 mb-4">
-                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-primary text-primary" />)}
-                  </div>
-                  <p className="text-lg mb-6 italic text-gray-300">"{d.content}"</p>
-                  <div>
-                    <p className="font-semibold text-white">{d.name}</p>
-                    <p className="text-sm text-muted-foreground">{d.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {/* Benefits */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-12">
+              Com o FitGen, você:
+            </h2>
+          </div>
+          <div className="mx-auto mt-16 max-w-4xl">
+            <ul className="space-y-4">
+              {[
+                "Treina com um plano realmente compatível com seu nível",
+                "Evita lesões por excesso ou subcarga",
+                "Evolui com ajustes automáticos, sem achismo",
+                "Treina em casa ou na academia",
+                "Acompanha sua evolução de forma clara",
+              ].map((benefit, index) => (
+                <li
+                  key={index}
+                  className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <Check className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                  <span className="text-lg text-foreground/90">{benefit}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
 
-      {/* Pricing / Offer Section */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-primary/5 -z-10 skew-y-3 transform origin-bottom-right"></div>
-        <div className="container px-4 md:px-6">
-          <div className="max-w-4xl mx-auto text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Investimento Inteligente</h2>
-            <p className="text-xl text-muted-foreground">Menos que um café. Mais resultados que uma academia inteira.</p>
+      {/* Differential */}
+      <section className="py-24 sm:py-32 bg-primary/5">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <div className="bg-card border-2 border-primary/20 rounded-2xl p-8 md:p-12 shadow-xl">
+              <Award className="h-12 w-12 text-primary mb-6" />
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">
+                Diferente de aplicativos com treinos prontos, o FitGen não entrega um plano fixo.
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Ele reage às suas respostas e adapta o treino continuamente, como um treinador faria.
+              </p>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <Card className="max-w-lg mx-auto bg-background/80 backdrop-blur-xl border-primary/30 shadow-2xl shadow-primary/10 overflow-hidden">
-            <div className="h-2 w-full bg-primary"></div>
-            <CardHeader className="text-center pt-8">
-              <span className="mx-auto px-3 py-1 bg-primary/10 text-primary text-xs font-bold uppercase rounded-full tracking-wider mb-4">Oferta Limitada</span>
-              <CardTitle className="text-3xl">FitGen Premium</CardTitle>
-              <div className="flex justify-center items-baseline gap-1 mt-4">
-                <span className="text-5xl font-black">R$ 19,90</span>
-                <span className="text-xl text-muted-foreground">/mês</span>
+      {/* Pricing */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">
+              Acesso completo ao FitGen
+            </h2>
+            <div className="mt-10 flex flex-col items-center gap-6">
+              <div className="text-center">
+                <p className="text-5xl font-bold tracking-tight">R$ 19,90</p>
+                <p className="text-lg text-muted-foreground mt-2">por mês</p>
               </div>
-              <p className="text-sm text-primary font-medium mt-2">7 dias grátis • Cancele quando quiser</p>
-            </CardHeader>
-            <CardContent className="p-8">
-              <ul className="space-y-4 mb-8">
-                {[
-                  "Acesso ilimitado ao AI Personal",
-                  "Integração com WhatsApp",
-                  "Planos de Dieta e Hidratação",
-                  "Histórico e Métricas detalhadas",
-                  "Acesso imediato"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <Check className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <span className="text-lg">{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link href="https://pay.kiwify.com.br/14AVh4x" className="block">
-                <Button size="lg" className="w-full h-16 text-xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
-                  QUERO COMEÇAR AGORA
-                  <Trophy className="ml-2 h-6 w-6" />
+              <p className="text-lg text-muted-foreground max-w-xl">
+                Você pode testar gratuitamente por 7 dias e cancelar quando quiser.
+              </p>
+              <Link href="https://pay.kiwify.com.br/14AVh4x">
+                <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                  Começar meu teste gratuito agora
                 </Button>
               </Link>
-            </CardContent>
-            <CardFooter className="justify-center border-t border-white/5 py-4 bg-white/[0.02]">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Shield className="h-4 w-4" /> Garantia incondicional de 7 dias
+              <div className="mt-8 p-6 bg-muted/50 rounded-lg border border-border max-w-xl">
+                <Shield className="h-8 w-8 text-primary mx-auto mb-4" />
+                <p className="text-sm text-center text-foreground/90">
+                  <strong>Garantia Total:</strong> Se o FitGen não se encaixar na sua rotina, basta cancelar.
+                  Sem fidelidade, sem burocracia.
+                </p>
               </div>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="py-24 border-t border-white/5">
-        <div className="container px-4 md:px-6 max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Perguntas Frequentes</h2>
-          <Accordion type="single" collapsible className="w-full">
+      <section className="py-24 sm:py-32 bg-muted/30">
+        <div className="mx-auto max-w-4xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center mb-16">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Perguntas Frequentes
+            </h2>
+          </div>
+          <div className="space-y-6">
             {[
-              { q: "O FitGen serve para iniciantes?", a: "Absolutamente! Nossa IA adapta o treino para o seu nível, mesmo que você nunca tenha pisado numa academia." },
-              { q: "Preciso de equipamentos?", a: "Não. Se você treina em casa sem peso, a IA cria treinos de calistenia (peso do corpo). Se tem equipamentos, ela os inclui." },
-              { q: "Posso cancelar se não gostar?", a: "Sim. Você tem 7 dias de garantia total, e depois disso pode cancelar a assinatura a qualquer momento com um clique." },
-              { q: "Como acesso o Coach no WhatsApp?", a: "Logo após o cadastro, você ativa o Coach com seu número e já pode conversar com ele 24hs por dia." }
-            ].map((faq, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="border-white/10">
-                <AccordionTrigger className="text-lg text-left">{faq.q}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground text-base">
+              {
+                q: "O que é o FitGen?",
+                a: "O FitGen é um aplicativo que cria e ajusta planos de treino de forma personalizada, com base nos seus objetivos, nível físico, rotina e evolução ao longo do tempo."
+              },
+              {
+                q: "O FitGen substitui um personal trainer?",
+                a: "O FitGen não é um personal presencial, mas funciona como um sistema de treino inteligente. Ele ajusta volume, intensidade e progressão automaticamente, algo que treinos prontos ou planilhas não fazem."
+              },
+              {
+                q: "O FitGen serve para iniciantes?",
+                a: "Sim. O plano é criado de acordo com o seu nível atual. Quem nunca treinou começa com treinos básicos e seguros, com evolução gradual."
+              },
+              {
+                q: "Preciso treinar em academia?",
+                a: "Não. O FitGen adapta os treinos para: Treino em casa, Academia, Poucos ou nenhum equipamento. Você informa o que tem disponível, e o plano é ajustado."
+              },
+              {
+                q: "Quanto tempo preciso treinar por dia?",
+                a: "O tempo varia conforme seu objetivo e disponibilidade. O FitGen cria treinos compatíveis com rotinas curtas ou mais longas, de forma realista."
+              },
+              {
+                q: "O plano muda com o tempo?",
+                a: "Sim. O diferencial do FitGen é justamente o ajuste contínuo. Conforme seu desempenho e feedback, o treino é recalculado."
+              },
+              {
+                q: "O FitGen cria dieta também?",
+                a: "O FitGen pode fornecer orientações alimentares gerais e plano de hidratação. Ele não substitui acompanhamento nutricional clínico."
+              },
+              {
+                q: "É seguro para quem tem limitações físicas?",
+                a: "O sistema considera restrições informadas pelo usuário. Ainda assim, pessoas com lesões ou condições específicas devem buscar liberação médica antes de iniciar qualquer treino."
+              },
+              {
+                q: "Preciso entender de musculação para usar?",
+                a: "Não. Os treinos são descritos de forma clara e objetiva, facilitando a execução mesmo para iniciantes."
+              },
+              {
+                q: "Funciona para quem quer emagrecer?",
+                a: "Sim. O FitGen ajusta treinos e intensidade conforme o objetivo informado, incluindo emagrecimento, ganho de força ou condicionamento."
+              },
+              {
+                q: "Funciona para quem quer ganhar massa muscular?",
+                a: "Sim. Os planos consideram progressão de carga, volume e descanso, respeitando o nível do usuário."
+              },
+              {
+                q: "Como funciona o período de teste?",
+                a: "Você pode testar o FitGen gratuitamente por 7 dias. Durante esse período, tem acesso às funcionalidades principais."
+              },
+              {
+                q: "Posso cancelar quando quiser?",
+                a: "Sim. O cancelamento pode ser feito a qualquer momento, sem fidelidade ou taxas adicionais."
+              },
+              {
+                q: "Qual o valor do FitGen?",
+                a: "O acesso completo custa R$19,90 por mês após o período de teste gratuito."
+              },
+              {
+                q: "Meus dados ficam seguros?",
+                a: "Sim. As informações são utilizadas apenas para personalização dos treinos e funcionamento do aplicativo."
+              },
+              {
+                q: "Para quem o FitGen não é indicado?",
+                a: "O FitGen não é indicado para: Quem busca acompanhamento médico ou fisioterapêutico, Quem não pretende seguir nenhum tipo de rotina de treino."
+              },
+            ].map((faq, index) => (
+              <details
+                key={index}
+                className="group bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all"
+              >
+                <summary className="flex cursor-pointer items-center justify-between p-6 font-semibold text-foreground list-none">
+                  <span className="text-lg">{faq.q}</span>
+                  <svg
+                    className="h-6 w-6 flex-shrink-0 text-muted-foreground group-open:rotate-180 transition-transform"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="px-6 pb-6 text-muted-foreground">
                   {faq.a}
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </details>
             ))}
-          </Accordion>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-white/10 bg-black/20">
-        <div className="container px-4 text-center text-muted-foreground">
-          <div className="flex items-center justify-center gap-2 mb-4 text-foreground font-bold text-xl">
-            <Sparkles className="h-5 w-5 text-primary" /> FitGen
+      {/* Final CTA */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-8">
+              Pronto para começar sua evolução?
+            </h2>
+            <Link href="https://pay.kiwify.com.br/14AVh4x">
+              <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                Começar meu teste gratuito agora
+              </Button>
+            </Link>
+            <p className="mt-6 text-sm text-muted-foreground">
+              7 dias grátis • Cancele quando quiser • Sem fidelidade
+            </p>
           </div>
-          <p className="mb-8 max-w-md mx-auto">Sua melhor versão, construída com inteligência e dados.</p>
-          <p className="text-sm">© 2024 FitGen AI. Todos os direitos reservados.</p>
         </div>
-      </footer>
-
-    </main>
+      </section>
+    </div>
   );
 }
