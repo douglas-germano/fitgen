@@ -291,7 +291,7 @@ Retorne APENAS um JSON válido com esta estrutura:
 
 @diet_bp.route('/plan', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=3600, key_prefix=make_cache_key)
+# @cache.cached(timeout=3600, key_prefix=make_cache_key) # Disabled to fix potential CORS issues with cached responses
 def get_current_diet_plan():
     """
     Get user's active diet plan
