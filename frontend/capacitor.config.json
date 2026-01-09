@@ -3,8 +3,8 @@
   "appName": "fitgen",
   "webDir": "out",
   "server": {
-    "url": "https://fitgen.suacozinha.site/login",
-    "cleartext": false
+    "url": "https://fitgen.suacozinha.site/dashboard",
+    "cleartext": true
   },
   "backgroundColor": "#11001C",
   "ios": {

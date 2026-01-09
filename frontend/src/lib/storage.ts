@@ -17,7 +17,10 @@ const STORAGE_PREFIX = 'fitgen_';
  * Check if running in Capacitor native environment
  */
 export const isNativePlatform = (): boolean => {
-    return Capacitor.isNativePlatform();
+    // Force false to ensure we use localStorage which supports synchronous access
+    // This is required because api.ts uses getToken() synchronously
+    return false;
+    // return Capacitor.isNativePlatform();
 };
 
 /**
