@@ -119,23 +119,15 @@ export default function DietPlanPage() {
     const getPlanForDay = (day: string) => {
         if (!plan.weekly_plan) return {};
 
-        // Try exact match
-        if (plan.weekly_plan[day]) return plan.weekly_plan[day];
+        const target = day.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-        // Try normalized match (remove accents)
-        const normalizedDay = day.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (plan.weekly_plan[normalizedDay]) return plan.weekly_plan[normalizedDay];
+        // Find matching key
+        const foundKey = Object.keys(plan.weekly_plan).find(key => {
+            const k = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return k === target;
+        });
 
-        // Try common variations explicitly if needed
-        const alternatives: Record<string, string> = {
-            'terça': 'terca', 'sábado': 'sabado',
-            'terca': 'terça', 'sabado': 'sábado'
-        };
-        if (alternatives[day] && plan.weekly_plan[alternatives[day]]) {
-            return plan.weekly_plan[alternatives[day]];
-        }
-
-        return {};
+        return foundKey ? plan.weekly_plan[foundKey] : {};
     };
 
     const currentDayPlan = getPlanForDay(selectedDay);
@@ -277,57 +269,68 @@ export default function DietPlanPage() {
 
             {/* Meals Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 animate-fade-in-up delay-300">
-                {Object.entries(currentDayPlan).map(([tipo, refeicao]) => {
-                    const meal = refeicao as Meal;
-                    const icons: Record<string, string> = {
-                        'cafe': '☕', 'almoco': '🍽️', 'jantar': '🌙', 'lanche': '🍎'
-                    };
+                {Object.keys(currentDayPlan).length === 0 ? (
+                    <div className="col-span-full py-12 text-center text-muted-foreground bg-white/5 rounded-lg border border-dashed border-white/10">
+                        <Utensils className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                        <p>Nenhuma refeição planejada para este dia.</p>
+                        <Button variant="link" onClick={() => handleRefreshDay(selectedDay)} className="mt-2 text-primary">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Gerar cardápio para {diasMapFull[selectedDay]}
+                        </Button>
+                    </div>
+                ) : (
+                    Object.entries(currentDayPlan).map(([tipo, refeicao]) => {
+                        const meal = refeicao as Meal;
+                        const icons: Record<string, string> = {
+                            'cafe': '☕', 'almoco': '🍽️', 'jantar': '🌙', 'lanche': '🍎'
+                        };
 
-                    return (
-                        <Card key={tipo} className="flex flex-col h-full glass-card hover:bg-white/5 transition-all duration-300 outline-none border-white/10 hover:border-primary/20 hover:shadow-lg">
-                            <CardHeader className="pb-3 border-b border-white/5 bg-white/5">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <CardDescription className="text-xs font-medium uppercase tracking-wider mb-1 text-primary/80">
-                                            {refeicaoMap[tipo] || tipo}
-                                        </CardDescription>
-                                        <CardTitle className="text-lg leading-tight">
-                                            {meal.nome}
-                                        </CardTitle>
+                        return (
+                            <Card key={tipo} className="flex flex-col h-full glass-card hover:bg-white/5 transition-all duration-300 outline-none border-white/10 hover:border-primary/20 hover:shadow-lg">
+                                <CardHeader className="pb-3 border-b border-white/5 bg-white/5">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardDescription className="text-xs font-medium uppercase tracking-wider mb-1 text-primary/80">
+                                                {refeicaoMap[tipo] || tipo}
+                                            </CardDescription>
+                                            <CardTitle className="text-lg leading-tight">
+                                                {meal.nome}
+                                            </CardTitle>
+                                        </div>
+                                        <Badge variant="secondary" className="font-mono bg-background/50 border-white/10 text-foreground">
+                                            {meal.calorias} kcal
+                                        </Badge>
                                     </div>
-                                    <Badge variant="secondary" className="font-mono bg-background/50 border-white/10 text-foreground">
-                                        {meal.calorias} kcal
-                                    </Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 p-5 space-y-4">
-                                <div className="space-y-2">
-                                    <h4 className="text-sm font-medium flex items-center gap-2 text-primary">
-                                        <Utensils className="h-3.5 w-3.5" /> Ingredientes
-                                    </h4>
-                                    <ul className="text-sm text-muted-foreground space-y-1 pl-1">
-                                        {meal.ingredientes?.map((ing, i) => (
-                                            <li key={i} className="flex items-start gap-2">
-                                                <span className="block w-1 h-1 rounded-full bg-primary/50 mt-1.5 flex-shrink-0" />
-                                                <span className="leading-relaxed">{ing}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                {meal.preparo && (
-                                    <div className="space-y-2 pt-2 border-t border-white/5">
+                                </CardHeader>
+                                <CardContent className="flex-1 p-5 space-y-4">
+                                    <div className="space-y-2">
                                         <h4 className="text-sm font-medium flex items-center gap-2 text-primary">
-                                            <Badge variant="outline" className="h-5 px-1 py-0 text-[10px] border-primary/20 text-primary">PREPARO</Badge>
+                                            <Utensils className="h-3.5 w-3.5" /> Ingredientes
                                         </h4>
-                                        <p className="text-sm text-muted-foreground leading-relaxed">
-                                            {meal.preparo}
-                                        </p>
+                                        <ul className="text-sm text-muted-foreground space-y-1 pl-1">
+                                            {meal.ingredientes?.map((ing, i) => (
+                                                <li key={i} className="flex items-start gap-2">
+                                                    <span className="block w-1 h-1 rounded-full bg-primary/50 mt-1.5 flex-shrink-0" />
+                                                    <span className="leading-relaxed">{ing}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                                    {meal.preparo && (
+                                        <div className="space-y-2 pt-2 border-t border-white/5">
+                                            <h4 className="text-sm font-medium flex items-center gap-2 text-primary">
+                                                <Badge variant="outline" className="h-5 px-1 py-0 text-[10px] border-primary/20 text-primary">PREPARO</Badge>
+                                            </h4>
+                                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                                {meal.preparo}
+                                            </p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        );
+                    })
+                )}
             </div>
 
             <style jsx global>{`

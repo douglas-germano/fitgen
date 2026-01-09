@@ -209,14 +209,55 @@ Retorne APENAS um JSON válido com esta estrutura:
         
         print(f"Diet plan response: {response_text[:500]}")  # Debug
         
-        # Parse JSON
-        if response_text.startswith('```'):
-            start = response_text.find('{')
-            end = response_text.rfind('}') + 1
-            if start != -1 and end > start:
-                response_text = response_text[start:end]
-        
-        plan_data = json.loads(response_text)
+        # Robust JSON extraction
+        try:
+            # Find the first '{' and the last '}'
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}')
+            
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_str = response_text[start_idx:end_idx+1]
+                plan_data = json.loads(json_str)
+            else:
+                # Fallback if no braces found (unlikely but possible)
+                plan_data = json.loads(response_text)
+                
+        except json.JSONDecodeError as e:
+            print(f"JSON Decode Error: {e}")
+            print(f"Raw Text: {response_text}")
+            return jsonify({"msg": "Failed to parse AI response"}), 500
+
+        # Normalize keys in weekly_plan to ensure frontend compatibility
+        if 'weekly_plan' in plan_data:
+            normalized_weekly = {}
+            normalization_map = {
+                'segunda': ['segunda', 'mon', 'monday', 'seg'],
+                'terca': ['terca', 'terça', 'tue', 'tuesday', 'ter'],
+                'quarta': ['quarta', 'wed', 'wednesday', 'qua'],
+                'quinta': ['quinta', 'thu', 'thursday', 'qui'],
+                'sexta': ['sexta', 'fri', 'friday', 'sex'],
+                'sabado': ['sabado', 'sábado', 'sat', 'saturday', 'sab'],
+                'domingo': ['domingo', 'sun', 'sunday', 'dom']
+            }
+            
+            for key, value in plan_data['weekly_plan'].items():
+                k_norm = key.lower().strip()
+                # Remove accents from key if present
+                import unicodedata
+                k_no_accents = ''.join(c for c in unicodedata.normalize('NFD', k_norm) if unicodedata.category(c) != 'Mn')
+                
+                # Setup specific mapping
+                matched_day = k_no_accents # default to itself
+                
+                # Check explicit map
+                for std_day, variants in normalization_map.items():
+                    if k_no_accents in variants:
+                        matched_day = std_day
+                        break
+                
+                normalized_weekly[matched_day] = value
+            
+            plan_data['weekly_plan'] = normalized_weekly
         
         # Deactivate old plans
         DietPlan.query.filter_by(user_id=user_id, is_active=True).update({'is_active': False})
