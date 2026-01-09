@@ -217,8 +217,8 @@ export default function CoachPage() {
             </div>
 
             {/* Input Area - Fixed at bottom on mobile */}
-            <div className="flex-shrink-0 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:relative fixed bottom-20 md:bottom-0 left-0 right-0 z-10">
-                <div className="px-4 md:px-6 py-3 md:py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+            <div className="flex-shrink-0 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:relative fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-10">
+                <div className="px-4 md:px-6 py-3 md:py-4">
                     <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
                         <Input
                             value={input}
