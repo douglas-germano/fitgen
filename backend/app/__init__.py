@@ -25,7 +25,9 @@ def create_app(config_name='default'):
 
     # Initialize CORS
     CORS(app, resources={r"/*": {
-        "origins": ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "https://fitgen.suacozinha.site"],
+        "origins": ["http://localhost:3000", "http://localhost:3001", 
+        "http://127.0.0.1:3000", "http://127.0.0.1:3001", "https://fitgen.suacozinha.site",
+        "https://fitgen.pages.dev"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
         "expose_headers": ["Content-Type", "Authorization"],
