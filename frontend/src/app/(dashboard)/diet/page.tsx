@@ -55,9 +55,9 @@ export default function DietPage() {
                     name: editData.name,
                     meal_type: editData.meal_type,
                     calories: parseFloat(editData.calories),
-                    protein: parseFloat(editData.macro_protein),
-                    carbs: parseFloat(editData.macro_carbs),
-                    fat: parseFloat(editData.macro_fats),
+                    protein: parseFloat(editData.protein),
+                    carbs: parseFloat(editData.carbs),
+                    fats: parseFloat(editData.fats),
                 }
             });
             toast.success("Refeição atualizada!");
@@ -240,7 +240,7 @@ export default function DietPage() {
                                                 <div className="flex items-center gap-2">
                                                     <div className="text-right mr-3">
                                                         <p className="font-medium">{meal.calories} kcal</p>
-                                                        <p className="text-xs text-muted-foreground">P:{meal.macro_protein}g C:{meal.macro_carbs}g G:{meal.macro_fats}g</p>
+                                                        <p className="text-xs text-muted-foreground">P:{meal.protein}g C:{meal.carbs}g G:{meal.fats}g</p>
                                                     </div>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleEdit(meal)} aria-label={`Editar ${meal.name}`}>
                                                         <Edit className="h-4 w-4" />
@@ -305,15 +305,15 @@ export default function DietPage() {
                             <div className="grid grid-cols-3 gap-2">
                                 <div className="space-y-1">
                                     <Label className="text-xs">Prot (g)</Label>
-                                    <Input type="number" value={editData.macro_protein} onChange={(e) => setEditData({ ...editData, macro_protein: e.target.value })} className="bg-white/5" />
+                                    <Input type="number" value={editData.protein} onChange={(e) => setEditData({ ...editData, protein: e.target.value })} className="bg-white/5" />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-xs">Carb (g)</Label>
-                                    <Input type="number" value={editData.macro_carbs} onChange={(e) => setEditData({ ...editData, macro_carbs: e.target.value })} className="bg-white/5" />
+                                    <Input type="number" value={editData.carbs} onChange={(e) => setEditData({ ...editData, carbs: e.target.value })} className="bg-white/5" />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-xs">Gord (g)</Label>
-                                    <Input type="number" value={editData.macro_fats} onChange={(e) => setEditData({ ...editData, macro_fats: e.target.value })} className="bg-white/5" />
+                                    <Input type="number" value={editData.fats} onChange={(e) => setEditData({ ...editData, fats: e.target.value })} className="bg-white/5" />
                                 </div>
                             </div>
                         </div>

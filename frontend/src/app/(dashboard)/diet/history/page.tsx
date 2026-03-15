@@ -82,9 +82,9 @@ export default function HistoryPage() {
                     name: editData.name,
                     meal_type: editData.meal_type,
                     calories: parseFloat(editData.calories),
-                    protein: parseFloat(editData.protein || editData.macro_protein),
-                    carbs: parseFloat(editData.carbs || editData.macro_carbs),
-                    fats: parseFloat(editData.fats || editData.macro_fats),
+                    protein: parseFloat(editData.protein),
+                    carbs: parseFloat(editData.carbs),
+                    fats: parseFloat(editData.fats),
                 })
             });
             toast.success("Refeição atualizada!");
@@ -256,9 +256,9 @@ export default function HistoryPage() {
                                             <div className="text-right mr-3">
                                                 <p className="font-medium text-sm">{meal.calories} kcal</p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    P:{meal.protein || meal.macro_protein || 0}g ·
-                                                    C:{meal.carbs || meal.macro_carbs || 0}g ·
-                                                    G:{meal.fats || meal.macro_fats || 0}g
+                                                    P:{meal.protein || 0}g ·
+                                                    C:{meal.carbs || 0}g ·
+                                                    G:{meal.fats || 0}g
                                                 </p>
                                             </div>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-500" onClick={() => handleEdit(meal)}>
@@ -376,8 +376,8 @@ export default function HistoryPage() {
                                     <Label className="text-xs">Prot (g)</Label>
                                     <Input
                                         type="number"
-                                        value={editData.protein || editData.macro_protein || 0}
-                                        onChange={(e) => setEditData({ ...editData, protein: e.target.value, macro_protein: e.target.value })}
+                                        value={editData.protein || 0}
+                                        onChange={(e) => setEditData({ ...editData, protein: e.target.value })}
                                         className="bg-white/5"
                                     />
                                 </div>
@@ -385,8 +385,8 @@ export default function HistoryPage() {
                                     <Label className="text-xs">Carb (g)</Label>
                                     <Input
                                         type="number"
-                                        value={editData.carbs || editData.macro_carbs || 0}
-                                        onChange={(e) => setEditData({ ...editData, carbs: e.target.value, macro_carbs: e.target.value })}
+                                        value={editData.carbs || 0}
+                                        onChange={(e) => setEditData({ ...editData, carbs: e.target.value })}
                                         className="bg-white/5"
                                     />
                                 </div>
@@ -394,8 +394,8 @@ export default function HistoryPage() {
                                     <Label className="text-xs">Gord (g)</Label>
                                     <Input
                                         type="number"
-                                        value={editData.fats || editData.macro_fats || 0}
-                                        onChange={(e) => setEditData({ ...editData, fats: e.target.value, macro_fats: e.target.value })}
+                                        value={editData.fats || 0}
+                                        onChange={(e) => setEditData({ ...editData, fats: e.target.value })}
                                         className="bg-white/5"
                                     />
                                 </div>
