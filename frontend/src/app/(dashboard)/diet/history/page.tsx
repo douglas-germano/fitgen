@@ -84,7 +84,7 @@ export default function HistoryPage() {
                     calories: parseFloat(editData.calories),
                     protein: parseFloat(editData.protein),
                     carbs: parseFloat(editData.carbs),
-                    fats: parseFloat(editData.fats),
+                    fat: parseFloat(editData.fats),
                 })
             });
             toast.success("Refeição atualizada!");
