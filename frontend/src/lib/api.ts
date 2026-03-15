@@ -1,4 +1,5 @@
 import { getStorageItem, setStorageItem, removeStorageItem, getStorageItemSync } from './storage';
+import type { APIError } from '@/types/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
 
@@ -77,9 +78,8 @@ export const fetchAPI = async (endpoint: string, options: FetchOptions = {}) => 
             return null;
         }
 
-        // Don't throw/crash on 429, just return empty data or specific error structure? 
-        // Better to throw so components catch it, but we add the status.
-        const error: any = new Error(data.msg || data.message || data.error || `Request failed with status ${response.status}`);
+        // Create typed error with status code
+        const error = new Error(data.msg || data.message || data.error || `Request failed with status ${response.status}`) as APIError;
         Object.assign(error, data);
         error.status = response.status;
         throw error;

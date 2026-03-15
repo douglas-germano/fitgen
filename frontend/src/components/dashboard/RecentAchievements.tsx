@@ -1,9 +1,13 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 
+interface RecentAchievement {
+    name: string;
+    date: string;
+}
+
 interface RecentAchievementsProps {
-    achievements: any[];
+    achievements: RecentAchievement[];
 }
 
 export function RecentAchievements({ achievements }: RecentAchievementsProps) {
@@ -17,7 +21,7 @@ export function RecentAchievements({ achievements }: RecentAchievementsProps) {
                 <CardContent>
                     {achievements && achievements.length > 0 ? (
                         <div className="space-y-4">
-                            {achievements.map((ach: any, i: number) => (
+                            {achievements.map((ach, i) => (
                                 <div key={i} className="flex items-center gap-4">
                                     <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
                                         <Trophy className="h-5 w-5 text-yellow-600" />

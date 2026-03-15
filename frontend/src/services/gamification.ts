@@ -1,4 +1,5 @@
 import { fetchAPI } from "@/lib/api";
+import type { APIError } from "@/types/api";
 
 export interface GamificationProgress {
     xp: number;
@@ -27,10 +28,11 @@ export const gamificationService = {
     getProgress: async (): Promise<GamificationProgress | null> => {
         try {
             return await fetchAPI('/gamification/progress');
-        } catch (error: any) {
-            console.error("Failed to fetch progress", error);
+        } catch (error) {
+            const apiError = error as APIError;
+            console.error("Failed to fetch progress", apiError);
             // Fallback for visual testing if backend is down/empty
-            if (error?.status === 404) return null;
+            if (apiError?.status === 404) return null;
             return { xp: 0, level: 1, next_level_xp: 100, progress_percent: 0 };
         }
     },

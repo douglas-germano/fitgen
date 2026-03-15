@@ -1,15 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/lib/api";
+import type { WorkoutPlan } from "@/types/api";
 
 export function useWorkouts() {
-    return useQuery({
+    return useQuery<WorkoutPlan[]>({
         queryKey: ["workouts"],
         queryFn: () => fetchAPI("/workouts"),
     });
 }
 
 export function useWorkoutDetails(id: string) {
-    return useQuery({
+    return useQuery<WorkoutPlan>({
         queryKey: ["workout-details", id],
         queryFn: () => fetchAPI(`/workouts/${id}`),
         enabled: !!id,
@@ -18,11 +19,11 @@ export function useWorkoutDetails(id: string) {
 
 export function useActiveWorkoutPlan() {
     const { data: plans } = useWorkouts();
-    const activePlan = plans?.find((p: any) => p.is_active);
+    const activePlan = plans?.find((p) => p.is_active);
 
-    return useQuery({
+    return useQuery<WorkoutPlan>({
         queryKey: ["workout-details", activePlan?.id],
-        queryFn: () => fetchAPI(`/workouts/${activePlan.id}`),
+        queryFn: () => fetchAPI(`/workouts/${activePlan!.id}`),
         enabled: !!activePlan?.id,
     });
 }

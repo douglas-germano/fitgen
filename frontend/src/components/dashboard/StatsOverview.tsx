@@ -1,9 +1,21 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dumbbell, Utensils, Droplets, Trophy, Activity } from "lucide-react";
 
+interface StatsData {
+    consistency?: {
+        workouts_last_7_days?: number;
+        current_streak?: number;
+    };
+    nutrition?: {
+        calories?: number;
+    };
+    hydration?: {
+        consumed_ml?: number;
+    };
+}
+
 interface StatsOverviewProps {
-    stats: any;
+    stats: StatsData | null | undefined;
 }
 
 export function StatsOverview({ stats }: StatsOverviewProps) {

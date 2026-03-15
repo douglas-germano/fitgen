@@ -1,11 +1,16 @@
 /**
  * Storage Abstraction Layer
- * 
+ *
  * Provides a unified interface for storage that works across:
  * - Capacitor (native iOS/Android) using Preferences API
  * - PWA/Web using localStorage
- * 
- * This ensures token persistence across app restarts and background cycles
+ *
+ * This ensures token persistence across app restarts and background cycles.
+ *
+ * On native platforms, we use a hybrid approach:
+ * - Capacitor Preferences for persistent storage (async)
+ * - In-memory cache for synchronous access (required by fetchAPI)
+ * - localStorage as fallback/sync layer
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -13,14 +18,14 @@ import { Preferences } from '@capacitor/preferences';
 
 const STORAGE_PREFIX = 'fitgen_';
 
+// In-memory cache for synchronous access on native platforms
+const memoryCache: Map<string, string> = new Map();
+
 /**
  * Check if running in Capacitor native environment
  */
 export const isNativePlatform = (): boolean => {
-    // Force false to ensure we use localStorage which supports synchronous access
-    // This is required because api.ts uses getToken() synchronously
-    return false;
-    // return Capacitor.isNativePlatform();
+    return Capacitor.isNativePlatform();
 };
 
 /**
@@ -39,22 +44,27 @@ export const setStorageItem = async (key: string, value: string): Promise<void> 
     const fullKey = `${STORAGE_PREFIX}${key}`;
 
     try {
+        // Always update memory cache for sync access
+        memoryCache.set(fullKey, value);
+
         if (isNativePlatform()) {
-            // Use Capacitor Preferences for native apps
+            // Use Capacitor Preferences for native apps (persistent)
             await Preferences.set({
                 key: fullKey,
                 value: value,
             });
-            console.log(`✅ [${getPlatformName()}] Storage SET: ${key}`);
+            // Also store in localStorage as backup for sync access
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(fullKey, value);
+            }
         } else {
             // Use localStorage for web/PWA
             if (typeof window !== 'undefined') {
                 localStorage.setItem(fullKey, value);
-                console.log(`✅ [${getPlatformName()}] Storage SET: ${key}`);
             }
         }
     } catch (error) {
-        console.error(`❌ [${getPlatformName()}] Storage SET failed for ${key}:`, error);
+        console.error(`Storage SET failed for ${key}:`, error);
         throw error;
     }
 };
@@ -69,19 +79,23 @@ export const getStorageItem = async (key: string): Promise<string | null> => {
         if (isNativePlatform()) {
             // Use Capacitor Preferences for native apps
             const { value } = await Preferences.get({ key: fullKey });
-            console.log(`🔍 [${getPlatformName()}] Storage GET: ${key} = ${value ? 'found' : 'null'}`);
+            // Update memory cache with the retrieved value
+            if (value !== null) {
+                memoryCache.set(fullKey, value);
+            } else {
+                memoryCache.delete(fullKey);
+            }
             return value;
         } else {
             // Use localStorage for web/PWA
             if (typeof window !== 'undefined') {
                 const value = localStorage.getItem(fullKey);
-                console.log(`🔍 [${getPlatformName()}] Storage GET: ${key} = ${value ? 'found' : 'null'}`);
                 return value;
             }
             return null;
         }
     } catch (error) {
-        console.error(`❌ [${getPlatformName()}] Storage GET failed for ${key}:`, error);
+        console.error(`Storage GET failed for ${key}:`, error);
         return null;
     }
 };
@@ -93,19 +107,24 @@ export const removeStorageItem = async (key: string): Promise<void> => {
     const fullKey = `${STORAGE_PREFIX}${key}`;
 
     try {
+        // Always remove from memory cache
+        memoryCache.delete(fullKey);
+
         if (isNativePlatform()) {
             // Use Capacitor Preferences for native apps
             await Preferences.remove({ key: fullKey });
-            console.log(`🗑️ [${getPlatformName()}] Storage REMOVE: ${key}`);
+            // Also remove from localStorage backup
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem(fullKey);
+            }
         } else {
             // Use localStorage for web/PWA
             if (typeof window !== 'undefined') {
                 localStorage.removeItem(fullKey);
-                console.log(`🗑️ [${getPlatformName()}] Storage REMOVE: ${key}`);
             }
         }
     } catch (error) {
-        console.error(`❌ [${getPlatformName()}] Storage REMOVE failed for ${key}:`, error);
+        console.error(`Storage REMOVE failed for ${key}:`, error);
         throw error;
     }
 };
@@ -115,10 +134,21 @@ export const removeStorageItem = async (key: string): Promise<void> => {
  */
 export const clearStorage = async (): Promise<void> => {
     try {
+        // Clear memory cache
+        memoryCache.clear();
+
         if (isNativePlatform()) {
             // Use Capacitor Preferences for native apps
             await Preferences.clear();
-            console.log(`🧹 [${getPlatformName()}] Storage CLEARED`);
+            // Also clear localStorage backup
+            if (typeof window !== 'undefined') {
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                    if (key.startsWith(STORAGE_PREFIX)) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            }
         } else {
             // Use localStorage for web/PWA
             if (typeof window !== 'undefined') {
@@ -129,33 +159,82 @@ export const clearStorage = async (): Promise<void> => {
                         localStorage.removeItem(key);
                     }
                 });
-                console.log(`🧹 [${getPlatformName()}] Storage CLEARED`);
             }
         }
     } catch (error) {
-        console.error(`❌ [${getPlatformName()}] Storage CLEAR failed:`, error);
+        console.error(`Storage CLEAR failed:`, error);
         throw error;
     }
 };
 
 /**
- * Synchronous versions for backward compatibility (web only)
- * These will only work on web platform, not in Capacitor
+ * Synchronous versions for backward compatibility
+ * On native platforms, uses memory cache first, then falls back to localStorage
+ * On web, uses localStorage directly
  */
 export const getStorageItemSync = (key: string): string | null => {
-    if (typeof window === 'undefined') return null;
     const fullKey = `${STORAGE_PREFIX}${key}`;
-    return localStorage.getItem(fullKey);
+
+    // Check memory cache first (especially important for native)
+    const cachedValue = memoryCache.get(fullKey);
+    if (cachedValue !== undefined) {
+        return cachedValue;
+    }
+
+    // Fall back to localStorage
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem(fullKey);
+    }
+
+    return null;
 };
 
 export const setStorageItemSync = (key: string, value: string): void => {
-    if (typeof window === 'undefined') return;
     const fullKey = `${STORAGE_PREFIX}${key}`;
-    localStorage.setItem(fullKey, value);
+
+    // Update memory cache
+    memoryCache.set(fullKey, value);
+
+    // Update localStorage
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(fullKey, value);
+    }
 };
 
 export const removeStorageItemSync = (key: string): void => {
-    if (typeof window === 'undefined') return;
     const fullKey = `${STORAGE_PREFIX}${key}`;
-    localStorage.removeItem(fullKey);
+
+    // Remove from memory cache
+    memoryCache.delete(fullKey);
+
+    // Remove from localStorage
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem(fullKey);
+    }
+};
+
+/**
+ * Initialize storage from Capacitor Preferences on app start
+ * Call this on app initialization to sync Capacitor storage to memory cache
+ */
+export const initializeStorage = async (): Promise<void> => {
+    if (!isNativePlatform()) return;
+
+    try {
+        // Load critical keys from Capacitor to memory cache
+        const criticalKeys = ['token', 'refresh_token', 'user'];
+        for (const key of criticalKeys) {
+            const fullKey = `${STORAGE_PREFIX}${key}`;
+            const { value } = await Preferences.get({ key: fullKey });
+            if (value !== null) {
+                memoryCache.set(fullKey, value);
+                // Also sync to localStorage for backup
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem(fullKey, value);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to initialize storage from Capacitor:', error);
+    }
 };

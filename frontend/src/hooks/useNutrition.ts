@@ -1,8 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/lib/api";
+import type { DailyNutritionStats, DietPlan, Meal } from "@/types/api";
+import { format } from "date-fns";
+
 // Minimal local type for date range used by hooks (compatible with react-day-picker)
 type DateRange = { from?: Date | undefined; to?: Date | undefined };
-import { format } from "date-fns";
+
+// Type for meal update payload
+interface MealUpdateData {
+    name?: string;
+    meal_type?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+}
 
 export function useNutritionHistory(filterType: "day" | "week" | "month" | "custom", dateRange?: DateRange) {
     return useQuery({
@@ -33,14 +45,14 @@ export function useNutritionHistory(filterType: "day" | "week" | "month" | "cust
 }
 
 export function useDailyNutrition() {
-    return useQuery({
+    return useQuery<DailyNutritionStats>({
         queryKey: ["nutrition-daily"],
         queryFn: () => fetchAPI("/nutrition/daily"),
     });
 }
 
 export function useDietPlan() {
-    return useQuery({
+    return useQuery<DietPlan>({
         queryKey: ["diet-plan"],
         queryFn: () => fetchAPI("/diet/plan"),
         retry: false, // Don't retry if 404/no plan
@@ -62,7 +74,7 @@ export function useDeleteMeal() {
 export function useUpdateMeal() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) =>
+        mutationFn: ({ id, data }: { id: string; data: MealUpdateData }) =>
             fetchAPI(`/nutrition/log/${id}`, {
                 method: "PUT",
                 body: JSON.stringify(data),

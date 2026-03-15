@@ -11,3 +11,16 @@ backend/vapid-private-key.pem
 backend/.env.production
 backend/.env.development
 backend/.env
+
+# macOS metadata
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.claude/
+
+# Node
+node_modules/
+.next/
+out/

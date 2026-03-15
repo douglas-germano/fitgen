@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { fetchAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_KEY || 'BLzSS4PWis8jTZWkoj4ZO-X72PWmWva50qpJ6J2rRV3RjPSXV6_0X7AOf0kv0EL_eAFJHxshb89EfDyh37dnuXU';
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_KEY;
 
 export function usePushNotifications() {
     useEffect(() => {
@@ -109,6 +109,12 @@ async function initWebPush() {
     // Check browser support
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.log('❌ Web Push not supported in this browser');
+        return;
+    }
+
+    // Check VAPID key is configured
+    if (!VAPID_PUBLIC_KEY) {
+        console.warn('⚠️ VAPID_PUBLIC_KEY not configured. Set NEXT_PUBLIC_VAPID_KEY environment variable.');
         return;
     }
 

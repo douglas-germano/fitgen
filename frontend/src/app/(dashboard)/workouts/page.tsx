@@ -143,7 +143,7 @@ export default function WorkoutsPage() {
                             </CardTitle>
                             <CardDescription>
                                 {todaysWorkout ?
-                                    `${todaysWorkout.exercises.length} exercícios • Foco: ${todaysWorkout.muscle_groups.join(', ')}`
+                                    `${todaysWorkout.exercises.length} exercícios • Foco: ${todaysWorkout.muscle_groups?.join(', ') || todaysWorkout.focus}`
                                     : "Recupere suas energias para o próximo treino!"
                                 }
                             </CardDescription>
