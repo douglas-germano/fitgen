@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { fetchAPI } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, TrendingUp, Scale, Activity, Ruler, Calendar, HeartPulse, Flame } from "lucide-react";
+import { Loader2, Plus, TrendingUp, Scale, Activity, Calendar, HeartPulse, Flame } from "lucide-react";
 import { useUser } from "@/hooks/useDashboard";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
+import { MetricsSkeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { chartColors, chartConfig } from '@/lib/chart-config';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { WorkoutVolumeCard } from "@/components/dashboard/WorkoutVolumeCard";
+
+const MetricsEvolutionCharts = dynamic(() => import("@/components/charts/MetricsEvolutionCharts"), { ssr: false });
 
 export default function MetricsPage() {
     const { data: user } = useUser();
@@ -84,7 +86,7 @@ export default function MetricsPage() {
                 setLeanMassHistory(leanMass);
             }
         } catch (error) {
-            toast.error("Erro ao carregar histórico.");
+            toast.error(getErrorMessage(error, "Erro ao carregar histórico."));
         } finally {
             setLoading(false);
         }
@@ -120,18 +122,14 @@ export default function MetricsPage() {
             });
             fetchHistory();
         } catch (error) {
-            toast.error("Erro ao registrar medidas.");
+            toast.error(getErrorMessage(error, "Erro ao registrar medidas."));
         } finally {
             setIsLogging(false);
         }
     };
 
     if (loading) {
-        return (
-            <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
+        return <MetricsSkeleton />;
     }
 
     // Latest values
@@ -334,155 +332,12 @@ export default function MetricsPage() {
                     <CardDescription>Acompanhe graficamente seu progresso nos últimos 30 registros.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="weight" className="w-full">
-                        <TabsList className="mb-4 bg-background/50 border border-white/5 p-1 rounded-lg">
-                            <TabsTrigger value="weight" className="rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-500">Peso</TabsTrigger>
-                            <TabsTrigger value="fat" className="rounded-md data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-500">% Gordura</TabsTrigger>
-                            <TabsTrigger value="muscle" className="rounded-md data-[state=active]:bg-green-500/20 data-[state=active]:text-green-500">Massa Muscular</TabsTrigger>
-                            <TabsTrigger value="leanmass" className="rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-500">Massa Magra</TabsTrigger>
-                        </TabsList>
-
-                        {/* Chart Gradients */}
-                        {/* Chart Gradients - Absolute to avoid layout shift */}
-                        <div className="absolute opacity-0 pointer-events-none">
-                            <svg style={{ height: 0, width: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorMuscle" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorLeanMass" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                        </div>
-
-                        <TabsContent value="weight">
-                            <div className="h-[300px] w-full mt-4">
-                                {weightHistory.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={weightHistory}>
-                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                            <XAxis
-                                                dataKey="formattedDate"
-                                                tickLine={chartConfig.axis.tickLine}
-                                                axisLine={chartConfig.axis.axisLine}
-                                                tickMargin={10}
-                                                tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                            />
-                                            <YAxis
-                                                domain={['auto', 'auto']}
-                                                tickLine={chartConfig.axis.tickLine}
-                                                axisLine={chartConfig.axis.axisLine}
-                                                tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                                width={30}
-                                            />
-                                            <Tooltip
-                                                contentStyle={chartConfig.tooltip}
-                                                labelStyle={{ color: chartColors.axis, marginBottom: '4px' }}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="value"
-                                                stroke={chartColors.weight}
-                                                strokeWidth={chartConfig.areaStrokeWidth}
-                                                fillOpacity={1}
-                                                fill="url(#colorWeight)"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
-                                        <Scale className="h-12 w-12 mb-2" />
-                                        <p>Sem dados de peso ainda.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="fat">
-                            <div className="h-[300px] w-full mt-4">
-                                {fatHistory.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={fatHistory}>
-                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
-                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
-                                            <Tooltip
-                                                contentStyle={chartConfig.tooltip}
-                                                labelStyle={{ color: chartColors.axis }}
-                                            />
-                                            <Area type="monotone" dataKey="value" stroke={chartColors.bodyFat} strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorFat)" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
-                                        <Activity className="h-12 w-12 mb-2" />
-                                        <p>Sem dados de gordura ainda.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="muscle">
-                            <div className="h-[300px] w-full mt-4">
-                                {muscleHistory.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={muscleHistory}>
-                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
-                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
-                                            <Tooltip
-                                                contentStyle={chartConfig.tooltip}
-                                                labelStyle={{ color: chartColors.axis }}
-                                            />
-                                            <Area type="monotone" dataKey="value" stroke={chartColors.muscle} strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorMuscle)" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
-                                        <TrendingUp className="h-12 w-12 mb-2" />
-                                        <p>Sem dados de massa muscular.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="leanmass">
-                            <div className="h-[300px] w-full mt-4">
-                                {leanMassHistory.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={leanMassHistory}>
-                                            <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                            <XAxis dataKey="formattedDate" tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tickMargin={10} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} />
-                                            <YAxis domain={['auto', 'auto']} tickLine={chartConfig.axis.tickLine} axisLine={chartConfig.axis.axisLine} tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }} width={30} />
-                                            <Tooltip
-                                                contentStyle={chartConfig.tooltip}
-                                                labelStyle={{ color: chartColors.axis }}
-                                            />
-                                            <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={chartConfig.areaStrokeWidth} fillOpacity={1} fill="url(#colorLeanMass)" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
-                                        <TrendingUp className="h-12 w-12 mb-2" />
-                                        <p>Massa magra calculada pela Fórmula de Boer.</p>
-                                        <p className="text-xs mt-1">Registre seu peso para ver a evolução.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+                    <MetricsEvolutionCharts
+                        weightHistory={weightHistory}
+                        fatHistory={fatHistory}
+                        muscleHistory={muscleHistory}
+                        leanMassHistory={leanMassHistory}
+                    />
                 </CardContent>
             </Card>
         </div>

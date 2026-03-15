@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 import { MealLogger } from "@/components/diet/MealLogger";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentAchievements } from "@/components/dashboard/RecentAchievements";
 import { useDashboardMetrics, useUser } from "@/hooks/useDashboard";
+import { DashboardSkeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
     const { data: user, isLoading: loadingUser } = useUser();
@@ -14,7 +14,7 @@ export default function DashboardPage() {
     const [isMealLoggerOpen, setIsMealLoggerOpen] = useState(false);
 
     if (loadingUser || loadingStats) {
-        return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+        return <DashboardSkeleton />;
     }
 
     return (

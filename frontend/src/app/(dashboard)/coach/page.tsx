@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Send, Trash2, Bot, User, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -73,7 +74,7 @@ export default function CoachPage() {
             setMessages(prev => [...prev, coachMessage]);
 
         } catch (error) {
-            toast.error("Erro ao enviar mensagem");
+            toast.error(getErrorMessage(error, "Erro ao enviar mensagem."));
             setMessages(prev => prev.slice(0, -1));
         } finally {
             setLoading(false);
@@ -88,7 +89,7 @@ export default function CoachPage() {
             setMessages([]);
             toast.success("Histórico limpo");
         } catch (error) {
-            toast.error("Erro ao limpar histórico");
+            toast.error(getErrorMessage(error, "Erro ao limpar histórico."));
         }
     };
 

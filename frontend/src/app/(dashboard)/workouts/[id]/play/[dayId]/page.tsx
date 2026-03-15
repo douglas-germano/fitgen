@@ -22,7 +22,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Play, Pause, Square, CheckCircle2, Clock, Flame, ChevronDown, ChevronUp, Video, ArrowLeft, Trophy } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 import confetti from 'canvas-confetti';
 
@@ -115,7 +115,7 @@ export default function WorkoutSessionPage() {
                 setLoading(false);
             } catch (e) {
                 console.error(e);
-                toast.error("Erro ao carregar treino.");
+                toast.error(getErrorMessage(e, "Erro ao carregar treino."));
                 router.push("/workouts");
             }
         }
@@ -189,7 +189,7 @@ export default function WorkoutSessionPage() {
             });
             toast.success(`Série ${setIndex + 1} registrada!`);
         } catch (e) {
-            toast.error("Erro ao salvar série.");
+            toast.error(getErrorMessage(e, "Erro ao salvar série."));
         }
     };
 
@@ -220,7 +220,7 @@ export default function WorkoutSessionPage() {
                 origin: { y: 0.6 }
             });
         } catch (e) {
-            toast.error("Erro ao finalizar treino.");
+            toast.error(getErrorMessage(e, "Erro ao finalizar treino."));
         }
     };
 

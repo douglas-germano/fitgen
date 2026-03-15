@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Sparkles, Camera, Image as ImageIcon, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
 import { AILoading } from "@/components/ui/ai-loading";
 
 interface MealLoggerProps {
@@ -75,9 +76,9 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
             }
 
             setEstimatedFood(body);
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            toast.error(error.message || "Erro ao analisar alimento. Tente novamente.");
+            toast.error(getErrorMessage(error, "Erro ao analisar alimento. Tente novamente."));
         } finally {
             setIsEstimating(false);
         }
@@ -114,7 +115,7 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
 
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao registrar refeição.");
+            toast.error(getErrorMessage(error, "Erro ao registrar refeição."));
         } finally {
             setIsLogging(false);
         }

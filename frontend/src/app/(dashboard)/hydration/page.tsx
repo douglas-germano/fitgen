@@ -1,19 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { fetchAPI } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Plus, Droplets, Settings, CupSoda, Calendar, TrendingUp } from "lucide-react";
+import { Plus, Droplets, Settings, CupSoda, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { chartColors, chartConfig } from '@/lib/chart-config';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getErrorMessage } from "@/lib/utils";
+import { HydrationSkeleton } from "@/components/ui/skeleton";
+
+const HydrationHistoryChart = dynamic(() => import("@/components/charts/HydrationHistoryChart"), { ssr: false });
 
 interface HydrationStats {
     date: string;
@@ -48,7 +51,7 @@ export default function HydrationPage() {
             }));
             setHistory(formattedHistory);
         } catch (error) {
-            toast.error("Erro ao carregar dados.");
+            toast.error(getErrorMessage(error, "Erro ao carregar dados."));
         } finally {
             setLoading(false);
         }
@@ -68,7 +71,7 @@ export default function HydrationPage() {
             loadData();
             setAddingAmount("");
         } catch (error) {
-            toast.error("Erro ao registrar consumo.");
+            toast.error(getErrorMessage(error, "Erro ao registrar consumo."));
         }
     };
 
@@ -88,16 +91,12 @@ export default function HydrationPage() {
             setIsUpdatingGoal(false);
             loadData();
         } catch (error) {
-            toast.error("Erro ao atualizar meta.");
+            toast.error(getErrorMessage(error, "Erro ao atualizar meta."));
         }
     };
 
     if (loading) {
-        return (
-            <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
+        return <HydrationSkeleton />;
     }
 
     const percentage = Math.min(stats?.percentage || 0, 100);
@@ -259,56 +258,8 @@ export default function HydrationPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="h-[300px] w-full mt-4">
-                        {/* Chart Gradients - Absolute to avoid layout shift */}
-                        <div className="absolute opacity-0 pointer-events-none">
-                            <svg style={{ height: 0, width: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorHydration" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                        </div>
-
                         {history.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={history}>
-                                    <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                    <XAxis
-                                        dataKey="formattedDate"
-                                        tickLine={chartConfig.axis.tickLine}
-                                        axisLine={chartConfig.axis.axisLine}
-                                        tickMargin={10}
-                                        tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                    />
-                                    <YAxis
-                                        domain={[0, 'auto']}
-                                        tickLine={chartConfig.axis.tickLine}
-                                        axisLine={chartConfig.axis.axisLine}
-                                        tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                        width={40}
-                                    />
-                                    <Tooltip
-                                        contentStyle={chartConfig.tooltip}
-                                        labelStyle={{ color: chartColors.axis, marginBottom: '4px' }}
-                                        itemStyle={{ color: chartColors.hydration }}
-                                        formatter={(value: any) => [`${value} ml`, 'Consumo']}
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke={chartColors.hydration}
-                                        strokeWidth={chartConfig.areaStrokeWidth}
-                                        fillOpacity={1}
-                                        fill="url(#colorHydration)"
-                                    />
-                                    {/* Goal Line */}
-                                    {stats?.daily_goal_ml && (
-                                        <ReferenceLine y={stats.daily_goal_ml} stroke={chartColors.grid} strokeDasharray="3 3" strokeWidth={1.5} />
-                                    )}
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <HydrationHistoryChart data={history} goalMl={stats?.daily_goal_ml} />
                         ) : (
                             <div className="h-full flex items-center justify-center text-muted-foreground opacity-50">
                                 <Droplets className="h-12 w-12 mb-2" />

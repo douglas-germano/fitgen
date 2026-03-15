@@ -25,7 +25,7 @@ type DateRange = {
     from: Date | undefined;
     to?: Date | undefined;
 };
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
@@ -92,7 +92,7 @@ export default function HistoryPage() {
             refetch();
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao atualizar.");
+            toast.error(getErrorMessage(error, "Erro ao atualizar."));
         } finally {
             setIsSaving(false);
         }
@@ -106,7 +106,7 @@ export default function HistoryPage() {
             toast.success("Refeição excluída com sucesso!");
             refetch();
         } catch (error) {
-            toast.error("Erro ao excluir refeição.");
+            toast.error(getErrorMessage(error, "Erro ao excluir refeição."));
         } finally {
             setDeleteId(null);
         }

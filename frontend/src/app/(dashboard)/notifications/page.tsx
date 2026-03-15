@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2, Bell, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 interface Notification {
     id: string;
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
             setNotifications(prev => prev.filter(n => n.id !== id));
             toast.success("Notificação removida.");
         } catch (error) {
-            toast.error("Erro ao remover notificação.");
+            toast.error(getErrorMessage(error, "Erro ao remover notificação."));
         }
     };
 

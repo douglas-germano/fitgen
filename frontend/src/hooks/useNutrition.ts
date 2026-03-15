@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/lib/api";
-import type { DailyNutritionStats, DietPlan, Meal } from "@/types/api";
+import type { DailyNutritionStats, DietPlan } from "@/types/api";
 import { format } from "date-fns";
 
 // Minimal local type for date range used by hooks (compatible with react-day-picker)
@@ -84,5 +84,33 @@ export function useUpdateMeal() {
             queryClient.invalidateQueries({ queryKey: ["nutrition-history"] });
             queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
         },
+    });
+}
+
+export function useDietPlanTargets() {
+    return useQuery({
+        queryKey: ["diet-plan-targets"],
+        queryFn: async () => {
+            const planData = await fetchAPI("/diet/plan");
+            if (planData && planData.weekly_plan) {
+                const p = planData.macro_targets?.protein || 0;
+                const c = planData.macro_targets?.carbs || 0;
+                const f = planData.macro_targets?.fats || 0;
+                const cal = (p * 4) + (c * 4) + (f * 9);
+                return {
+                    hasPlan: true,
+                    targets: { protein: p, carbs: c, fats: f, calories: cal > 0 ? cal : 2000 },
+                };
+            }
+            return { hasPlan: false, targets: null };
+        },
+        retry: false,
+    });
+}
+
+export function useWeeklyNutritionHistory() {
+    return useQuery({
+        queryKey: ["nutrition-history", "week"],
+        queryFn: () => fetchAPI("/nutrition/history?days=7"),
     });
 }

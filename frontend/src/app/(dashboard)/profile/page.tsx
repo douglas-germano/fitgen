@@ -10,6 +10,7 @@ import { Loader2, User as UserIcon, LogOut, Lock, HelpCircle, BookOpen, Mail, Ed
 import { useRouter } from "next/navigation";
 import { removeToken } from "@/lib/api";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { useUser } from "@/hooks/useDashboard";
@@ -49,8 +50,8 @@ export default function ProfilePage() {
             setIsNameOpen(false);
             setNewName("");
             refetch();
-        } catch (error: any) {
-            toast.error(error.message || "Erro ao atualizar nome.");
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Erro ao atualizar nome."));
         } finally {
             setNameLoading(false);
         }
@@ -80,8 +81,8 @@ export default function ProfilePage() {
             toast.success("Senha alterada com sucesso!");
             setIsPasswordOpen(false);
             setPassData({ old_password: "", new_password: "", confirm_password: "" });
-        } catch (error: any) {
-            toast.error(error.message || "Erro ao alterar senha.");
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Erro ao alterar senha."));
         } finally {
             setPassLoading(false);
         }

@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { formatDateOnlyBRT } from "@/lib/date";
-// import { fetchAPI } from "@/lib/api";
 import { useActiveWorkoutPlan, useExerciseHistory, useGenerateWorkout } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dumbbell, Plus, Calendar, ChevronRight, Loader2, Play, History, TrendingUp, Clock } from "lucide-react";
+import { Dumbbell, Plus, Play, History, TrendingUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { chartColors, chartConfig } from '@/lib/chart-config';
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
+import { WorkoutsSkeleton } from "@/components/ui/skeleton";
+
+const WorkoutHistoryChart = dynamic(() => import("@/components/charts/WorkoutHistoryChart"), { ssr: false });
 import {
     AlertDialog,
     AlertDialogAction,
@@ -62,9 +65,9 @@ export default function WorkoutsPage() {
         setShowGenerateDialog(false);
         try {
             await generateMutation.mutateAsync();
-            window.location.reload(); // Still safest to reload to ensure fresh full state, or just let invalidation handle it
+            // React Query invalidation in the mutation's onSuccess handles refetch
         } catch (e) {
-            alert("Erro ao gerar plano.");
+            toast.error(getErrorMessage(e, "Erro ao gerar plano."));
         }
     };
 
@@ -90,7 +93,7 @@ export default function WorkoutsPage() {
             .slice(-7);
     })();
 
-    if (loading) return <div className="flex h-[calc(100vh-200px)] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    if (loading) return <WorkoutsSkeleton />;
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -227,33 +230,7 @@ export default function WorkoutsPage() {
                         </CardHeader>
                         <CardContent className="h-[250px]">
                             {history.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={chartData}>
-                                        <CartesianGrid strokeDasharray={chartConfig.gridStrokeDasharray} vertical={false} stroke={chartColors.grid} />
-                                        <XAxis
-                                            dataKey="date"
-                                            tickLine={chartConfig.axis.tickLine}
-                                            axisLine={chartConfig.axis.axisLine}
-                                            tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                        />
-                                        <YAxis
-                                            tickLine={chartConfig.axis.tickLine}
-                                            axisLine={chartConfig.axis.axisLine}
-                                            tickFormatter={(value) => `${value}m`}
-                                            tick={{ fontSize: chartConfig.axis.fontSize, fill: chartColors.axis }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={chartConfig.tooltip}
-                                            cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
-                                        />
-                                        <Bar
-                                            dataKey="minutos"
-                                            fill={chartColors.workout}
-                                            radius={chartConfig.barRadius}
-                                            barSize={40}
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <WorkoutHistoryChart data={chartData} />
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                                     <Clock className="h-8 w-8 mb-2 opacity-50" />

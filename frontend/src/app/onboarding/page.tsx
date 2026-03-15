@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
 import { AILoading } from "@/components/ui/ai-loading";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
+
+const STORAGE_KEY = "fitgen_onboarding";
 
 // --- Types ---
 interface FormData {
@@ -45,9 +47,13 @@ interface OptionProps {
 function OptionCard({ value, label, selected, onClick, description }: OptionProps) {
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+            aria-pressed={selected}
             className={cn(
-                "relative flex flex-col p-4 cursor-pointer rounded-xl border transition-all duration-300",
+                "relative flex flex-col p-4 cursor-pointer rounded-xl border transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 selected
                     ? "border-primary bg-primary/15 shadow-lg shadow-primary/10 backdrop-blur-sm"
                     : "border-border/40 bg-secondary/30 hover:bg-secondary/50 hover:border-border/60 backdrop-blur-sm"
@@ -71,30 +77,54 @@ function OptionCard({ value, label, selected, onClick, description }: OptionProp
 // --- Config ---
 const TOTAL_STEPS = 16;
 
+const defaultFormData: FormData = {
+    gender: "",
+    age: "",
+    weight_kg: "",
+    height_cm: "",
+    fitness_goal: "",
+    target_weight_kg: "",
+    routine_activity: "",
+    training_days_count: "",
+    experience_level: "",
+    training_location: "",
+    injuries: "",
+    diet_restriction: "Nenhuma restrição",
+    allergies: "Não",
+    meals_per_day: "",
+    dislikes: "",
+    extra_info: ""
+};
+
+function loadSavedState(): { step: number; formData: FormData } {
+    if (typeof window === "undefined") return { step: 1, formData: defaultFormData };
+    try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return {
+                step: parsed.step || 1,
+                formData: { ...defaultFormData, ...parsed.formData }
+            };
+        }
+    } catch {}
+    return { step: 1, formData: defaultFormData };
+}
+
 export default function OnboardingPage() {
     const router = useRouter();
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(() => loadSavedState().step);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("Iniciando...");
 
-    const [formData, setFormData] = useState<FormData>({
-        gender: "",
-        age: "",
-        weight_kg: "",
-        height_cm: "",
-        fitness_goal: "",
-        target_weight_kg: "",
-        routine_activity: "",
-        training_days_count: "",
-        experience_level: "",
-        training_location: "",
-        injuries: "",
-        diet_restriction: "Nenhuma restrição",
-        allergies: "Não",
-        meals_per_day: "",
-        dislikes: "",
-        extra_info: ""
-    });
+    const [formData, setFormData] = useState<FormData>(() => loadSavedState().formData);
+
+    // Persist progress to sessionStorage
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, formData }));
+        } catch {}
+    }, [step, formData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -225,12 +255,13 @@ export default function OnboardingPage() {
             setLoadingMessage("Montando dieta personalizada...");
             await fetchAPI("/diet/generate", { method: "POST" });
 
+            sessionStorage.removeItem(STORAGE_KEY);
             toast.success("Tudo pronto!");
             router.push("/dashboard");
 
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao configurar perfil. Tente novamente.");
+            toast.error(getErrorMessage(error, "Erro ao configurar perfil. Tente novamente."));
             setIsLoading(false);
         }
     };
@@ -483,9 +514,14 @@ export default function OnboardingPage() {
                                 {["2", "3", "4", "5", "6"].map(d => (
                                     <div
                                         key={d}
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => handleOptionSelect("training_days_count", d)}
+                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleOptionSelect("training_days_count", d); } }}
+                                        aria-pressed={formData.training_days_count === d}
+                                        aria-label={`${d} dias por semana`}
                                         className={cn(
-                                            "h-20 rounded-xl cursor-pointer border flex flex-col items-center justify-center transition-all duration-300",
+                                            "h-20 rounded-xl cursor-pointer border flex flex-col items-center justify-center transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                                             formData.training_days_count === d
                                                 ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25 scale-[1.02]"
                                                 : "bg-secondary/30 border-border/40 hover:bg-secondary/50 hover:border-border/60 backdrop-blur-sm"

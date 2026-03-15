@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { getToken } from "@/lib/api";
+import { setupTokenRefresh } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -25,18 +26,15 @@ export default function DashboardLayout({
         const token = getToken();
         if (!token) {
             router.push("/login");
-        } else {
-            // eslint-disable-next-line
-            setIsAuthenticated(true);
-
-            // Setup automatic token refresh
-            const { setupTokenRefresh } = require("@/lib/auth");
-            const cleanup = setupTokenRefresh();
-
-            // Cleanup on unmount
-            return cleanup;
+            return;
         }
-    }, []); // Run only once on mount
+
+        setIsAuthenticated(true);
+
+        // Setup automatic token refresh (static import — tree-shakeable)
+        const cleanup = setupTokenRefresh();
+        return cleanup;
+    }, [router]);
 
     if (!isAuthenticated) {
         return (

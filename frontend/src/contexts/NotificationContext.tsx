@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Bell, TrendingUp, Droplets, Utensils, Trophy } from "lucide-react";
@@ -28,17 +28,18 @@ export function useNotifications() {
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-    const [shownNotifications, setShownNotifications] = useState<Set<string>>(new Set());
+    // Use ref to track shown notification IDs — avoids re-triggering the effect
+    const shownRef = useRef<Set<string>>(new Set());
     const [unreadCount, setUnreadCount] = useState(0);
 
-    const markAsRead = async (id: string) => {
+    const markAsRead = useCallback(async (id: string) => {
         try {
             await fetchAPI(`/notifications/${id}/read`, { method: "POST" });
-            setShownNotifications(prev => new Set([...prev, id]));
+            shownRef.current.add(id);
         } catch (error) {
             console.error("Failed to mark notification as read:", error);
         }
-    };
+    }, []);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -55,22 +56,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
     };
 
-    const showNotificationToast = (notification: Notification) => {
-        const icon = getIcon(notification.type);
-
-        toast(notification.title, {
-            description: notification.message,
-            icon,
-            duration: 5000,
-            action: {
-                label: "OK",
-                onClick: () => markAsRead(notification.id),
-            },
-            onDismiss: () => markAsRead(notification.id),
-            onAutoClose: () => markAsRead(notification.id),
-        });
-    };
-
     useEffect(() => {
         const checkForNotifications = async () => {
             try {
@@ -78,26 +63,38 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
                 setUnreadCount(notifications.length);
 
-                // Show new notifications as toasts
+                // Show new notifications as toasts (using ref — no state update needed)
                 notifications.forEach(notification => {
-                    if (!shownNotifications.has(notification.id)) {
-                        showNotificationToast(notification);
-                        setShownNotifications(prev => new Set([...prev, notification.id]));
+                    if (!shownRef.current.has(notification.id)) {
+                        shownRef.current.add(notification.id);
+
+                        const icon = getIcon(notification.type);
+                        toast(notification.title, {
+                            description: notification.message,
+                            icon,
+                            duration: 5000,
+                            action: {
+                                label: "OK",
+                                onClick: () => markAsRead(notification.id),
+                            },
+                            onDismiss: () => markAsRead(notification.id),
+                            onAutoClose: () => markAsRead(notification.id),
+                        });
                     }
                 });
             } catch (error) {
-                // Silently fail - don't spam console
+                // Silently fail — don't spam console
             }
         };
 
         // Check immediately
         checkForNotifications();
 
-        // Then check every 30 seconds
+        // Then check every 30 seconds — single stable interval
         const interval = setInterval(checkForNotifications, 30000);
 
         return () => clearInterval(interval);
-    }, [shownNotifications]);
+    }, [markAsRead]);
 
     return (
         <NotificationContext.Provider value={{ unreadCount, markAsRead }}>
