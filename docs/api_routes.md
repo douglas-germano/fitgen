@@ -1,122 +1,138 @@
 # FitGen API Routes Map
 
-This document lists all available API endpoints in the FitGen backend, grouped by functional module.
+Este documento lista todos os endpoints disponíveis na API do FitGen, agrupados por módulo funcional.
 
 ## Authentication (`/api/auth`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/login` | Log in a user |
-| GET | `/api/auth/me` | Get current user's info |
-| POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/register` | Criar conta |
+| POST | `/api/auth/login` | Autenticar e obter JWT |
+| POST | `/api/auth/refresh` | Renovar access token |
+| GET | `/api/auth/me` | Dados do usuário atual |
+| POST | `/api/auth/forgot-password` | Solicitar token de reset |
+| POST | `/api/auth/reset-password` | Resetar senha com token |
+| POST | `/api/auth/change-password` | Alterar senha existente |
 
 ## Onboarding (`/api/onboarding`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/onboarding` | Save onboarding data |
-| POST | `/api/onboarding/generate-workout` | Generate initial workout plan |
-| GET | `/api/onboarding/status` | Get onboarding status |
+| POST | `/api/onboarding` | Salvar dados do onboarding |
+| POST | `/api/onboarding/generate-workout` | Gerar plano de treino inicial via IA |
+| GET | `/api/onboarding/status` | Verificar status do onboarding |
 
 ## Workouts (`/api/workouts`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/workouts` | Get all workout plans |
-| POST | `/api/workouts` | Create a workout plan |
-| GET | `/api/workouts/<uuid:plan_id>` | Get workout details |
-| PUT | `/api/workouts/<uuid:plan_id>/activate` | Activate a workout plan |
+| GET | `/api/workouts` | Listar planos de treino |
+| POST | `/api/workouts` | Criar plano de treino |
+| GET | `/api/workouts/<uuid:plan_id>` | Detalhes do plano (dias + exercícios) |
+| PUT | `/api/workouts/<uuid:plan_id>/activate` | Ativar plano de treino |
 
 ## Exercises (`/api/exercises`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/exercises/sessions/start` | Start a workout session |
-| POST | `/api/exercises/sessions/<uuid:session_id>/log-set` | Log a set for an exercise |
-| PUT | `/api/exercises/sessions/<uuid:session_id>/finish` | Finish a workout session |
+| POST | `/api/exercises/sessions/start` | Iniciar sessão de treino |
+| POST | `/api/exercises/sessions/<uuid:session_id>/log-set` | Registrar série de exercício |
+| PUT | `/api/exercises/sessions/<uuid:session_id>/finish` | Finalizar sessão de treino |
 
 ## Nutrition (`/api/nutrition`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/nutrition/analyze` | Analyze food image |
-| POST | `/api/nutrition/estimate` | Estimate nutrition from text/params |
-| GET | `/api/nutrition/daily` | Get daily nutrition summary |
-| POST | `/api/nutrition/log` | Log a meal |
-| DELETE | `/api/nutrition/log/<meal_id>` | Delete a logged meal |
-| GET | `/api/nutrition/history` | Get nutrition history (via `nutrition_history`) |
+| POST | `/api/nutrition/analyze` | Analisar imagem de alimento (IA vision) |
+| POST | `/api/nutrition/estimate` | Estimar macros a partir de texto/params |
+| GET | `/api/nutrition/daily` | Resumo nutricional diário |
+| POST | `/api/nutrition/log` | Registrar refeição |
+| DELETE | `/api/nutrition/log/<meal_id>` | Excluir refeição registrada |
+| GET | `/api/nutrition/history` | Histórico nutricional (timeline) |
 
 ## Diet (`/api/diet`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/diet/generate` | Generate diet plan |
-| GET | `/api/diet/plan` | Get current diet plan |
-| POST | `/api/diet/regenerate-day` | Regenerate a day's diet plan |
-| POST | `/api/diet/onboarding` | Save diet preferences |
+| POST | `/api/diet/generate` | Gerar plano de dieta (12 semanas) |
+| GET | `/api/diet/plan` | Obter plano atual |
+| POST | `/api/diet/regenerate-day` | Regenerar refeições de um dia |
+| POST | `/api/diet/onboarding` | Salvar preferências alimentares |
 
 ## Hydration (`/api/hydration`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/hydration/daily` | Get daily hydration stats |
-| POST | `/api/hydration/log` | Log water intake |
-| POST | `/api/hydration/goal` | Set daily hydration goal |
+| GET | `/api/hydration/daily` | Estatísticas diárias de hidratação |
+| POST | `/api/hydration/log` | Registrar ingestão de água |
+| POST | `/api/hydration/goal` | Definir meta diária (ml) |
 
 ## Metrics (`/api/metrics`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/metrics/dashboard` | Get dashboard summary metrics |
-| GET | `/api/metrics/history` | Get metrics history |
-| POST | `/api/metrics/log` | Log new metrics |
+| GET | `/api/metrics/dashboard` | Métricas resumidas do dashboard |
+| GET | `/api/metrics/history` | Histórico de métricas |
+| POST | `/api/metrics/log` | Registrar métricas (peso, % gordura, massa muscular) |
 
 ## Gamification (`/api/gamification`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gamification/achievements` | Get user achievements |
-| GET | `/api/gamification/progress` | Get gamification progress (XP, level) |
-| GET | `/api/gamification/streaks` | Get streak info |
-| POST | `/api/gamification/debug/award-xp` | Debug: Award XP manually |
+| GET | `/api/gamification/achievements` | Listar conquistas |
+| GET | `/api/gamification/progress` | Progresso (XP, nível, próximo nível) |
+| GET | `/api/gamification/streaks` | Streaks (treino, nutrição, hidratação) |
+| POST | `/api/gamification/debug/award-xp` | Conceder XP manualmente (debug) |
+
+## Coach Virtual (`/api/chat`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat` | Enviar mensagem ao coach (Gemini + function calling) |
+| GET | `/api/chat/history` | Histórico de conversas |
+| DELETE | `/api/chat/clear` | Limpar histórico |
 
 ## Profile (`/api/profile`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/profile/me` | Get user profile |
-| PUT | `/api/profile/me` | Update user profile |
+| GET | `/api/profile/me` | Obter perfil do usuário |
+| PUT | `/api/profile/me` | Atualizar perfil |
 
 ## Progress (`/api/progress`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/progress/snapshots` | Get progress snapshots/photos |
+| GET | `/api/progress/snapshots` | Fotos de progresso (antes/depois) |
 
 ## Notifications (`/api/notifications`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/notifications/` | Get user notifications |
-| POST | `/api/notifications/<uuid:notification_id>/read` | Mark notification as read |
+| GET | `/api/notifications/` | Listar notificações |
+| POST | `/api/notifications/<uuid:notification_id>/read` | Marcar como lida |
 
 ## Feedback (`/api/feedback`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/feedback/` | Get user feedback |
-| GET | `/api/feedback/<uuid:feedback_id>` | Get specific feedback |
+| GET | `/api/feedback/` | Listar feedbacks do usuário |
+| GET | `/api/feedback/<uuid:feedback_id>` | Obter feedback específico |
 
 ## Subscriptions (`/api/subscriptions`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/subscriptions/checkout` | Create Stripe checkout session |
-| GET | `/api/subscriptions/status` | Get subscription status |
-| POST | `/api/subscriptions/webhook` | Stripe webhook handler |
+| POST | `/api/subscriptions/checkout` | Criar sessão de checkout Stripe |
+| GET | `/api/subscriptions/status` | Status da assinatura |
+| POST | `/api/subscriptions/webhook` | Webhook do Stripe |
+
+## WhatsApp (`/api/whatsapp`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/whatsapp/webhook` | Webhook da Evolution API (WhatsApp) |
 
 ## Admin (`/api/admin`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/users` | List all users |
-| GET | `/api/admin/stats` | Get system stats |
-| GET | `/api/admin/users/<uuid:user_id>` | Get user details |
-| PUT | `/api/admin/users/<uuid:user_id>` | Update user |
-| DELETE | `/api/admin/users/<uuid:user_id>` | Delete user |
-| PUT | `/api/admin/users/<uuid:user_id>/activate` | Activate user |
-| PUT | `/api/admin/users/<uuid:user_id>/suspend` | Suspend user |
-| PUT | `/api/admin/users/<uuid:user_id>/role` | Update user role |
-| POST | `/api/admin/promote-self` | Promote self (dev/debug) |
+| GET | `/api/admin/users` | Listar todos os usuários |
+| GET | `/api/admin/stats` | Estatísticas do sistema |
+| GET | `/api/admin/users/<uuid:user_id>` | Detalhes do usuário |
+| PUT | `/api/admin/users/<uuid:user_id>` | Atualizar usuário |
+| DELETE | `/api/admin/users/<uuid:user_id>` | Excluir usuário |
+| PUT | `/api/admin/users/<uuid:user_id>/activate` | Reativar usuário |
+| PUT | `/api/admin/users/<uuid:user_id>/suspend` | Suspender usuário |
+| PUT | `/api/admin/users/<uuid:user_id>/role` | Alterar role do usuário |
+| POST | `/api/admin/promote-self` | Promover a admin (dev only) |
 
 ## System
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/static/<path:filename>` | Static files |
+| GET | `/health` | Health check (DB status) |
+| GET | `/apidocs` | Swagger UI (Flasgger) |
+| GET | `/static/<path:filename>` | Arquivos estáticos |
