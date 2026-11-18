@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 import { AILoading } from "@/components/ui/ai-loading";
+import posthog from "posthog-js";
+import { posthogAppLogger } from "@/lib/posthog-logger";
 
 interface MealLoggerProps {
     open: boolean;
@@ -101,6 +103,12 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
                     portion_size: estimatedFood.portion_size
                 })
             });
+            const inputMethod = selectedImages.length > 0 ? "image" : "description";
+            posthog.capture("meal_logged", {
+                input_method: inputMethod,
+                meal_type: selectedMealType,
+            });
+            posthogAppLogger.mealLogged(inputMethod, selectedMealType);
 
             toast.success("Refeição registrada!");
             if (onSuccess) onSuccess();

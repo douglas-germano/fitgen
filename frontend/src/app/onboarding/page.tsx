@@ -12,6 +12,8 @@ import { fetchAPI } from "@/lib/api";
 import { AILoading } from "@/components/ui/ai-loading";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
+import posthog from "posthog-js";
+import { posthogAppLogger } from "@/lib/posthog-logger";
 
 const STORAGE_KEY = "fitgen_onboarding";
 
@@ -255,6 +257,10 @@ export default function OnboardingPage() {
             setLoadingMessage("Montando dieta personalizada...");
             await fetchAPI("/diet/generate", { method: "POST" });
 
+            posthog.capture("onboarding_completed", {
+                completed_steps: TOTAL_STEPS,
+            });
+            posthogAppLogger.onboardingCompleted(TOTAL_STEPS);
             sessionStorage.removeItem(STORAGE_KEY);
             toast.success("Tudo pronto!");
             router.push("/dashboard");

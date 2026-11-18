@@ -1,5 +1,6 @@
 import { getTokenAsync, setToken, removeToken } from './api';
 import { getStorageItem, removeStorageItem } from './storage';
+import posthog from "posthog-js";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
 
@@ -70,6 +71,7 @@ export async function refreshAccessToken(retryCount = 0): Promise<boolean> {
             // If refresh token expired (401), logout user
             if (response.status === 401 || response.status === 422) {
                 console.warn('Refresh token expired, logging out');
+                posthog.reset();
                 await removeToken();
                 await removeStorageItem('refresh_token');
                 window.location.href = '/login';

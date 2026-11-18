@@ -73,6 +73,7 @@ export const fetchAPI = async (endpoint: string, options: FetchOptions = {}) => 
 
     if (!response.ok) {
         if (response.status === 401 && !options.skipAuthRedirect) {
+            void import("posthog-js").then(({ default: posthog }) => posthog.reset());
             removeToken();
             window.location.href = "/login";
             return null;

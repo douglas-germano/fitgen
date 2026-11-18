@@ -25,6 +25,8 @@ import { Play, Pause, Square, CheckCircle2, Clock, Flame, ChevronDown, ChevronUp
 import { cn, getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 import confetti from 'canvas-confetti';
+import posthog from "posthog-js";
+import { posthogAppLogger } from "@/lib/posthog-logger";
 
 interface Exercise {
     id: string;
@@ -187,6 +189,9 @@ export default function WorkoutSessionPage() {
                     weight_used_kg: parseFloat(log.weight)
                 })
             });
+            posthog.capture("workout_set_logged", {
+                set_number: setIndex + 1,
+            });
             toast.success(`Série ${setIndex + 1} registrada!`);
         } catch (e) {
             toast.error(getErrorMessage(e, "Erro ao salvar série."));
@@ -209,6 +214,11 @@ export default function WorkoutSessionPage() {
                 body: JSON.stringify({ notes: "Treino finalizado via App" })
             });
 
+            const durationMinutes = Math.round(res.duration / 60);
+            posthog.capture("workout_session_completed", {
+                duration_minutes: durationMinutes,
+            });
+            posthogAppLogger.workoutSessionCompleted(durationMinutes);
             setFinishStats({
                 duration: res.duration,
                 calories: res.calories || 0  // Use backend calories

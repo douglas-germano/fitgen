@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { removeToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import posthog from "posthog-js";
 
 const navItems = [
     { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
@@ -36,6 +37,7 @@ export function Sidebar({ className }: { className?: string }) {
     const [isOpen, setIsOpen] = useState(false);
 
     const handleLogout = () => {
+        posthog.reset();
         removeToken();
         router.push("/login");
     };

@@ -25,6 +25,7 @@ import {
 import { useDailyNutrition, useDietPlanTargets, useDeleteMeal, useUpdateMeal } from "@/hooks/useNutrition";
 import { getErrorMessage } from "@/lib/utils";
 import { DietSkeleton } from "@/components/ui/skeleton";
+import posthog from "posthog-js";
 
 export default function DietPage() {
     const router = useRouter();
@@ -60,6 +61,9 @@ export default function DietPage() {
                     fat: parseFloat(editData.fats),
                 }
             });
+            posthog.capture("meal_updated", {
+                meal_type: editData.meal_type,
+            });
             toast.success("Refeição atualizada!");
             setIsEditOpen(false);
         } catch (error) {
@@ -71,6 +75,7 @@ export default function DietPage() {
         if (!deleteId) return;
         try {
             await deleteMutation.mutateAsync(deleteId);
+            posthog.capture("meal_deleted");
             toast.success("Refeição excluída com sucesso!");
         } catch (error) {
             toast.error(getErrorMessage(error, "Erro ao excluir refeição."));

@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getErrorMessage } from "@/lib/utils";
 import { HydrationSkeleton } from "@/components/ui/skeleton";
+import posthog from "posthog-js";
 
 const HydrationHistoryChart = dynamic(() => import("@/components/charts/HydrationHistoryChart"), { ssr: false });
 
@@ -67,6 +68,9 @@ export default function HydrationPage() {
                 method: "POST",
                 body: JSON.stringify({ amount_ml: amount }),
             });
+            posthog.capture("hydration_logged", {
+                amount_ml: amount,
+            });
             toast.success(`${amount}ml registrados!`);
             loadData();
             setAddingAmount("");
@@ -86,6 +90,9 @@ export default function HydrationPage() {
             await fetchAPI("/hydration/goal", {
                 method: "POST",
                 body: JSON.stringify({ goal_amount_ml: goal }),
+            });
+            posthog.capture("hydration_goal_updated", {
+                goal_amount_ml: goal,
             });
             toast.success("Meta atualizada!");
             setIsUpdatingGoal(false);

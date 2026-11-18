@@ -12,6 +12,7 @@ import { fetchAPI, setToken } from "@/lib/api";
 import { setStorageItem } from "@/lib/storage";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -29,6 +30,15 @@ export default function LoginPage() {
             setStorageItem("refresh_token", data.refresh_token)
         ]);
 
+        if (data.user?.id) {
+            posthog.identify(data.user.id, {
+                email: data.user.email,
+                name: data.user.name,
+                is_admin: data.user.is_admin,
+            });
+        }
+
+        posthog.capture("user_logged_in");
         toast.success("Login realizado com sucesso!");
 
         // Redirect based on onboarding status

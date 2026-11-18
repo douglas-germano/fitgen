@@ -1,15 +1,27 @@
 "use client";
 
+import { useEffect } from "react";
 import { User, Trophy, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useUser } from "@/hooks/useDashboard";
+import posthog from "posthog-js";
 
 export function Header() {
     const { data: user } = useUser();
     const isAdmin = user?.role === "admin" || user?.is_admin === true;
+
+    useEffect(() => {
+        if (user?.id) {
+            posthog.identify(user.id, {
+                email: user.email,
+                name: user.name,
+                is_admin: user.is_admin,
+            });
+        }
+    }, [user]);
 
     return (
         <header className="flex items-center border-b border-white/5 px-6 glass sticky top-0 z-30 pt-[max(env(safe-area-inset-top),32px)] h-[calc(4rem+max(env(safe-area-inset-top),32px))]">

@@ -14,6 +14,7 @@ import { getErrorMessage } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { useUser } from "@/hooks/useDashboard";
+import posthog from "posthog-js";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -89,6 +90,7 @@ export default function ProfilePage() {
     };
 
     const handleLogout = () => {
+        posthog.reset();
         removeToken();
         window.location.href = "/login";
     };

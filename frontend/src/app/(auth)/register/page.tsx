@@ -11,6 +11,7 @@ import { fetchAPI, setToken } from "@/lib/api";
 import { setStorageItem } from "@/lib/storage";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -54,6 +55,15 @@ export default function RegisterPage() {
                     setStorageItem("refresh_token", data.refresh_token)
                 ]);
 
+                if (data.user?.id) {
+                    posthog.identify(data.user.id, {
+                        email: data.user.email,
+                        name: data.user.name,
+                        is_admin: data.user.is_admin,
+                    });
+                }
+
+                posthog.capture("user_registered");
                 toast.success("Conta criada! Vamos configurar seu perfil.");
                 router.push("/onboarding");
             } else {
