@@ -47,8 +47,26 @@ JWT_REFRESH_TOKEN_EXPIRES=2592000
 # Obrigatório - Frontend (CORS)
 FRONTEND_URL=https://fitgen.suacozinha.site
 
-# Obrigatório - Google Gemini IA
-GEMINI_API_KEY=your_gemini_api_key
+# Obrigatório - IA via OpenRouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+# Opcional - modelo (padrão: google/gemini-2.5-pro)
+OPENROUTER_MODEL=google/gemini-2.5-pro
+
+# Assinaturas via App Store / Google Play (RevenueCat)
+# Valor EXATO do header Authorization configurado no webhook do RevenueCat
+# (Integrations -> Webhooks -> URL https://<api>/api/webhooks/revenuecat). Sem ele o endpoint responde 503.
+REVENUECAT_WEBHOOK_AUTH=Bearer troque_por_um_segredo_longo
+# Chave SECRETA do RevenueCat (sk_...) usada por POST /api/subscriptions/sync para liberar o acesso
+# logo após a compra, sem esperar o webhook. Nunca vai no app.
+# REVENUECAT_SECRET_API_KEY=sk_...
+# Identificador do entitlement no RevenueCat (padrao: premium)
+# REVENUECAT_ENTITLEMENT=premium
+# Compras de sandbox (App Review/TestFlight) sempre liberam o app, mas so entram no painel financeiro com isto ligado
+# REVENUECAT_ACCEPT_SANDBOX=true
+# Trava de assinatura: o app so abre com assinatura/trial vigente (admins sao isentos). "false" desliga a trava.
+# SUBSCRIPTION_REQUIRED=true
+# Opcional - valor (R$) assumido quando o webhook do Kiwify/Herospark nao traz o preco
+# BILLING_DEFAULT_PRICE_BRL=19.90
 
 # Opcional - Firebase (push notifications)
 FIREBASE_CREDENTIALS_PATH=/app/firebase-credentials.json
@@ -61,10 +79,11 @@ EVOLUTION_API_URL=https://your-evolution-api-url
 EVOLUTION_API_KEY=your_evolution_api_key
 EVOLUTION_INSTANCE_NAME=FitGen
 
-# Opcional - Brevo (Email)
+# Brevo (Email: reset de senha, boas-vindas). Sem a chave nenhum email sai.
 BREVO_API_KEY=your_brevo_api_key
-BREVO_SENDER_EMAIL=your@email.com
+BREVO_SENDER_EMAIL=no-reply@fitgen.pro   # remetente verificado no Brevo (SPF/DKIM do fitgen.pro)
 BREVO_SENDER_NAME=FitGen
+FRONTEND_URL=https://admin.fitgen.pro    # onde fica a página /reset-password
 
 # Opcional - Stripe (Pagamentos)
 STRIPE_SECRET_KEY=your_stripe_secret_key

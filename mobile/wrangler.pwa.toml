@@ -1,0 +1,15 @@
+name = "fitgen-pwa"
+main = "pwa/server.mjs"
+compatibility_date = "2026-11-17"
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "web.fitgen.pro", custom_domain = true }]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api", "/api/*", "/admin", "/admin/*"]
+
+[vars]
+FITGEN_API_ORIGIN = "https://dev-api.fitgen.pro"

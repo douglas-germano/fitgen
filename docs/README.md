@@ -1,6 +1,6 @@
 # FitGen - Plataforma de Fitness & Nutrição com IA
 
-Plataforma completa de fitness e nutrição impulsionada por IA (Google Gemini). Cria treinos personalizados, planos de dieta, oferece um Coach Virtual interativo e gamificação.
+Plataforma completa de fitness e nutrição impulsionada por IA (LLMs via OpenRouter). Cria treinos personalizados, planos de dieta, oferece um Coach Virtual interativo e gamificação.
 
 ## Tech Stack
 
@@ -9,7 +9,7 @@ Plataforma completa de fitness e nutrição impulsionada por IA (Google Gemini).
 - **PostgreSQL** (Supabase / Railway)
 - **Redis** (cache + rate limiting)
 - **JWT** (Flask-JWT-Extended) para autenticação
-- **Google Gemini** para IA (treinos, dieta, coach)
+- **OpenRouter** para IA (treinos, dieta, coach)
 - **Gunicorn** em produção
 - **Python 3.13**
 
@@ -38,9 +38,9 @@ fitgen/
 │   │   │   ├── nutrition/    # Refeições, Dieta, Hidratação
 │   │   │   ├── analytics/    # Métricas, Progresso, Metas
 │   │   │   ├── gamification/ # XP, Níveis, Conquistas, Streaks
-│   │   │   ├── coach/        # Coach Virtual (Gemini + Function Calling)
+│   │   │   ├── coach/        # Coach Virtual (OpenRouter + Function Calling)
 │   │   │   └── communication/# Notificações, Push, Email, WhatsApp
-│   │   ├── services/         # Serviços compartilhados (Gemini, Firebase, etc.)
+│   │   ├── services/         # Serviços compartilhados (IA, Firebase, etc.)
 │   │   └── extensions.py     # Extensões Flask (DB, JWT, Migrate, etc.)
 │   ├── migrations/           # Alembic migrations
 │   ├── requirements.txt

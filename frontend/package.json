@@ -7,9 +7,11 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "npm run pages:build && wrangler pages dev",
-    "deploy": "npm run pages:build && wrangler pages deploy",
+    "build:admin": "NEXT_OUTPUT=export NEXT_PUBLIC_SITE=admin next build --webpack && node scripts/prune-export.mjs admin",
+    "build:lp": "NEXT_OUTPUT=export NEXT_PUBLIC_SITE=lp next build --webpack && node scripts/prune-export.mjs lp",
+    "build:pages": "npm run build:admin",
+    "deploy:admin": "npm run build:admin && wrangler pages deploy out --project-name fitgen --branch main",
+    "deploy:lp": "npm run build:lp && wrangler pages deploy out --project-name fitgen-lp --branch main",
     "build:mobile": "next build --webpack && npx cap sync"
   },
   "dependencies": {

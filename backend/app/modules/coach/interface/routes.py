@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.modules.coach.domain.chat_message import ChatMessage
-from app.modules.coach.application.coach_gemini_service import CoachGeminiService
+from app.modules.coach.application.coach_ai_service import CoachAIService
 from app.modules.coach.application.coach_context_service import CoachContextService
 from app.shared.extensions import db
 from app.shared.utils.timezone import now_cuiaba
@@ -41,8 +41,8 @@ def send_message():
             for msg in reversed(history)  # Ordem cronológica
         ]
         
-        # 3. Envia para Gemini
-        result = CoachGeminiService.chat(context, history_list, message)
+        # 3. Envia para o LLM (OpenRouter)
+        result = CoachAIService.chat(context, history_list, message)
         
         if "error" in result and not result.get("response"):
             return jsonify({"msg": "AI service error", "error": result["error"]}), 500

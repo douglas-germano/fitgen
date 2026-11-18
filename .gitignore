@@ -24,3 +24,16 @@ backend/.env
 node_modules/
 .next/
 out/
+
+# Python virtualenv
+backend/venv/
+
+# Private community uploads
+backend/instance/
+
+# Local development artifacts
+.idea/
+.openidea/
+/FitGen-preview-android.apk
+/backend/logs/*.log
+/backend/app/static/uploads/profile_pics/user_*

@@ -2,7 +2,7 @@ import requests
 from flask import current_app
 import os
 from app.modules.identity.domain.models import User
-from app.modules.coach.application.coach_gemini_service import CoachGeminiService
+from app.modules.coach.application.coach_ai_service import CoachAIService
 from app.modules.coach.application.coach_context_service import CoachContextService
 from app.modules.coach.domain.chat_message import ChatMessage
 from app.shared.extensions import db
@@ -217,10 +217,9 @@ class WhatsAppService:
                         audio_bytes = base64.b64decode(base64_data)
                         mime_type = message_content['audioMessage'].get('mimetype', 'audio/ogg; codecs=opus')
                         
-                        # Transcribe audio using Gemini
-                        from app.modules.coach.infrastructure.gemini_service import GeminiService
-                        gemini = GeminiService()
-                        transcription = gemini.transcribe_audio(audio_bytes, mime_type)
+                        # Transcribe audio via AI provider
+                        from app.modules.coach.infrastructure.ai_service import AIService
+                        transcription = AIService().transcribe_audio(audio_bytes, mime_type)
                         
                         if transcription:
                             text = transcription
@@ -237,7 +236,7 @@ class WhatsAppService:
 
             print(f"📩 WhatsApp received from {phone}: {text} (Media: {len(media_attachments)})")
 
-            # --- DIRECT GEMINI PROCESSING (NO INTERCEPTORS) ---
+            # --- DIRECT AI PROCESSING (NO INTERCEPTORS) ---
             
             # 1. Lookup User
             user = User.query.filter_by(phone=phone).first()
@@ -290,7 +289,16 @@ class WhatsAppService:
                     return {"status": "activation_prompted"}
 
             # --- ACTIVATION FLOW END ---
-            
+
+            # IA Coach is a Premium feature (freemium): free users get an upgrade note instead.
+            from app.shared.subscription_access import freemium_enabled, user_has_access
+            if freemium_enabled() and not user_has_access(user):
+                WhatsAppService.send_message(phone, (
+                    "O IA Coach faz parte do *FitGen Premium* 💪\n"
+                    "Assine em https://fitgen.pro/assinar (7 dias grátis) e volte a falar comigo por aqui."
+                ))
+                return {"status": "premium_required"}
+
             # 2. Get Context
             user_id = str(user.id)
             context = CoachContextService.get_user_context(user_id)
@@ -308,8 +316,8 @@ class WhatsAppService:
                 for msg in reversed(history)
             ]
             
-            # 4. Process with Gemini 2.5 Pro
-            result = CoachGeminiService.chat(context, history_list, text, media_attachments)
+            # 4. Process with the AI coach (OpenRouter)
+            result = CoachAIService.chat(context, history_list, text, media_attachments)
             
             response_text = result.get('response')
             if not response_text:

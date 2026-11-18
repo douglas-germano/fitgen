@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, desc
+from app.shared import storage
 from app.modules.identity.domain.models import UserProfile, User
 from app.modules.gamification.domain.achievements import UserAchievement, Achievement
 from app.modules.gamification.domain.user_streak import UserStreak
@@ -144,7 +145,7 @@ def get_leaderboard():
             "rank": idx,
             "user_id": str(row.id),
             "name": row.name,
-            "profile_picture": row.profile_picture,
+            "profile_picture": storage.display_value(row.profile_picture),
             "level": row.level or 1,
             "medals_count": row.medals_count
         })

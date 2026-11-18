@@ -478,118 +478,124 @@ class CoachFunctions:
             return {"success": False, "error": str(e)}
 
 
-import google.generativeai as genai
+# ==================== TOOL DECLARATIONS (OpenAI / OpenRouter format) ====================
 
-# ==================== FUNCTION DECLARATIONS FOR GEMINI ====================
+def _tool(name, description, parameters):
+    """Wraps a function schema in the OpenAI tool format."""
+    return {
+        "type": "function",
+        "function": {"name": name, "description": description, "parameters": parameters},
+    }
+
 
 COACH_FUNCTION_DECLARATIONS = [
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="log_meal",
         description="Registra uma refeição com informações nutricionais. IMPORTANTE: Quando o usuário mencionar um alimento (ex: 'comi uma banana'), você deve ESTIMAR automaticamente as calorias, proteínas, carboidratos e gorduras baseado no conhecimento nutricional padrão desse alimento e quantidade mencionada. Não peça ao usuário para fornecer esses valores. Faça a estimativa você mesmo e registre.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "name": genai.protos.Schema(type=genai.protos.Type.STRING, description="Nome da refeição ou alimento mencionado pelo usuário"),
-                "calories": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Calorias totais ESTIMADAS por você baseado no alimento e quantidade"),
-                "protein": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Proteína em gramas ESTIMADA por você"),
-                "carbs": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Carboidratos em gramas ESTIMADOS por você"),
-                "fats": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Gorduras em gramas ESTIMADAS por você")
+                "name": dict(type='string', description="Nome da refeição ou alimento mencionado pelo usuário"),
+                "calories": dict(type='integer', description="Calorias totais ESTIMADAS por você baseado no alimento e quantidade"),
+                "protein": dict(type='integer', description="Proteína em gramas ESTIMADA por você"),
+                "carbs": dict(type='integer', description="Carboidratos em gramas ESTIMADOS por você"),
+                "fats": dict(type='integer', description="Gorduras em gramas ESTIMADAS por você")
             },
             required=["name", "calories", "protein", "carbs", "fats"]
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="get_nutrition_summary",
         description="Retorna resumo nutricional de um período. Use quando usuário perguntar sobre calorias, macros ou resumo do dia/semana.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "days": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Número de dias (1=hoje, 7=semana)")
+                "days": dict(type='integer', description="Número de dias (1=hoje, 7=semana)")
             }
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="get_calorie_breakdown",
         description="Análise detalhada de calorias por dia. Use para mostrar tendências de consumo.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "days": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Número de dias para análise")
+                "days": dict(type='integer', description="Número de dias para análise")
             }
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="log_water",
         description="Registra consumo de água. IMPORTANTE: Quando o usuário mencionar que bebeu água, você deve ESTIMAR automaticamente a quantidade em mililitros. Estimativas comuns: copo americano = 190ml, garrafa 500ml, copo 200ml, garrafa 1L = 1000ml, etc. Não peça ao usuário a quantidade em ml, estime você mesmo.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "amount_ml": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Quantidade de água em mililitros ESTIMADA por você baseado no que o usuário mencionou")
+                "amount_ml": dict(type='integer', description="Quantidade de água em mililitros ESTIMADA por você baseado no que o usuário mencionou")
             },
             required=["amount_ml"]
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="get_hydration_status",
         description="Retorna status de hidratação do dia atual.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={}
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="start_workout_session",
         description="Inicia uma nova sessão de treino. Use quando usuário disser que vai começar a treinar.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "workout_day_id": genai.protos.Schema(type=genai.protos.Type.STRING, description="ID do dia de treino (opcional)")
+                "workout_day_id": dict(type='string', description="ID do dia de treino (opcional)")
             }
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="log_exercise_set",
         description="Registra uma série de exercício. Use quando usuário disser que fez X repetições de um exercício.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "exercise_name": genai.protos.Schema(type=genai.protos.Type.STRING, description="Nome do exercício"),
-                "reps": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Número de repetições"),
-                "weight_kg": genai.protos.Schema(type=genai.protos.Type.NUMBER, description="Carga em kg (opcional)")
+                "exercise_name": dict(type='string', description="Nome do exercício"),
+                "reps": dict(type='integer', description="Número de repetições"),
+                "weight_kg": dict(type='number', description="Carga em kg (opcional)")
             },
             required=["exercise_name", "reps"]
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="get_workout_progress",
         description="Estatísticas de treino (frequência, volume).",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "days": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Período em dias")
+                "days": dict(type='integer', description="Período em dias")
             }
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="log_body_metric",
         description="Registra medidas corporais (peso, gordura). Use quando usuário informar novo peso.",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "weight_kg": genai.protos.Schema(type=genai.protos.Type.NUMBER, description="Peso em kg"),
-                "body_fat_percentage": genai.protos.Schema(type=genai.protos.Type.NUMBER, description="% de gordura (opcional)"),
-                "muscle_mass_kg": genai.protos.Schema(type=genai.protos.Type.NUMBER, description="Massa muscular kg (opcional)")
+                "weight_kg": dict(type='number', description="Peso em kg"),
+                "body_fat_percentage": dict(type='number', description="% de gordura (opcional)"),
+                "muscle_mass_kg": dict(type='number', description="Massa muscular kg (opcional)")
             },
             required=["weight_kg"]
         )
     ),
-    genai.protos.FunctionDeclaration(
+    _tool(
         name="get_progress_report",
         description="Relatório geral de progresso (peso, treinos, dieta).",
-        parameters=genai.protos.Schema(
-            type=genai.protos.Type.OBJECT,
+        parameters=dict(
+            type='object',
             properties={
-                "days": genai.protos.Schema(type=genai.protos.Type.INTEGER, description="Período em dias")
+                "days": dict(type='integer', description="Período em dias")
             }
         )
     )

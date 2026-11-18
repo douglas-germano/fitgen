@@ -27,7 +27,7 @@ const navItems = [
     { href: "/diet", label: "Dieta", icon: Utensils },
     { href: "/hydration", label: "Hidratação", icon: Droplets },
     { href: "/metrics", label: "Métricas", icon: Activity },
-    { href: "/coach", label: "Coach Virtual", icon: Bot },
+    { href: "/coach", label: "Otto", icon: Bot },
 ];
 
 export function Sidebar({ className }: { className?: string }) {

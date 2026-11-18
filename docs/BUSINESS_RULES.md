@@ -3,7 +3,7 @@
 Este documento descreve as principais regras de negócio, lógica de aplicação e restrições do sistema FitGen.
 
 ## 1. Visão Geral
-O **FitGen** é uma plataforma de fitness e nutrição impulsionada por IA (Google Gemini) que cria treinos personalizados, planos de dieta e oferece um Coach Virtual interativo com gamificação.
+O **FitGen** é uma plataforma de fitness e nutrição impulsionada por IA (LLMs via OpenRouter) que cria treinos personalizados, planos de dieta e oferece um Coach Virtual interativo com gamificação.
 
 ## 2. Usuários e Perfis
 
@@ -14,6 +14,11 @@ O **FitGen** é uma plataforma de fitness e nutrição impulsionada por IA (Goog
 - **Status da Conta**:
   - `active`: Usuário pode acessar o sistema.
   - `suspended`: Acesso bloqueado (ex: falta de pagamento ou violação de termos).
+- **Assinatura obrigatória** (desde 17/11/2026): o app só é utilizável com assinatura vigente.
+  - **Acesso** = `admin`, ou `subscription_expires_at` no futuro com status `active`, `canceled` (não renova) ou `past_due` (nova tentativa de cobrança). Quem se cadastra no app nasce `free`, sem acesso.
+  - **Trial de 7 dias** = oferta introdutória da loja (App Store/Kiwify); o webhook grava o fim do trial como `subscription_expires_at`.
+  - Sem acesso, a API responde `402` com `{"code": "subscription_required"}` em todas as rotas, exceto `/auth`, `/webhooks`, `/subscriptions`, `/admin` e `GET /profile/me` (que informa `has_access`). O app mostra a tela de assinatura.
+  - O admin pode conceder ou encerrar acesso sem pagamento (conta de demonstração do revisor da Apple, testers). `SUBSCRIPTION_REQUIRED=false` desliga a trava.
 - **Soft Delete**: Usuários não são removidos fisicamente do banco de dados. O campo `deleted_at` é preenchido, desativando a conta e preservando histórico para auditoria.
 - **Último Login**: O sistema registra o `last_login_at` a cada autenticação.
 
@@ -40,7 +45,7 @@ O **FitGen** é uma plataforma de fitness e nutrição impulsionada por IA (Goog
   3. `Exercise` (Atividades individuais, ex: "Supino Reto")
 
 ### 3.2. Regras de Geração (IA)
-- **Motor de IA**: Google Gemini via `GeminiService`.
+- **Motor de IA**: LLM via OpenRouter (`AIService`, modelo configurável em `OPENROUTER_MODEL`).
 - **Duração Padrão**: Planos de **12 semanas**.
 - **Restrição de Exercícios**:
   - A IA é estritamente proibida de inventar nomes de exercícios.
@@ -75,7 +80,7 @@ O Coach detecta intenções do usuário e executa funções no backend automatic
 - Metas calóricas e de macronutrientes são calculadas com base no objetivo (Déficit para emagrecimento, Superávit para ganho de massa).
 
 ### 5.2. Planos de Dieta
-- Gerados por IA (Gemini) para ciclos de **12 semanas**.
+- Gerados por IA (OpenRouter) para ciclos de **12 semanas**.
 - Incluem:
   - Menu semanal detalhado.
   - Lista de compras consolidada.

@@ -1,0 +1,40 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dev-api.fitgen.pro/api",
+        "EXPO_PUBLIC_WEB_URL": "https://fitgen.pro",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://bcec5888c78d94a8ecc68faa5120056a@o4512425679650816.ingest.us.sentry.io/4512453782470656",
+        "SENTRY_ALLOW_FAILURE": "true",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_po2G9XaSjhp7u3gXAVRjCFxZ9Q4Dpsixxb69FyB64K6u",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dev-api.fitgen.pro/api",
+        "EXPO_PUBLIC_WEB_URL": "https://fitgen.pro",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://bcec5888c78d94a8ecc68faa5120056a@o4512425679650816.ingest.us.sentry.io/4512453782470656",
+        "SENTRY_ALLOW_FAILURE": "true",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_po2G9XaSjhp7u3gXAVRjCFxZ9Q4Dpsixxb69FyB64K6u",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

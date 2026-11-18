@@ -3,8 +3,12 @@ from app.shared.extensions import db
 from app.modules.identity.domain.models import User, UserProfile
 from app.modules.identity.domain.subscription import Subscription
 from app.modules.communication.application.email_service import EmailService
+from app.modules.identity.application.billing_recorder import safe_record, to_decimal
+from app.modules.identity.application.revenuecat import apply_revenuecat_event
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
+import hmac
+import os
 import secrets
 import uuid
 
@@ -107,6 +111,8 @@ def kiwify_webhook():
              # Notify or suspend? Let's keep active but maybe mark status
              user.subscription_status = 'past_due'
              current_app.logger.info(f"Subscription past due for: {email}")
+
+        _record_kiwify_billing(user, data, event_type, order_status)
 
         db.session.commit()
         return jsonify({"msg": "Webhook processed successfully"}), 200
@@ -268,6 +274,8 @@ def herospark_webhook():
                     user.subscription_expires_at = _calculate_expiration_date(recurrency_period)
             current_app.logger.info(f"Subscription renewed for: {email}")
         
+        _record_herospark_billing(user, payment, recurrency, next_invoice, recurrency_period)
+
         db.session.commit()
         return jsonify({
             "msg": "Webhook processed successfully",
@@ -279,6 +287,124 @@ def herospark_webhook():
         current_app.logger.error(f"Error processing Herospark webhook: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"msg": f"Error processing webhook: {str(e)}"}), 500
+
+
+@webhooks_bp.route('/revenuecat', methods=['POST'])
+def revenuecat_webhook():
+    """
+    RevenueCat webhook (App Store / Google Play subscriptions).
+
+    Configure in RevenueCat -> Integrations -> Webhooks:
+      URL: https://<api>/api/webhooks/revenuecat
+      Authorization header: the exact value of REVENUECAT_WEBHOOK_AUTH
+    """
+    expected = os.getenv('REVENUECAT_WEBHOOK_AUTH')
+    if not expected:
+        current_app.logger.error("REVENUECAT_WEBHOOK_AUTH is not set; refusing RevenueCat webhook")
+        return jsonify({"msg": "Webhook not configured"}), 503
+    if not hmac.compare_digest(request.headers.get('Authorization', ''), expected):
+        return jsonify({"msg": "Unauthorized"}), 401
+
+    event = (request.get_json(silent=True) or {}).get('event')
+    if not isinstance(event, dict):
+        return jsonify({"msg": "Invalid payload"}), 400
+
+    try:
+        outcome = apply_revenuecat_event(event)
+        db.session.commit()
+        current_app.logger.info("RevenueCat %s -> %s", event.get('type'), outcome)
+        return jsonify({"msg": outcome}), 200
+    except Exception:
+        current_app.logger.exception("Error processing RevenueCat webhook")
+        db.session.rollback()
+        return jsonify({"msg": "Error processing webhook"}), 500
+
+
+@webhooks_bp.route('/stripe', methods=['POST'])
+def stripe_webhook():
+    """
+    Stripe webhook (web checkout at fitgen.pro/assinar).
+
+    Stripe Dashboard -> Developers -> Webhooks -> endpoint https://<api>/api/webhooks/stripe
+    Events: checkout.session.completed, customer.subscription.created/updated/deleted,
+    invoice.paid, invoice.payment_failed. Signing secret -> STRIPE_WEBHOOK_SECRET.
+    """
+    import stripe
+    from app.modules.identity.application import stripe_billing
+
+    try:
+        event = stripe_billing.construct_event(request.get_data(), request.headers.get('Stripe-Signature', ''))
+    except stripe_billing.StripeNotConfigured:
+        current_app.logger.error("STRIPE_WEBHOOK_SECRET is not set; refusing Stripe webhook")
+        return jsonify({"msg": "Webhook not configured"}), 503
+    except (ValueError, stripe.SignatureVerificationError):
+        return jsonify({"msg": "Invalid signature"}), 400
+
+    try:
+        outcome = stripe_billing.apply_stripe_event(event)
+        db.session.commit()
+        current_app.logger.info("Stripe %s -> %s", event["type"], outcome)
+        return jsonify({"msg": outcome}), 200
+    except Exception:
+        current_app.logger.exception("Error processing Stripe webhook")
+        db.session.rollback()
+        return jsonify({"msg": "Error processing webhook"}), 500
+
+
+# ---------------------------------------------------------------------------
+# Billing ledger helpers (feed the admin finance panel)
+# ---------------------------------------------------------------------------
+
+def _record_kiwify_billing(user, data, event_type, order_status):
+    """Kiwify sends amounts in cents under `Commissions.charge_amount`."""
+    commissions = data.get('Commissions') or data.get('commissions') or {}
+    subscription = data.get('Subscription') or data.get('subscription') or {}
+    external_id = data.get('order_id') or data.get('subscription_id')
+    method = data.get('payment_method')
+
+    if event_type in ('order_approved', 'subscription_renewed') or order_status == 'paid':
+        kind = 'paid'
+    elif event_type in ('order_refunded', 'chargeback'):
+        kind = 'refunded'
+    elif event_type == 'subscription_canceled':
+        kind = 'canceled'
+    elif event_type == 'subscription_late':
+        kind = 'late'
+    else:
+        return
+
+    amount = to_decimal(commissions.get('charge_amount'), cents=True)
+    period = {'monthly': 'monthly', 'quarterly': 'quarterly', 'semiannually': 'semiannual', 'yearly': 'yearly'}.get(
+        str((subscription.get('plan') or {}).get('frequency', '')).lower(), 'monthly'
+    )
+    safe_record(user, kind=kind, gateway='kiwify', amount=amount, method=method,
+                external_id=external_id, period=period)
+
+
+def _record_herospark_billing(user, payment, recurrency, next_invoice, period):
+    """Herospark payment object: status, method, paidAt, refundedAt (+ an amount field)."""
+    refunded = payment.get('refundedAt') or payment.get('status') == 'refunded'
+    paid = payment.get('status') == 'paid' and payment.get('paidAt') and not refunded
+    if refunded:
+        kind = 'refunded'
+    elif paid:
+        kind = 'paid'
+    elif recurrency.get('canceled_at') or recurrency.get('status') == 'canceled':
+        kind = 'canceled'
+    else:
+        return
+
+    raw_amount = next((payment.get(k) for k in ('amount', 'value', 'price', 'total') if payment.get(k) is not None), None)
+    next_billing = None
+    if next_invoice:
+        try:
+            next_billing = datetime.strptime(next_invoice, '%Y-%m-%d')
+        except ValueError:
+            pass
+    safe_record(user, kind=kind, gateway='herospark', amount=to_decimal(raw_amount),
+                method=payment.get('method'), external_id=payment.get('id') or payment.get('_id'),
+                period=period if period in ('monthly', 'quarterly', 'yearly') else 'monthly',
+                next_billing=next_billing)
 
 
 def _calculate_expiration_date(period):

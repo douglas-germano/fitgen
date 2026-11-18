@@ -33,6 +33,11 @@ class GamificationService:
             if kwargs.get('is_goal_met', False):
                 GamificationService.update_streak(user_id, 'hydration')
 
+        # Community challenges (workouts publish their own feed item in the route).
+        if activity_type in ('meal_log', 'hydration_log'):
+            from app.modules.community.application import publisher
+            publisher.after_activity(user_id)
+
     @staticmethod
     def update_streak(user_id, category):
         """
@@ -91,6 +96,10 @@ class GamificationService:
             
         db.session.commit()
         
+        if new_streak != current_streak:
+            from app.modules.community.application import publisher
+            publisher.on_streak(user_id, category, new_streak, today)
+
         # Check for streak achievements (e.g. 3 days, 7 days, 30 days)
         GamificationService.check_streak_achievements(user_id, category, new_streak)
         
@@ -115,6 +124,8 @@ class GamificationService:
                     ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=now_cuiaba())
                     db.session.add(ua)
                     db.session.commit()
+                    from app.modules.community.application import publisher
+                    publisher.on_achievement(user_id, ach)
                     
                     # Award XP for achievement
                     GamificationService.award_xp(user_id, 50 * (streak_count // 3), f"Achievement: {ach.name}")
@@ -127,7 +138,7 @@ class GamificationService:
         return int(current_xp / 100) + 1
 
     @staticmethod
-    def award_xp(user_id, amount, reason="Activity"):
+    def award_xp(user_id, amount, reason="Activity", commit=True):
         profile = UserProfile.query.filter_by(user_id=user_id).first()
         if not profile:
             return None
@@ -143,7 +154,8 @@ class GamificationService:
         level_up = new_level > old_level
         profile.level = new_level
         
-        db.session.commit()
+        if commit:
+            db.session.commit()
         
         return {
             "new_xp": profile.xp,
@@ -165,5 +177,7 @@ class GamificationService:
                     ua = UserAchievement(user_id=user_id, achievement_id=ach.id, unlocked_at=now_cuiaba())
                     db.session.add(ua)
                     db.session.commit()
+                    from app.modules.community.application import publisher
+                    publisher.on_achievement(user_id, ach)
                     return ach.name
         return None

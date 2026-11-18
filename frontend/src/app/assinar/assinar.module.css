@@ -1,0 +1,65 @@
+/* fitgen.pro/assinar — builds on the landing tokens (.site: --lime, --ink, --paper). */
+.page { min-height: 100vh; background: var(--paper); }
+.back { display: inline-flex; align-items: center; gap: 6px; color: #fff; font-size: 14px; font-weight: 650; text-decoration: none; }
+.back:hover { color: var(--lime); }
+.main { max-width: 480px; padding-block: 28px 64px; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 18px; counter-reset: step; }
+.steps li { counter-increment: step; font-size: 12px; font-weight: 700; color: #8a8f94; padding-top: 8px; border-top: 4px solid #dfe3e4; }
+.steps li::before { content: counter(step) ". "; }
+.steps li[data-state="current"] { color: var(--ink); border-color: var(--ink); }
+.steps li[data-state="done"] { color: #497300; border-color: #83ba00; }
+
+.card { background: #fff; border-radius: 24px; padding: clamp(20px, 5vw, 32px); box-shadow: 0 1px 2px #0000000d; }
+.card h1 { font-size: clamp(28px, 6vw, 36px); max-width: none; }
+.card > p { margin-top: 8px; }
+
+.form { display: grid; gap: 14px; margin-top: 22px; }
+.form label { display: grid; gap: 6px; font-size: 14px; font-weight: 650; }
+.form input {
+  min-height: 48px; padding: 10px 14px; border-radius: 14px; border: 1px solid #d5d9dc;
+  background: #fff; color: var(--ink); font-size: 16px; font-weight: 450;
+}
+.form input:focus { outline: 2px solid #83ba00; outline-offset: 1px; border-color: transparent; }
+.form small { color: #6b7075; font-size: 12px; font-weight: 450; }
+.form button { margin-top: 4px; border: 0; cursor: pointer; }
+.card button:disabled { opacity: .7; cursor: progress; }
+
+.error { color: #b42318 !important; background: #fef3f2; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+.switch {
+  display: block; width: 100%; margin-top: 14px; padding: 10px; border: 0; background: none;
+  color: var(--ink); font-size: 14px; font-weight: 700; text-align: center; text-decoration: underline; cursor: pointer;
+}
+
+.offer { background: var(--lime); }
+.offer p, .offer li { color: var(--ink) !important; }
+.planHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.planHead h1 { font-size: 24px; }
+.planHead span { font-size: 11px; font-weight: 800; letter-spacing: .08em; background: var(--ink); color: var(--lime); border-radius: 100px; padding: 4px 10px; }
+.price { margin-top: 14px; font-size: 44px; font-weight: 800; letter-spacing: -.05em; line-height: 1; }
+.price span { font-size: 16px; font-weight: 650; letter-spacing: 0; }
+.trial { margin-top: 10px; font-size: 14px; }
+.benefits { display: grid; gap: 10px; margin-block: 18px; }
+.benefits li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.benefits svg { flex: none; margin-top: 2px; }
+.account { font-size: 13px; margin-bottom: 12px; overflow-wrap: anywhere; }
+.offer button { width: 100%; border: 0; cursor: pointer; background: var(--ink); color: #fff; }
+.offer button:hover { background: #2a2c2e; }
+.fine { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; font-size: 12px; }
+
+.done { text-align: center; }
+.doneIcon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--lime); margin-bottom: 14px; }
+.done p { overflow-wrap: anywhere; }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.notice { background: #ffffffb3; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+.or { display: flex; align-items: center; gap: 10px; margin-block: 12px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: #10111233; }
+.offer .pix { width: 100%; min-height: 48px; border-radius: 100px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-weight: 750; font-size: 14px; }
+.offer .pix:hover { background: #ffffff66; }
+.toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 14px; padding: 4px; border-radius: 100px; background: #10111214; }
+.offer .toggle button { min-height: 40px; border-radius: 100px; background: transparent; color: var(--ink); font-weight: 750; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.offer .toggle button[data-active="true"] { background: var(--ink); color: var(--lime); }
+.toggle small { font-size: 10px; font-weight: 800; letter-spacing: .02em; padding: 2px 6px; border-radius: 100px; background: #ffffff; color: #497300; }
+.save { margin-top: 6px; font-size: 13px; font-weight: 700; }

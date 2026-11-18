@@ -16,6 +16,7 @@ from app.modules.nutrition.domain.hydration import HydrationLog, HydrationGoal
 
 # Analytics
 from app.modules.analytics.domain.body_metrics import BodyMetric
+from app.modules.analytics.domain.health_import import HealthImport
 from app.modules.analytics.domain.goals import Goal
 from app.modules.analytics.domain.progress_snapshot import ProgressSnapshot
 
@@ -30,3 +31,9 @@ from app.modules.communication.domain.device_token import DeviceToken
 
 # Coach
 from app.modules.coach.domain.chat_message import ChatMessage
+
+# Community
+from app.modules.community.domain.models import (
+    CommunitySettings, CommunityGroup, GroupMember, Activity, Reaction, Comment,
+    Challenge, ChallengeParticipant, Friendship, Follow, Block, Report,
+)

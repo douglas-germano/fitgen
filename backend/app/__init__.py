@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 import os
 from flask_cors import CORS
 from app.shared.config import config
@@ -8,6 +8,9 @@ from app.shared.utils.logger import setup_logger
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    from app.shared.monitoring import init_monitoring
+    init_monitoring(app)
     
     # Configure ProxyFix for Nginx
     from werkzeug.middleware.proxy_fix import ProxyFix
@@ -27,7 +30,10 @@ def create_app(config_name='default'):
     CORS(app, resources={r"/*": {
         "origins": ["http://localhost:3000", "http://localhost:3001", 
         "http://127.0.0.1:3000", "http://127.0.0.1:3001", "https://fitgen.suacozinha.site",
-        "https://fitgen.pages.dev"],
+        "https://fitgen.pages.dev",
+        # Painel admin (Cloudflare Pages) e domínio oficial
+        "https://fitgen-admin.pages.dev", "https://admin.fitgen.pro",
+        "https://fitgen.pro", "https://www.fitgen.pro"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
         "expose_headers": ["Content-Type", "Authorization"],
@@ -81,20 +87,37 @@ def create_app(config_name='default'):
     
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    # Flask-JWT-Extended answers 422 for bad/foreign tokens (e.g. signed with an
+    # old SECRET). Clients only recover the session on 401, so normalize it.
+    @jwt.invalid_token_loader
+    def _invalid_token(reason):
+        return jsonify({'msg': reason, 'error': 'invalid_token'}), 401
+
+    @jwt.unauthorized_loader
+    def _missing_token(reason):
+        return jsonify({'msg': reason, 'error': 'authorization_required'}), 401
+
     swagger.init_app(app)
     cache.init_app(app)
     
     # Setup logging
     setup_logger(app)
 
+    from app.modules.communication.application.email_service import missing_config as email_missing_config
+    if not app.testing and email_missing_config():
+        app.logger.warning('Brevo email disabled, missing env: %s', ', '.join(email_missing_config()))
+
     # Import models to ensure they are registered with SQLAlchemy
     # Import model registry to ensure all models are known to SQLAlchemy
     from app.shared import model_registry
     
     # Register commands
-    from app.commands import seed_command, promote_user_command
+    from app.commands import seed_command, promote_user_command, community_nudge_command, community_seed_challenges_command
     app.cli.add_command(seed_command)
     app.cli.add_command(promote_user_command)
+    app.cli.add_command(community_nudge_command)
+    app.cli.add_command(community_seed_challenges_command)
 
     from app.modules.identity.interface.routes.auth import auth_bp
     from app.modules.identity.interface.routes.onboarding import onboarding_bp
@@ -109,11 +132,16 @@ def create_app(config_name='default'):
     from app.modules.identity.interface.routes.profile import profile_bp
     from app.modules.identity.interface.routes.subscriptions import subscriptions_bp
     from app.modules.identity.interface.routes.admin import admin_bp
+    from app.modules.identity.interface.routes import admin_finance  # noqa: F401  (adds /admin/finance/* routes)
     from app.modules.communication.interface.routes_feedback import feedback_bp
     from app.modules.communication.interface.routes_notifications import notifications_bp
     from app.modules.analytics.interface.routes_progress import progress_bp
     from app.modules.communication.interface.routes_webhooks import webhooks_bp
     from app.modules.coach.interface.routes import chat_bp
+    from app.modules.community.interface.routes_feed import feed_bp as community_feed_bp
+    from app.modules.community.interface.routes_groups import groups_bp as community_groups_bp
+    from app.modules.community.interface.routes_challenges import challenges_bp as community_challenges_bp
+    from app.modules.community.interface.routes_people import people_bp as community_people_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
@@ -125,6 +153,8 @@ def create_app(config_name='default'):
     app.register_blueprint(hydration_bp, url_prefix='/api/hydration')
     app.register_blueprint(gamification_bp, url_prefix='/api/gamification')
     app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
+    from app.modules.analytics.interface.routes_health import health_bp
+    app.register_blueprint(health_bp, url_prefix='/api/health')
     app.register_blueprint(profile_bp, url_prefix='/api/profile')
     app.register_blueprint(subscriptions_bp, url_prefix='/api/subscriptions')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
@@ -133,11 +163,18 @@ def create_app(config_name='default'):
     app.register_blueprint(progress_bp, url_prefix='/api/progress')
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
+    for community_bp in (community_feed_bp, community_groups_bp, community_challenges_bp, community_people_bp):
+        app.register_blueprint(community_bp, url_prefix='/api/community')
+    from app.modules.community.interface.routes_admin import clubs_admin_bp
+    app.register_blueprint(clubs_admin_bp, url_prefix='/api/admin/clubs')
     
     from app.modules.communication.interface.routes_whatsapp import whatsapp_bp
     app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
 
     
+    from app.shared.subscription_access import init_subscription_gate
+    init_subscription_gate(app)
+
     @app.route('/health')
     def health_check():
         """Enhanced health check with database status"""

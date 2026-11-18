@@ -1,9 +1,27 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.shared import storage
 from app.shared.extensions import db
+from app.shared.subscription_access import access_payload
 from app.modules.identity.domain.models import User, UserProfile
 
 profile_bp = Blueprint('profile', __name__)
+
+PROFILE_PICS_DIR = 'uploads/profile_pics'
+MAX_PROFILE_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+def _image_extension(data: bytes):
+    """Image format from magic bytes; None for anything we don't store."""
+    if data.startswith(b'\xff\xd8\xff'):
+        return 'jpg'
+    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'png'
+    if data[:6] in (b'GIF87a', b'GIF89a'):
+        return 'gif'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return 'webp'
+    return None
 
 @profile_bp.route('/me', methods=['GET'])
 @jwt_required()
@@ -33,16 +51,17 @@ def get_profile():
         "name": user.name,
         "email": user.email,
         "role": user.role,
-        "subscription_status": user.subscription_status,
-        "subscription_status": user.subscription_status,
+        **access_payload(user),
         "onboarding_completed": user.onboarding_completed,
-        "profile_picture": user.profile_picture
+        "profile_picture": storage.display_value(user.profile_picture)
     }
     
     # profile details
     profile_data = {}
     if profile:
         profile_data = {
+            "onboarding_answers": profile.onboarding_answers or {},
+            "experience_level": profile.experience_level,
             "age": profile.age,
             "gender": profile.gender,
             "height_cm": profile.height_cm,
@@ -148,55 +167,50 @@ def upload_profile_picture():
       400:
         description: Invalid file or format
     """
-    import os
-    from werkzeug.utils import secure_filename
-    from flask import current_app, url_for
+    import uuid
+    from flask import url_for
 
-    if 'file' not in request.files:
-        return jsonify({"msg": "No file part"}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({"msg": "No selected file"}), 400
-        
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    
-    def allowed_file(filename):
-        return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"msg": "Nenhuma imagem enviada."}), 400
 
-    if file and allowed_file(file.filename):
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        
-        if not user:
-            return jsonify({"msg": "User not found"}), 404
+    # Phones send names like "IMG_0001.HEIC" (or none) even for JPEG data,
+    # so the format comes from the file's bytes, not its name.
+    data = file.read(MAX_PROFILE_IMAGE_BYTES + 1)
+    if not data:
+        return jsonify({"msg": "Nenhuma imagem enviada."}), 400
+    if len(data) > MAX_PROFILE_IMAGE_BYTES:
+        return jsonify({"msg": "A imagem é muito grande. Use uma de até 10 MB."}), 400
+    ext = _image_extension(data)
+    if not ext:
+        return jsonify({"msg": "Formato não suportado. Envie uma foto JPG, PNG, GIF ou WEBP."}), 400
 
-        filename = secure_filename(f"user_{user_id}_{file.filename}")
-        
-        # Ensure directory exists
-        upload_folder = os.path.join(current_app.root_path, 'static/uploads/profile_pics')
-        os.makedirs(upload_folder, exist_ok=True)
-        
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
-        
-        # Save relative path
-        relative_path = f"uploads/profile_pics/{filename}"
-        user.profile_picture = relative_path
-        db.session.commit()
-        
-        # Construct full URL
-        try:
-            full_url = url_for('static', filename=relative_path, _external=True)
-        except:
-            full_url = relative_path
+    user = User.query.get(get_jwt_identity())
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
 
-        return jsonify({
-            "msg": "Profile picture uploaded successfully", 
-            "profile_picture": relative_path,
-            "url": full_url
-        }), 200
-        
-    return jsonify({"msg": "File type not allowed"}), 400
+    # A new name on every upload, so clients never show a cached old photo.
+    try:
+        stored = storage.save('avatars', f"user_{user.id}_{uuid.uuid4().hex}.{ext}", data, ext)
+    except storage.StorageError as exc:
+        return jsonify({"msg": str(exc)}), 503
+
+    previous = user.profile_picture
+    user.profile_picture = stored
+    db.session.commit()
+
+    # Remove the replaced file (never external URLs such as social login photos).
+    if previous and (storage.is_r2(previous) or previous.startswith(f"{PROFILE_PICS_DIR}/user_{user.id}_")):
+        storage.remove('avatars', previous)
+
+    shown = storage.display_value(stored)
+    try:
+        full_url = shown if shown.startswith('http') else url_for('static', filename=shown, _external=True)
+    except Exception:
+        full_url = shown
+
+    return jsonify({
+        "msg": "Profile picture uploaded successfully",
+        "profile_picture": shown,
+        "url": full_url
+    }), 200
