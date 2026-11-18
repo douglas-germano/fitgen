@@ -17,6 +17,7 @@ Env:
   STRIPE_PRICE_LOOKUP_KEY    lookup key of the monthly BRL price (default fitgen_monthly_brl)
   STRIPE_TRIAL_DAYS          default 7 (0 disables the trial)
   STRIPE_PIX_MANDATE_MAX     max BRL cents the Pix Automático mandate allows (default 2× price)
+  STRIPE_PAYMENT_METHOD_CONFIGURATION  pmc_… with card + Pix enabled (else the account default)
   SITE_URL                   default https://fitgen.pro
 """
 from __future__ import annotations
@@ -123,19 +124,23 @@ def create_checkout_session(user) -> str:
         "success_url": f"{_site()}/assinar?checkout=sucesso",
         "cancel_url": f"{_site()}/assinar?checkout=cancelado",
     }
+    # Payment methods come from a Dashboard "payment method configuration" (card + Pix);
+    # `payment_method_types` is no longer accepted by Checkout in current API versions.
+    pmc = os.getenv("STRIPE_PAYMENT_METHOD_CONFIGURATION")
+    if pmc:
+        base["payment_method_configuration"] = pmc
     with_pix = {
         **base,
-        "payment_method_types": ["card", "pix"],
         "payment_method_options": {"pix": {"mandate_options": {
-            "amount": mandate_max, "amount_type": "maximum", "payment_schedule": "monthly",
+            "amount": mandate_max, "payment_schedule": "monthly",
         }}},
     }
     try:
         session = client.v1.checkout.sessions.create(params=with_pix)
     except stripe.InvalidRequestError as exc:
-        # Pix Automático not enabled on the account (yet): don't block card sales.
-        current_app.logger.warning("Stripe Checkout with Pix rejected, falling back to card: %s", exc.user_message or exc)
-        session = client.v1.checkout.sessions.create(params={**base, "payment_method_types": ["card"]})
+        # Pix Automático mandate rejected (not enabled yet): don't block card sales.
+        current_app.logger.warning("Stripe Checkout with Pix mandate rejected, retrying without it: %s", exc.user_message or exc)
+        session = client.v1.checkout.sessions.create(params=base)
     return session.url
 
 
