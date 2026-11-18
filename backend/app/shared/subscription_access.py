@@ -1,15 +1,23 @@
-"""Subscription gate: the app is only usable with an active subscription.
+"""Access rules: freemium (default) or a hard subscription gate.
 
-Access rule (`user_has_access`):
-- admins always have access;
+Premium rule (`user_has_access` / `is_premium`):
+- admins always have it;
 - everyone else needs a paid/trial period that has not ended yet
   (`subscription_expires_at` in the future) and a status that is not `suspended`.
-  `canceled` (won't renew) and `past_due` (billing retry) keep access until the period ends.
+  `canceled` (won't renew) and `past_due` (billing retry) keep it until the period ends.
+  The 7-day trial (store intro offer / Stripe trial) is stored as `subscription_expires_at`.
 
-The free trial is the store's introductory offer (Apple / Kiwify); the webhooks store the
-trial end as `subscription_expires_at`, so a trial needs no special case here.
+Freemium (`FREEMIUM=true`, default): the app is usable by everyone (`has_access` is always
+true); only the AI features below need Premium and answer 402 `premium_required`:
+  - IA Coach (POST /api/chat)
+  - diet plan generation (POST /api/diet/generate, /api/diet/regenerate-day)
+  - meal photo/description estimate (POST /api/nutrition/estimate)
+  - workout plan generation (POST /api/onboarding/generate-workout), except the FIRST plan,
+    which is free so new users get a real plan out of onboarding.
+Logging workouts, meals, water and measurements, progress, achievements and community stay free.
 
-Disable the whole gate (e.g. emergency / staging) with `SUBSCRIPTION_REQUIRED=false`.
+`FREEMIUM=false` restores the hard gate: without Premium every API call answers 402
+`subscription_required`. `SUBSCRIPTION_REQUIRED=false` turns every check off.
 """
 import os
 import uuid
@@ -22,8 +30,8 @@ from app.shared.extensions import db
 
 ACCESS_STATUSES = {"active", "canceled", "past_due"}
 
-# Reachable without a subscription: auth, payment webhooks, subscription endpoints
-# (to buy / restore / sync), the admin API (guarded by its own admin check) and docs/static.
+# Hard-gate mode only: reachable without a subscription (auth, payment webhooks, subscription
+# endpoints to buy / restore / sync, the admin API with its own admin check, docs/static).
 EXEMPT_PREFIXES = (
     "/api/auth/", "/api/webhooks/", "/api/subscriptions/", "/api/admin/",
     "/api/static/", "/api/docs", "/apidocs", "/flasgger_static", "/apispec",
@@ -31,12 +39,27 @@ EXEMPT_PREFIXES = (
 # The app reads its own profile to learn whether it is locked.
 EXEMPT_EXACT_GET = {"/api/profile/me"}
 
+# Freemium mode: (method, path) -> feature key reported to the client.
+PREMIUM_ROUTES = {
+    ("POST", "/api/chat"): "coach",
+    ("POST", "/api/diet/generate"): "diet_plan",
+    ("POST", "/api/diet/regenerate-day"): "diet_plan",
+    ("POST", "/api/nutrition/estimate"): "meal_estimate",
+    ("POST", "/api/onboarding/generate-workout"): "workout_plan",
+}
+PREMIUM_FEATURES = sorted(set(PREMIUM_ROUTES.values()))
+
 
 def enforcement_enabled() -> bool:
     return os.getenv("SUBSCRIPTION_REQUIRED", "true").strip().lower() not in ("0", "false", "no", "off")
 
 
+def freemium_enabled() -> bool:
+    return os.getenv("FREEMIUM", "true").strip().lower() not in ("0", "false", "no", "off")
+
+
 def user_has_access(user, now: datetime | None = None) -> bool:
+    """True when the user has Premium (paid or trial period running, or admin)."""
     if not enforcement_enabled() or user.role == "admin":
         return True
     now = now or datetime.utcnow()
@@ -44,38 +67,74 @@ def user_has_access(user, now: datetime | None = None) -> bool:
     return bool(expires and expires > now and user.subscription_status in ACCESS_STATUSES)
 
 
+is_premium = user_has_access
+
+
 def access_payload(user) -> dict:
+    premium = user_has_access(user)
+    freemium = freemium_enabled()
     return {
-        "has_access": user_has_access(user),
+        # Can the app be used at all? Always in freemium mode (old app builds rely on this).
+        "has_access": True if freemium else premium,
+        "is_premium": premium,
+        "plan": "premium" if premium else "free",
+        "freemium": freemium,
+        "premium_features": [] if premium else (PREMIUM_FEATURES if freemium else []),
         "subscription_required": enforcement_enabled(),
         "subscription_status": user.subscription_status,
         "subscription_expires_at": user.subscription_expires_at.isoformat() if user.subscription_expires_at else None,
     }
 
 
-def init_subscription_gate(app) -> None:
-    from app.modules.identity.domain.models import User
+def _first_workout_plan_is_free(user) -> bool:
+    from app.modules.training.domain.models import WorkoutPlan
+    return WorkoutPlan.query.filter_by(user_id=user.id).first() is None
 
+
+def _current_user():
+    from app.modules.identity.domain.models import User
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+    except Exception:  # noqa: BLE001 - bad/expired token: the route's own @jwt_required answers 401
+        return None
+    if not identity:
+        return None
+    try:
+        return db.session.get(User, uuid.UUID(str(identity)))
+    except ValueError:
+        return None
+
+
+def init_subscription_gate(app) -> None:
     @app.before_request
     def subscription_gate():
-        path = request.path
-        if request.method == "OPTIONS" or not path.startswith("/api/") or path.startswith(EXEMPT_PREFIXES):
+        if request.method == "OPTIONS" or not enforcement_enabled():
             return None
-        if request.method == "GET" and path in EXEMPT_EXACT_GET:
+        path = request.path.rstrip("/") or "/"
+
+        if freemium_enabled():
+            feature = PREMIUM_ROUTES.get((request.method, path))
+            if not feature:
+                return None
+            user = _current_user()
+            if user is None or user_has_access(user):
+                return None
+            if feature == "workout_plan" and _first_workout_plan_is_free(user):
+                return None
+            return jsonify({
+                "code": "premium_required",
+                "feature": feature,
+                "msg": "Esse recurso faz parte do FitGen Premium.",
+                **access_payload(user),
+            }), 402
+
+        # Hard gate (FREEMIUM=false)
+        if not request.path.startswith("/api/") or request.path.startswith(EXEMPT_PREFIXES):
             return None
-        if not enforcement_enabled():
+        if request.method == "GET" and request.path in EXEMPT_EXACT_GET:
             return None
-        try:
-            verify_jwt_in_request(optional=True)
-            identity = get_jwt_identity()
-        except Exception:  # noqa: BLE001 - bad/expired token: the route's own @jwt_required answers 401
-            return None
-        if not identity:
-            return None
-        try:
-            user = db.session.get(User, uuid.UUID(str(identity)))
-        except ValueError:
-            return None
+        user = _current_user()
         if user is None or user_has_access(user):
             return None
         return jsonify({

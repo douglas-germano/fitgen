@@ -26,8 +26,14 @@ export interface Profile {
   level?: number;
   xp?: number;
   subscription_status?: string;
-  /** False when the app is locked behind a subscription (trial counts as access). */
+  /** False only in hard-gate mode, when the whole app is locked (freemium keeps it true). */
   has_access?: boolean;
+  /** Premium (paid or trial running). Free users can log everything but not use the AI features. */
+  is_premium?: boolean;
+  plan?: 'free' | 'premium';
+  freemium?: boolean;
+  /** AI features locked for this user: coach, diet_plan, meal_estimate, workout_plan. */
+  premium_features?: string[];
   subscription_required?: boolean;
   subscription_expires_at?: string | null;
   onboarding_completed?: boolean;

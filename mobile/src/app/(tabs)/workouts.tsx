@@ -24,7 +24,7 @@ import { WeekChart } from '@/components/charts';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useActiveSession, useActiveWorkoutPlan, useGenerateWorkout, useWorkoutHistory } from '@/hooks/queries';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, isPremiumRequired } from '@/lib/api';
 import {
   formatLongDate,
   isSameDay,
@@ -41,6 +41,7 @@ import {
   type WeekCell,
 } from '@/lib/workout';
 import type { WorkoutDay, WorkoutPlan } from '@/types/api';
+import { usePremium } from '@/hooks/use-premium';
 
 export default function WorkoutsScreen() {
   const Colors = useColors();
@@ -48,6 +49,7 @@ export default function WorkoutsScreen() {
   const history = useWorkoutHistory();
   const active = useActiveSession();
   const generate = useGenerateWorkout();
+  const { locked, requirePremium } = usePremium();
   const [actionsOpen, setActionsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -55,7 +57,8 @@ export default function WorkoutsScreen() {
   const refetchActive = active.refetch;
   useFocusEffect(useCallback(() => { void refetchActive(); }, [refetchActive]));
 
-  const confirmGenerate = () =>
+  // The first plan is free; replacing it is a Premium (AI) feature.
+  const confirmGenerate = () => (plan && !requirePremium('workout_plan')) ? undefined :
     AppAlert.alert(
       'Gerar novo plano?',
       'Isso substituirá seu plano atual por um novo gerado pela IA. O progresso do plano atual será arquivado.',
@@ -65,7 +68,7 @@ export default function WorkoutsScreen() {
           text: 'Gerar Plano',
           onPress: () =>
             generate.mutate(undefined, {
-              onError: (e) => AppAlert.alert('Erro ao gerar plano.', errorMessage(e)),
+              onError: (e) => { if (!isPremiumRequired(e)) AppAlert.alert('Erro ao gerar plano.', errorMessage(e)); },
             }),
         },
       ],
@@ -280,7 +283,7 @@ export default function WorkoutsScreen() {
         {
           key: 'generate', icon: Sparkles, tone: plan ? 'chip' : 'volt',
           title: plan ? 'Gerar novo treino com IA' : 'Gerar plano de treino com IA',
-          caption: plan ? 'Substitui o plano atual' : 'Um plano personalizado para você',
+          caption: plan ? (locked('workout_plan') ? 'Premium · substitui o plano atual' : 'Substitui o plano atual') : 'Um plano personalizado para você',
           onPress: confirmGenerate,
         },
         { key: 'history', icon: History, title: 'Histórico de treinos', caption: 'Sessões e tempo de treino', onPress: () => router.push('/workout/history') },

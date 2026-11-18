@@ -4,10 +4,12 @@ import { useState } from 'react';
 
 import { ChoiceField } from '@/components/choice-field';
 import { Button, Card, Input, Page, Text, TopBar } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { api, errorMessage, isPremiumRequired } from '@/lib/api';
 import { decimal } from '@/lib/forms';
+import { usePremium } from '@/hooks/use-premium';
 
 export default function DietPreferencesScreen() {
+  const { requirePremium } = usePremium();
   const qc = useQueryClient();
   const [goal, setGoal] = useState('saude');
   const [budget, setBudget] = useState('300_500');
@@ -28,10 +30,12 @@ export default function DietPreferencesScreen() {
     setBusy(true); setError('');
     try {
       await api('/diet/onboarding', { method: 'POST', body: { goal, restrictions, allergies: allergies.trim(), dislikes: dislikes.trim(), budget, ingredient_access: ingredients, meals_per_day: Number(meals), cooks_at_home: cooks === 'yes', prep_time: prep, calorie_goal: calorieGoal } });
+      // Preferences are free to save; generating the AI diet plan is Premium.
+      if (!requirePremium('diet_plan')) { setBusy(false); return; }
       await api('/diet/generate', { method: 'POST' });
       await qc.invalidateQueries({ queryKey: ['diet-plan'] });
       router.replace('/diet-plan');
-    } catch (error) { setError(errorMessage(error, 'Não foi possível gerar o plano. Suas preferências foram mantidas nesta tela para tentar novamente.')); }
+    } catch (error) { if (isPremiumRequired(error)) return; setError(errorMessage(error, 'Não foi possível gerar o plano. Suas preferências foram mantidas nesta tela para tentar novamente.')); }
     finally { setBusy(false); }
   };
   return (

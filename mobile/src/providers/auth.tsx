@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react';
 
-import { api, clearTokens, loadTokens, saveTokens, setSubscriptionRequiredHandler, setUnauthorizedHandler } from '@/lib/api';
+import { router } from 'expo-router';
+import { api, clearTokens, loadTokens, saveTokens, setPremiumRequiredHandler, setSubscriptionRequiredHandler, setUnauthorizedHandler } from '@/lib/api';
 import type { LoginResponse } from '@/types/api';
 
 type Status = 'loading' | 'signedIn' | 'signedOut';
@@ -30,9 +31,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // A 402 means the trial/subscription ended while the app was open: refresh the profile so the root
     // layout switches to the paywall.
     setSubscriptionRequiredHandler(() => void queryClient.invalidateQueries({ queryKey: ['profile'] }));
+    // Freemium: a free user hit an AI feature. Refresh the plan and open the paywall (once per burst).
+    let lastPaywall = 0;
+    setPremiumRequiredHandler(() => {
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+      if (Date.now() - lastPaywall < 1500) return;
+      lastPaywall = Date.now();
+      router.push('/paywall');
+    });
     return () => {
       setUnauthorizedHandler(null);
       setSubscriptionRequiredHandler(null);
+      setPremiumRequiredHandler(null);
     };
   }, [queryClient]);
 

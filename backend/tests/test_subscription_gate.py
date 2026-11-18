@@ -1,4 +1,4 @@
-"""Subscription gate: the app is only usable with an active subscription or trial."""
+"""Access gate: freemium (AI features need Premium) and the hard-gate mode (FREEMIUM=false)."""
 import os
 os.environ.setdefault('SECRET_KEY', 'isolated-gate-test')
 os.environ.setdefault('JWT_SECRET_KEY', 'isolated-gate-jwt-secret-32-characters')
@@ -39,6 +39,30 @@ def login():
     return jsonify(ok=True)
 
 
+@api.post('/chat')
+@jwt_required()
+def chat():
+    return jsonify(ok=True)
+
+
+@api.post('/diet/generate')
+@jwt_required()
+def diet_generate():
+    return jsonify(ok=True)
+
+
+@api.post('/onboarding/generate-workout')
+@jwt_required()
+def generate_workout():
+    return jsonify(ok=True)
+
+
+@api.post('/workouts/log')
+@jwt_required()
+def log_workout():
+    return jsonify(ok=True)
+
+
 @api.post('/subscriptions/sync')
 @jwt_required()
 def sync():
@@ -50,7 +74,12 @@ def days(n):
 
 
 class SubscriptionGateTests(unittest.TestCase):
+    """Hard gate (FREEMIUM=false): nothing works without Premium."""
+    FREEMIUM = 'false'
+
     def setUp(self):
+        patcher = mock.patch.dict(os.environ, {'FREEMIUM': self.FREEMIUM})
+        patcher.start(); self.addCleanup(patcher.stop)
         self.app = Flask(__name__)
         self.app.config.update(SQLALCHEMY_DATABASE_URI='sqlite://', JWT_SECRET_KEY='isolated-gate-jwt-secret-32-characters', TESTING=True)
         db.init_app(self.app)
@@ -61,7 +90,7 @@ class SubscriptionGateTests(unittest.TestCase):
         self.addCleanup(self.ctx.pop)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)
-        db.metadata.create_all(db.engine, tables=[db.metadata.tables['users']])
+        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ('users', 'workout_plans')])
         self.client = self.app.test_client()
         self.counter = 0
 
@@ -120,6 +149,55 @@ class SubscriptionGateTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {'SUBSCRIPTION_REQUIRED': 'false'}):
             self.assertEqual(self.get(headers), 200)
             self.assertTrue(user_has_access(user))
+
+
+
+class FreemiumTests(SubscriptionGateTests):
+    """Freemium (default): the app opens for everyone; only AI features need Premium."""
+    FREEMIUM = 'true'
+
+    # The hard-gate expectations don't apply in freemium mode.
+    test_free_signup_without_subscription_is_blocked_with_402 = None
+    test_legacy_active_without_expiry_is_blocked = None
+    test_expired_period_is_blocked = None
+    test_canceled_and_past_due_keep_access_until_the_period_ends = None
+    test_suspended_is_blocked_even_with_time_left = None
+    test_unsubscribed_user_can_still_reach_the_endpoints_needed_to_subscribe = None
+
+    def post(self, headers, path):
+        return self.client.post(path, headers=headers)
+
+    def test_free_user_uses_the_app_but_not_the_ai_features(self):
+        headers, user = self.user(status='free')
+        self.assertEqual(self.get(headers), 200)                                   # any non-AI route
+        self.assertEqual(self.post(headers, '/api/workouts/log').status_code, 200)
+        self.assertEqual(self.client.put('/api/profile/me', headers=headers).status_code, 200)
+        for path, feature in (('/api/chat', 'coach'), ('/api/diet/generate', 'diet_plan')):
+            res = self.post(headers, path)
+            self.assertEqual(res.status_code, 402)
+            body = res.get_json()
+            self.assertEqual((body['code'], body['feature'], body['has_access'], body['is_premium']),
+                             ('premium_required', feature, True, False))
+
+    def test_first_workout_plan_is_free_then_premium(self):
+        from app.modules.training.domain.models import WorkoutPlan
+        headers, user = self.user(status='free')
+        self.assertEqual(self.post(headers, '/api/onboarding/generate-workout').status_code, 200)
+        db.session.add(WorkoutPlan(user_id=user.id, name='Plano')); db.session.commit()
+        self.assertEqual(self.post(headers, '/api/onboarding/generate-workout').status_code, 402)
+
+    def test_premium_trial_and_expired_premium(self):
+        self.assertEqual(self.post(self.user(expires=days(7))[0], '/api/chat').status_code, 200)
+        self.assertEqual(self.post(self.user(status='canceled', expires=days(-1))[0], '/api/chat').status_code, 402)
+        self.assertEqual(self.post(self.user(status='suspended', expires=days(10))[0], '/api/chat').status_code, 402)
+
+    def test_payload_tells_the_app_what_is_locked(self):
+        from app.shared.subscription_access import access_payload
+        _, free = self.user(status='free')
+        _, paid = self.user(expires=days(30))
+        self.assertEqual((access_payload(free)['plan'], access_payload(free)['has_access']), ('free', True))
+        self.assertIn('coach', access_payload(free)['premium_features'])
+        self.assertEqual((access_payload(paid)['plan'], access_payload(paid)['premium_features']), ('premium', []))
 
 
 if __name__ == '__main__':

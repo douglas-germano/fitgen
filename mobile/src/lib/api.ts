@@ -63,9 +63,22 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
 
-/** Called when the API answers 402 `subscription_required` (trial/subscription ended). */
+/** Called when the API answers 402 `subscription_required` (hard-gate mode: trial/subscription ended). */
 export function setSubscriptionRequiredHandler(handler: (() => void) | null) {
   subscriptionRequiredHandler = handler;
+}
+
+let premiumRequiredHandler: ((feature?: string) => void) | null = null;
+
+/** Called when the API answers 402 `premium_required` (freemium: an AI feature needs Premium). */
+export function setPremiumRequiredHandler(handler: ((feature?: string) => void) | null) {
+  premiumRequiredHandler = handler;
+}
+
+/** True for the 402 a free user gets from a Premium-only feature (the paywall is already opening). */
+export function isPremiumRequired(error: unknown) {
+  return error instanceof Error && error.name === 'ApiError' && (error as ApiError).status === 402 &&
+    ((error as ApiError).data as { code?: string } | undefined)?.code === 'premium_required';
 }
 
 function refreshAccessToken(): Promise<boolean> {
@@ -143,7 +156,12 @@ export async function api<T = unknown>(
 
   const data = await parseBody(res);
   if (!res.ok) {
-    if (res.status === 402 && (data as { code?: string } | null)?.code === 'subscription_required') subscriptionRequiredHandler?.();
+    const code = (data as { code?: string } | null)?.code;
+    if (res.status === 402 && code === 'subscription_required') subscriptionRequiredHandler?.();
+    if (res.status === 402 && code === 'premium_required') {
+      premiumRequiredHandler?.((data as { feature?: string }).feature);
+      throw new ApiError('Esse recurso faz parte do FitGen Premium.', 402, data);
+    }
     const fields = data?.errors && typeof data.errors === 'object'
       ? Object.values(data.errors).flat().filter((v): v is string => typeof v === 'string').join('\n') : '';
     const message = fields ||

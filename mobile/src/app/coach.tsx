@@ -1,13 +1,15 @@
 import { AppAlert, AppActionSheet } from '@/lib/feedback';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { ArrowUpRight, Flame } from 'lucide-react-native';
+import { ArrowUpRight, Bot, Flame } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Markdown } from '@/components/markdown';
+import { PremiumLocked } from '@/components/premium-locked';
+import { usePremium } from '@/hooks/use-premium';
 import { BadgeIcon, IconButton, MoreButton, QueryError, Row, Text, TopBar } from '@/components/ui';
 import { Motion } from '@/constants/motion';
 import { fontFor, Spacing } from '@/constants/theme';
@@ -24,8 +26,25 @@ const QUICK_PROMPTS = [
 ];
 const ANCHOR = { minIndexForVisible: 0 };
 
-/** Chat uses native keyboard timing and anchored messages; layout changes never force a scroll. */
+/** IA Coach is Premium (freemium): free users see what it does and how to unlock it. */
 export default function CoachScreen() {
+  const { locked } = usePremium();
+  if (locked('coach')) {
+    return (
+      <PremiumLocked
+        title="IA Coach"
+        icon={Bot}
+        headline="Seu coach de IA, 24h"
+        description="Tire dúvidas sobre treino e dieta, troque exercícios e ajuste seu plano conversando com o Otto."
+        perks={['Respostas com base nos seus treinos, refeições e medidas', 'Ajustes de dieta e de treino na hora', 'Também pelo WhatsApp']}
+      />
+    );
+  }
+  return <CoachChat />;
+}
+
+/** Chat uses native keyboard timing and anchored messages; layout changes never force a scroll. */
+function CoachChat() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();

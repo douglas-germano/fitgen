@@ -24,9 +24,10 @@ import { useColors } from '@/providers/theme';
 import type { Profile } from '@/types/api';
 
 const BENEFITS = [
-  'Treinos personalizados que se ajustam à sua evolução',
-  'Plano alimentar e coach Otto com IA',
-  'Medidas, hidratação e conquistas em um só lugar',
+  'IA Coach Otto 24h para tirar dúvidas e ajustar seu plano',
+  'Plano alimentar com receitas e lista de compras',
+  'Calorias da refeição pela foto ou descrição',
+  'Novos planos de treino sempre que você evoluir',
 ];
 
 const IS_ANDROID = Platform.OS === 'android';
@@ -153,7 +154,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
         <Text muted>
           {gate
             ? 'Seu acesso ao FitGen precisa de uma assinatura ativa. Comece com 7 dias grátis e cancele quando quiser.'
-            : 'Tudo para treinar e comer melhor, com acompanhamento de IA.'}
+            : 'Registrar treinos, refeições, água e medidas é grátis. O Premium libera toda a inteligência artificial do FitGen.'}
         </Text>
       </View>
 

@@ -22,9 +22,10 @@ import {
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useDietPlan } from '@/hooks/queries';
-import { api, errorMessage } from '@/lib/api';
+import { api, errorMessage, isPremiumRequired } from '@/lib/api';
 import { currentWeek, formatInt, WEEKDAY_LONG, WEEKDAY_SHORT } from '@/lib/workout';
 import type { DietPlan, PlannedDay } from '@/types/api';
+import { usePremium } from '@/hooks/use-premium';
 
 /** JS getDay() → weekly_plan key. */
 const DAY_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
@@ -48,6 +49,7 @@ function planForDay(plan: DietPlan | null | undefined, day: string): PlannedDay 
 }
 
 export default function DietPlanScreen() {
+  const { requirePremium } = usePremium();
   const Colors = useColors();
   const queryClient = useQueryClient();
   const { data: plan, isLoading, refetch, isRefetching, error } = useDietPlan();
@@ -76,13 +78,13 @@ export default function DietPlanScreen() {
   const dayIndex = DAY_KEYS.indexOf(day);
 
   const regenerateDay = async () => {
-    if (regenerating) return;
+    if (regenerating || !requirePremium('diet_plan')) return;
     setRegenerating(true);
     try {
       await api('/diet/regenerate-day', { method: 'POST', body: { day } });
       await queryClient.invalidateQueries({ queryKey: ['diet-plan'] });
     } catch (e) {
-      AppAlert.alert('Erro ao gerar novo cardápio.', errorMessage(e));
+      if (!isPremiumRequired(e)) AppAlert.alert('Erro ao gerar novo cardápio.', errorMessage(e));
     } finally {
       setRegenerating(false);
     }

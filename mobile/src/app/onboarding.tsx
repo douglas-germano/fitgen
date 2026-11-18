@@ -16,6 +16,7 @@ import { clearOnboardingDraft, readOnboardingDraft, writeOnboardingAnswer } from
 import { useAuth } from '@/providers/auth';
 import { useColors } from '@/providers/theme';
 import type { Profile } from '@/types/api';
+import { usePremium } from '@/hooks/use-premium';
 
 /** How long the coach "types" before the next question appears. */
 const TYPING_MS = 650;
@@ -65,6 +66,7 @@ function existingAnswers(profile: Profile): Answers {
 }
 
 export default function OnboardingScreen() {
+  const { locked } = usePremium();
   const Colors = useColors(), insets = useSafeAreaInsets(), reducedMotion = useReducedMotion();
   const { height: windowHeight } = useWindowDimensions();
   const profile = useProfile(), queryClient = useQueryClient(), { signOut } = useAuth();
@@ -169,7 +171,8 @@ export default function OnboardingScreen() {
         setGeneration(g => ({ ...g, workout: true }));
         void queryClient.invalidateQueries({ queryKey: ['workouts'] });
       }
-      if (!generation.diet) {
+      // Diet plan generation is Premium: free users finish onboarding with their (free) first workout plan.
+      if (!generation.diet && !locked('diet_plan')) {
         setGenerating('Organizando suas refeições…');
         await api('/diet/generate', { method: 'POST' });
         setGeneration(g => ({ ...g, diet: true }));

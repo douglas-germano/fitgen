@@ -10,8 +10,9 @@ import { Button, Card, Chips, Dialog, Input, Row, Text, type DialogHandle } from
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useEstimateMeal, useLogMeal } from '@/hooks/queries';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, isPremiumRequired } from '@/lib/api';
 import type { MealEstimate, MealType } from '@/types/api';
+import { usePremium } from '@/hooks/use-premium';
 
 export const MEAL_TYPES: { value: MealType; label: string; short: string }[] = [
   { value: 'breakfast', label: 'Café da Manhã', short: 'Café' },
@@ -35,6 +36,7 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const sheet = useRef<DialogHandle>(null);
   const estimateMeal = useEstimateMeal();
+  const { requirePremium } = usePremium();
   const logMeal = useLogMeal();
 
   const close = () => sheet.current?.dismiss();
@@ -82,11 +84,12 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
 
   const analyze = async () => {
     if ((!description.trim() && !photos.length) || estimateMeal.isPending || logMeal.isPending) return;
+    if (!requirePremium('meal_estimate')) return;
     Keyboard.dismiss();
     try {
       setEstimate(await estimateMeal.mutateAsync({ description: description.trim(), photos }));
     } catch (e) {
-      AppAlert.alert('Erro ao analisar refeição.', errorMessage(e));
+      if (!isPremiumRequired(e)) AppAlert.alert('Erro ao analisar refeição.', errorMessage(e));
     }
   };
 

@@ -289,7 +289,16 @@ class WhatsAppService:
                     return {"status": "activation_prompted"}
 
             # --- ACTIVATION FLOW END ---
-            
+
+            # IA Coach is a Premium feature (freemium): free users get an upgrade note instead.
+            from app.shared.subscription_access import freemium_enabled, user_has_access
+            if freemium_enabled() and not user_has_access(user):
+                WhatsAppService.send_message(phone, (
+                    "O IA Coach faz parte do *FitGen Premium* 💪\n"
+                    "Assine em https://fitgen.pro/assinar (7 dias grátis) e volte a falar comigo por aqui."
+                ))
+                return {"status": "premium_required"}
+
             # 2. Get Context
             user_id = str(user.id)
             context = CoachContextService.get_user_context(user_id)
