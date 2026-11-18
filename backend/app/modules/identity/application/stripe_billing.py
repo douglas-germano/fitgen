@@ -130,7 +130,7 @@ def create_checkout_session(user, plan: str = "monthly") -> str:
         "subscription_data": subscription_data,
         "locale": "pt-BR",
         "allow_promotion_codes": True,
-        "success_url": f"{_site()}/assinar?checkout=sucesso",
+        "success_url": f"{_site()}/assinatura-confirmada",
         "cancel_url": f"{_site()}/assinar?checkout=cancelado",
     }
     # Payment methods come from a Dashboard "payment method configuration" (card + Pix);
@@ -182,7 +182,7 @@ def create_pix_checkout_session(user, plan: str = "monthly") -> str:
         "payment_intent_data": {"metadata": metadata, "description": "FitGen Completo · " + ("1 ano" if yearly else f"{days} dias") + " (Pix)"},
         "payment_method_options": {"pix": {"expires_after_seconds": 3600}},
         "locale": "pt-BR",
-        "success_url": f"{_site()}/assinar?checkout=sucesso",
+        "success_url": f"{_site()}/assinatura-confirmada",
         "cancel_url": f"{_site()}/assinar?checkout=cancelado",
     }
     pmc = os.getenv("STRIPE_PIX_PAYMENT_METHOD_CONFIGURATION")

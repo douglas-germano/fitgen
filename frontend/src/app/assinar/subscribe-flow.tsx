@@ -128,6 +128,11 @@ export default function SubscribeFlow() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get("checkout");
+    // Older success URLs: the confirmation page doesn't depend on the stored session.
+    if (result === "sucesso") {
+      window.location.replace("/assinatura-confirmada");
+      return;
+    }
     const saved = readSession();
     if (!result || !saved) return;
     window.history.replaceState(null, "", window.location.pathname);

@@ -18,7 +18,7 @@ const OUT = process.argv[3] ?? "out";
 const COMMON = ["_next", "404", "_not-found", "apple-icon", "favicon", "brand", "file", "globe", "next", "vercel", "window", "scrollbar-hide"];
 const KEEP = {
   admin: [...COMMON, "admin", "login", "forgot-password", "reset-password", "icons", "manifest", "sw", "workbox-*"],
-  lp: [...COMMON, "index", "landing", "privacidade", "excluir-conta", "assinar"],
+  lp: [...COMMON, "index", "landing", "privacidade", "excluir-conta", "assinar", "assinatura-confirmada"],
 };
 const HEADERS = {
   admin: `/*

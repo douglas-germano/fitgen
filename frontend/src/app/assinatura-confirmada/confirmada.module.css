@@ -1,0 +1,32 @@
+/* fitgen.pro/assinatura-confirmada — builds on the landing tokens (.site: --lime, --ink, --paper). */
+.page { min-height: 100vh; background: var(--paper); }
+.main { max-width: 520px; padding-block: 32px 64px; }
+
+.card { background: #fff; border-radius: 24px; padding: clamp(22px, 5vw, 36px); text-align: center; box-shadow: 0 1px 2px #0000000d; }
+.card h1 { font-size: clamp(28px, 6vw, 38px); max-width: none; margin-top: 14px; }
+.card > p { margin-top: 10px; overflow-wrap: anywhere; }
+.badge { display: inline-grid; place-items: center; width: 60px; height: 60px; border-radius: 20px; background: var(--lime); color: var(--ink); }
+
+.stores { display: grid; gap: 10px; margin-top: 24px; }
+.store {
+  display: grid; justify-items: center; gap: 1px; min-height: 60px; padding: 10px 18px; border-radius: 16px;
+  background: var(--paper); color: var(--ink); text-decoration: none; border: 2px solid transparent;
+}
+.store small { font-size: 11px; font-weight: 650; color: #51565b; }
+.store strong { display: inline-flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.store:hover { border-color: var(--ink); }
+.primary { background: var(--ink); color: #fff; }
+.primary small { color: #b9bdc1; }
+.primary:hover { background: #2a2c2e; border-color: transparent; }
+.soon { opacity: .55; cursor: default; }
+.soon:hover { border-color: transparent; }
+.note { margin-top: 12px; font-size: 13px; }
+
+.steps { display: grid; gap: 10px; margin-top: 26px; text-align: left; }
+.steps li { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--paper); font-size: 14px; }
+.steps svg { flex: none; margin-top: 1px; color: #497300; }
+
+.fine { margin-top: 18px; font-size: 12px; }
+
+.links { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px; margin-top: 18px; }
+.links a { color: var(--ink); font-size: 14px; font-weight: 700; text-decoration: underline; }
