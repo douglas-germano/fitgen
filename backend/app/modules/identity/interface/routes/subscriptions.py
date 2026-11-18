@@ -12,6 +12,11 @@ import uuid
 
 subscriptions_bp = Blueprint('subscriptions', __name__)
 
+def _plan() -> str:
+    plan = (request.get_json(silent=True) or {}).get('plan', 'monthly')
+    return plan if plan in stripe_billing.PLANS else 'monthly'
+
+
 @subscriptions_bp.route('/stripe/checkout', methods=['POST'])
 @jwt_required()
 def create_stripe_checkout():
@@ -22,7 +27,7 @@ def create_stripe_checkout():
     if stripe_billing.has_card_subscription(user):
         return jsonify({"msg": "Você já tem uma assinatura ativa.", **access_payload(user)}), 409
     try:
-        url = stripe_billing.create_checkout_session(user)
+        url = stripe_billing.create_checkout_session(user, _plan())
     except stripe_billing.StripeNotConfigured as exc:
         current_app.logger.error("Stripe checkout unavailable: %s", exc)
         return jsonify({"msg": "Pagamento pelo site indisponível no momento."}), 503
@@ -42,7 +47,7 @@ def create_stripe_pix_checkout():
     if stripe_billing.has_card_subscription(user):
         return jsonify({"msg": "Você já tem uma assinatura no cartão.", **access_payload(user)}), 409
     try:
-        url = stripe_billing.create_pix_checkout_session(user)
+        url = stripe_billing.create_pix_checkout_session(user, _plan())
     except stripe_billing.StripeNotConfigured as exc:
         current_app.logger.error("Stripe Pix checkout unavailable: %s", exc)
         return jsonify({"msg": "Pagamento pelo site indisponível no momento."}), 503

@@ -15,12 +15,14 @@ Env:
   STRIPE_SECRET_KEY          sk_test_… / sk_live_…
   STRIPE_WEBHOOK_SECRET      whsec_… of the /api/webhooks/stripe endpoint
   STRIPE_PRICE_LOOKUP_KEY    lookup key of the monthly BRL price (default fitgen_monthly_brl)
+  STRIPE_YEARLY_PRICE_LOOKUP_KEY  yearly card price, 2 months off (default fitgen_yearly_brl)
   STRIPE_TRIAL_DAYS          default 7 (0 disables the trial)
   STRIPE_PIX_MANDATE_MAX     max BRL cents the Pix Automático mandate allows (default 2× price)
   STRIPE_PAYMENT_METHOD_CONFIGURATION      pmc_… for the card subscription (else the account default)
   STRIPE_PIX_PRICE_LOOKUP_KEY              one-time price of the Pix prepaid period (default fitgen_pix_30d_brl)
   STRIPE_PIX_PAYMENT_METHOD_CONFIGURATION  pmc_… with only Pix enabled, for the prepaid checkout
-  PIX_PREPAID_DAYS                         access granted per Pix payment (default 30)
+  STRIPE_PIX_YEARLY_PRICE_LOOKUP_KEY       one-time price of the Pix prepaid year (default fitgen_pix_365d_brl)
+  PIX_PREPAID_DAYS                         access granted per monthly Pix payment (default 30; yearly = 365)
   SITE_URL                   default https://fitgen.pro
 """
 from __future__ import annotations
@@ -70,8 +72,12 @@ def _get(obj, key, default=None):
     return default if value is None else value
 
 
-def _price(client: stripe.StripeClient):
-    lookup = os.getenv("STRIPE_PRICE_LOOKUP_KEY", "fitgen_monthly_brl")
+PLANS = ("monthly", "yearly")
+
+
+def _price(client: stripe.StripeClient, plan: str = "monthly"):
+    lookup = (os.getenv("STRIPE_YEARLY_PRICE_LOOKUP_KEY", "fitgen_yearly_brl") if plan == "yearly"
+              else os.getenv("STRIPE_PRICE_LOOKUP_KEY", "fitgen_monthly_brl"))
     prices = client.v1.prices.list(params={"lookup_keys": [lookup], "active": True, "limit": 1})
     if not prices.data:
         raise StripeNotConfigured(f"No active Stripe price with lookup_key={lookup}")
@@ -106,15 +112,15 @@ def _trial_days(user) -> int:
     return 0 if had_subscription else days
 
 
-def create_checkout_session(user) -> str:
+def create_checkout_session(user, plan: str = "monthly") -> str:
     """Returns the hosted Checkout URL."""
     client = _client()
-    price = _price(client)
+    price = _price(client, plan)
     trial = _trial_days(user)
     subscription_data = {"metadata": {"user_id": str(user.id)}}
     if trial:
         subscription_data["trial_period_days"] = trial
-    mandate_max = int(os.getenv("STRIPE_PIX_MANDATE_MAX", str((price.unit_amount or 2990) * 2)))
+    mandate_max = int(os.getenv("STRIPE_PIX_MANDATE_MAX", "0")) or (price.unit_amount or 2990) * 2
 
     base = {
         "mode": "subscription",
@@ -152,18 +158,20 @@ def has_card_subscription(user) -> bool:
     return bool(sub and sub.stripe_subscription_id and user.subscription_status in ("active", "past_due"))
 
 
-def create_pix_checkout_session(user) -> str:
+def create_pix_checkout_session(user, plan: str = "monthly") -> str:
     """One-time Pix payment that grants PIX_PREPAID_DAYS of access (no auto-renewal).
 
     Pix Automático (recurring Pix) is not enabled on the account yet; until it is, Pix buyers
     prepay each period. Paying while access is still valid extends it from the current expiry.
     """
     client = _client()
-    lookup = os.getenv("STRIPE_PIX_PRICE_LOOKUP_KEY", "fitgen_pix_30d_brl")
+    yearly = plan == "yearly"
+    lookup = (os.getenv("STRIPE_PIX_YEARLY_PRICE_LOOKUP_KEY", "fitgen_pix_365d_brl") if yearly
+              else os.getenv("STRIPE_PIX_PRICE_LOOKUP_KEY", "fitgen_pix_30d_brl"))
     prices = client.v1.prices.list(params={"lookup_keys": [lookup], "active": True, "limit": 1})
     if not prices.data:
         raise StripeNotConfigured(f"No active Stripe price with lookup_key={lookup}")
-    days = str(int(os.getenv("PIX_PREPAID_DAYS", "30")))
+    days = "365" if yearly else str(int(os.getenv("PIX_PREPAID_DAYS", "30")))
     metadata = {"user_id": str(user.id), "kind": "pix_prepaid", "days": days}
     params = {
         "mode": "payment",
@@ -171,7 +179,7 @@ def create_pix_checkout_session(user) -> str:
         "client_reference_id": str(user.id),
         "line_items": [{"price": prices.data[0].id, "quantity": 1}],
         "metadata": metadata,
-        "payment_intent_data": {"metadata": metadata, "description": f"FitGen Completo · {days} dias (Pix)"},
+        "payment_intent_data": {"metadata": metadata, "description": "FitGen Completo · " + ("1 ano" if yearly else f"{days} dias") + " (Pix)"},
         "payment_method_options": {"pix": {"expires_after_seconds": 3600}},
         "locale": "pt-BR",
         "success_url": f"{_site()}/assinar?checkout=sucesso",
@@ -204,7 +212,7 @@ def _grant_pix_prepaid(session) -> str:
     safe_record(user, kind="paid", gateway=GATEWAY, method="pix",
                 amount=Decimal(_get(session, "amount_total", 0)) / 100,
                 currency=(_get(session, "currency") or "brl").upper(), external_id=session_id,
-                paid_at=now, next_billing=expires)
+                paid_at=now, next_billing=expires, period="yearly" if days >= 300 else "monthly")
     return f"pix:+{days}d"
 
 
@@ -336,6 +344,8 @@ def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
             return "ignored:unknown-user"
         lines = _get(_get(obj, "lines", {}), "data", []) or []
         period_end = max((_get(_get(l, "period", {}), "end", 0) for l in lines), default=0)
+        period_start = min((_get(_get(l, "period", {}), "start", 0) for l in lines), default=0)
+        period = "yearly" if period_start and period_end - period_start > 300 * 86400 else "monthly"
         sub_id = _get(_get(_get(obj, "parent", {}), "subscription_details", {}), "subscription") or _get(obj, "subscription")
         method = None
         if sub_id:
@@ -351,7 +361,7 @@ def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
         safe_record(user, kind="paid", gateway=GATEWAY, method=method, amount=amount,
                     currency=(_get(obj, "currency") or "brl").upper(), external_id=_get(obj, "id"),
                     subscription_external_id=sub_id, paid_at=_dt(_get(_get(obj, "status_transitions", {}), "paid_at")),
-                    next_billing=expires)
+                    next_billing=expires, period=period)
         return "paid"
 
     if etype == "invoice.payment_failed":

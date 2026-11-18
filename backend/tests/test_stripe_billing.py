@@ -137,5 +137,21 @@ class StripeWebhookTests(unittest.TestCase):
         self.assertEqual(self.post(self.event('checkout.session.async_payment_failed', self.pix_session('unpaid'))).get_json()['msg'], 'pix:payment-failed')
         self.assertIsNone(self.user.subscription_expires_at)
 
+    def test_yearly_pix_grants_365_days_and_yearly_card_invoice_is_booked_as_yearly(self):
+        session = {**self.pix_session(id='cs_year'), 'amount_total': 29900,
+                   'metadata': {'user_id': self.uid, 'kind': 'pix_prepaid', 'days': '365'}}
+        self.assertEqual(self.post(self.event('checkout.session.async_payment_succeeded', session)).get_json()['msg'], 'pix:+365d')
+        self.assertGreater(self.user.subscription_expires_at - datetime.utcnow(), timedelta(days=364))
+        self.assertEqual(str(Subscription.query.first().price_monthly), '24.92')
+
+    def test_yearly_card_invoice_records_monthly_equivalent(self):
+        invoice = {'object': 'invoice', 'id': 'in_y', 'customer': 'cus_1', 'amount_paid': 29900, 'currency': 'brl',
+                   'parent': {'subscription_details': {'subscription': 'sub_1'}},
+                   'lines': {'data': [{'period': {'start': ts(), 'end': ts(365)}}]}, 'status_transitions': {'paid_at': ts()}}
+        fake = mock.Mock(); fake.v1.subscriptions.retrieve.return_value = subscription(end_days=365)
+        with mock.patch.object(stripe_billing, '_client', return_value=fake):
+            self.assertEqual(self.post(self.event('invoice.paid', invoice)).get_json()['msg'], 'paid')
+        self.assertEqual(str(Subscription.query.first().price_monthly), '24.92')
+
 if __name__ == '__main__':
     unittest.main()

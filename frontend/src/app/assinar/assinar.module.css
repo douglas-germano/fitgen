@@ -58,3 +58,8 @@
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: #10111233; }
 .offer .pix { width: 100%; min-height: 48px; border-radius: 100px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-weight: 750; font-size: 14px; }
 .offer .pix:hover { background: #ffffff66; }
+.toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 14px; padding: 4px; border-radius: 100px; background: #10111214; }
+.offer .toggle button { min-height: 40px; border-radius: 100px; background: transparent; color: var(--ink); font-weight: 750; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.offer .toggle button[data-active="true"] { background: var(--ink); color: var(--lime); }
+.toggle small { font-size: 10px; font-weight: 800; letter-spacing: .02em; padding: 2px 6px; border-radius: 100px; background: #ffffff; color: #497300; }
+.save { margin-top: 6px; font-size: 13px; font-weight: 700; }

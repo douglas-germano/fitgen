@@ -21,7 +21,11 @@ import styles from "./assinar.module.css";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api").replace(/\/$/, "");
 const ENABLED = process.env.NEXT_PUBLIC_WEB_CHECKOUT === "1";
-const PRICE = "R$ 29,90";
+type Plan = "monthly" | "yearly";
+const PLANS: Record<Plan, { label: string; price: string; per: string; note: string; pix: string }> = {
+  monthly: { label: "Mensal", price: "R$ 29,90", per: "/mês", note: "", pix: "Pagar 30 dias com Pix · R$ 29,90" },
+  yearly: { label: "Anual", price: "R$ 299,00", per: "/ano", note: "Equivale a R$ 24,92/mês: 2 meses grátis.", pix: "Pagar 1 ano com Pix · R$ 299,00" },
+};
 const TRIAL = "7 dias";
 const SUPPORT = "mailto:suporte@fitgen.com?subject=Assinatura%20FitGen";
 const SESSION_KEY = "fitgen.assinar.session";
@@ -82,6 +86,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function SubscribeFlow() {
   const [step, setStep] = useState<Step>("account");
+  const [plan, setPlan] = useState<Plan>("yearly");
   const [mode, setMode] = useState<"register" | "login">("register");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [session, setSession] = useState<Session | null>(null);
@@ -174,7 +179,7 @@ export default function SubscribeFlow() {
     setNotice("");
     setBusy(true);
     try {
-      const { checkout_url } = await call<{ checkout_url: string }>(method === "pix" ? "/subscriptions/stripe/pix" : "/subscriptions/stripe/checkout", { method: "POST", token: session.token });
+      const { checkout_url } = await call<{ checkout_url: string }>(method === "pix" ? "/subscriptions/stripe/pix" : "/subscriptions/stripe/checkout", { method: "POST", token: session.token, body: JSON.stringify({ plan }) });
       window.location.assign(checkout_url);
     } catch (err) {
       setBusy(false);
@@ -264,8 +269,17 @@ export default function SubscribeFlow() {
 
         {ENABLED && (step === "offer" || step === "confirming") && (
           <section className={`${styles.card} ${styles.offer}`}>
-            <div className={styles.planHead}><h1>FitGen Completo</h1><span>MENSAL</span></div>
-            <p className={styles.price}>{PRICE}<span>/mês</span></p>
+            <div className={styles.planHead}><h1>FitGen Completo</h1></div>
+            <div className={styles.toggle} role="radiogroup" aria-label="Plano">
+              {(Object.keys(PLANS) as Plan[]).map((key) => (
+                <button key={key} type="button" role="radio" aria-checked={plan === key} data-active={plan === key}
+                  onClick={() => setPlan(key)} disabled={step === "confirming"}>
+                  {PLANS[key].label}{key === "yearly" && <small>2 meses grátis</small>}
+                </button>
+              ))}
+            </div>
+            <p className={styles.price}>{PLANS[plan].price}<span>{PLANS[plan].per}</span></p>
+            {PLANS[plan].note && <p className={styles.save}>{PLANS[plan].note}</p>}
             <p className={styles.trial}><strong>{TRIAL} grátis</strong> para novos assinantes. A primeira cobrança só acontece depois do teste, e você pode cancelar antes.</p>
             <ul className={styles.benefits}>
               {["Treinos e dieta gerados por IA", "IA Coach 24h", "Medidas, progresso e hidratação", "Sem fidelidade: cancele quando quiser"].map((b) => (
@@ -283,9 +297,9 @@ export default function SubscribeFlow() {
               <>
                 <div className={styles.or}><span>ou</span></div>
                 <button className={styles.pix} type="button" onClick={() => subscribe("pix")} disabled={busy}>
-                  Pagar 30 dias com Pix · {PRICE}
+                  {PLANS[plan].pix}
                 </button>
-                <p className={styles.fine}>O Pix libera 30 dias de acesso, sem renovação automática.</p>
+                <p className={styles.fine}>O Pix libera {plan === "yearly" ? "1 ano" : "30 dias"} de acesso, sem renovação automática.</p>
               </>
             )}
             <p className={styles.fine}><ShieldCheck size={14} aria-hidden="true" /> Pagamento seguro processado pela Stripe.</p>

@@ -145,6 +145,7 @@ export default function LandingPage() {
               <div className={styles.planHeading}><h3>FitGen Completo</h3><span>MENSAL</span></div>
               <p className={styles.price}>R$ <strong>29,90</strong><span>/mês</span></p>
               <p>R$ 1 por dia em um mês de 30 dias para ter treino e dieta personalizados.</p>
+              <p><strong>Ou R$ 299 no plano anual: 2 meses grátis.</strong> Pague com cartão ou Pix.</p>
               <ul>{benefits.map((benefit) => <li key={benefit}><Check size={18} aria-hidden="true" />{benefit}</li>)}</ul>
               <a className={`${styles.button} ${styles.planButton}`} href={subscriptionUrl}>{checkoutUrl ? "Começar 7 dias grátis" : "Pedir link de assinatura"}</a>
             </div>
