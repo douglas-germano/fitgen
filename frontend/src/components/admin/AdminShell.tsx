@@ -15,6 +15,7 @@ import {
     ScrollText,
     Sun,
     Users,
+    UsersRound,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { removeToken } from "@/lib/api";
@@ -27,6 +28,7 @@ const NAV = [
     { href: "/admin/finance", label: "Financeiro", icon: Wallet, exact: false },
     { href: "/admin/users", label: "Usuários", icon: Users, exact: false },
     { href: "/admin/workouts", label: "Treinos", icon: ListChecks, exact: false },
+    { href: "/admin/clubs", label: "Clubes", icon: UsersRound, exact: false },
     { href: "/admin/exercises", label: "Exercícios", icon: Dumbbell, exact: false },
     { href: "/admin/notifications", label: "Notificações", icon: Bell, exact: false },
     { href: "/admin/audit-logs", label: "Auditoria", icon: ScrollText, exact: false },

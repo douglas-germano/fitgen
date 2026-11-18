@@ -27,7 +27,7 @@ export default function GroupSettingsScreen() {
       onPick={uri => image.mutate(uri, { onError: error })}
       onRemove={() => confirm('Remover a foto do clube?', () => image.mutate(null, { onError: error }))} />
     {g.description && <Text muted>{g.description}</Text>}
-    <Text muted>{g.is_public ? 'Público' : 'Privado'} · {g.member_count}/20 pessoas · Código: {g.invite_code}</Text>
+    <Text muted>{g.is_public ? 'Público' : 'Privado'} · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'} · Código: {g.invite_code}</Text>
     <Button title="Compartilhar convite" onPress={() => shareMessage(groupInviteMessage(g.name, g.invite_code ?? '')).catch(error)} />
       <Button title="Editar nome e privacidade" variant="soft" onPress={() => { setName(g.name); setDescription(g.description ?? ''); setIsPublic(g.is_public); setEditing(!editing); }} />
       {editing && <><Input label="Nome" value={name} onChangeText={setName} maxLength={60} /><Input label="Descrição" value={description} onChangeText={setDescription} maxLength={280} /><ClubVisibility isPublic={isPublic} onChange={setIsPublic} /><Button title="Salvar" disabled={!name.trim()} loading={update.isPending} onPress={() => update.mutate({ name, description, is_public: isPublic }, { onSuccess: () => setEditing(false), onError: error })} /></>}

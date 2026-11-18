@@ -19,6 +19,7 @@ from app.modules.community.interface.routes_feed import feed_bp
 from app.modules.community.interface.routes_groups import groups_bp
 from app.modules.community.interface.routes_people import people_bp
 from app.modules.community.interface.routes_challenges import challenges_bp
+from app.modules.community.interface.routes_admin import clubs_admin_bp
 from app.shared.utils.timezone import get_today_cuiaba
 
 
@@ -38,10 +39,11 @@ class CommunityTests(unittest.TestCase):
         JWTManager(self.app)
         for bp in (feed_bp, groups_bp, people_bp, challenges_bp):
             self.app.register_blueprint(bp, url_prefix='/community')
+        self.app.register_blueprint(clubs_admin_bp, url_prefix='/admin/clubs')
         self.ctx = self.app.app_context(); self.ctx.push()
         self.addCleanup(self.ctx.pop)
         # Legacy analytics constraints use PG-specific casts; this suite only needs these tables.
-        needed = ['users', 'user_profiles', 'workout_sessions', 'meals', 'hydration_logs', 'hydration_goals', 'user_streaks', 'achievements', 'user_achievements', 'workout_plans', 'workout_days', 'notifications']
+        needed = ['users', 'user_profiles', 'workout_sessions', 'meals', 'hydration_logs', 'hydration_goals', 'user_streaks', 'achievements', 'user_achievements', 'workout_plans', 'workout_days', 'notifications', 'audit_logs']
         db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in needed] + ALL_TABLES)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)
@@ -63,14 +65,13 @@ class CommunityTests(unittest.TestCase):
     def join(self, group, user=1):
         return self.request('/groups/join', user, 'post', json={'code': group['invite_code']})
 
-    def test_group_invite_membership_admin_and_capacity(self):
+    def test_group_invite_membership_admin_and_rotation(self):
         g = self.group()
         self.assertEqual(self.request('/groups/' + g['id'], 1).status_code, 404)
         self.assertEqual(self.join(g).status_code, 200)
         self.assertEqual(self.join(g).json['member_count'], 2)
         self.assertEqual(self.request('/groups/' + g['id'], 1, 'put', json={'name': 'Other'}).status_code, 403)
-        with patch('app.modules.community.interface.routes_groups.MAX_MEMBERS', 2):
-            self.assertEqual(self.join(g, 2).status_code, 409)
+        self.assertEqual(self.join(g, 2).json['member_count'], 3)  # no member cap
         rotated = self.request('/groups/' + g['id'] + '/invite-code', method='post')
         self.assertEqual(rotated.status_code, 200)
         self.assertEqual(self.join(g, 2).status_code, 404)
@@ -373,6 +374,34 @@ class CommunityTests(unittest.TestCase):
         bad = self.request('/posts', method='post', data={'text': 'x', 'file': (io.BytesIO(b'\x89PNG\r\n\x1a\n' + b'0' * 20), 'f.png')})
         self.assertEqual(bad.status_code, 400)
 
+    def admin(self, path, method='get', user=4, **kwargs):
+        return getattr(self.client, method)('/admin/clubs' + path, headers=self.headers[user], **kwargs)
+
+    def test_admin_clubs_requires_admin(self):
+        self.assertEqual(self.admin('').status_code, 403)
+
+    def test_admin_clubs_manage(self):
+        self.users[4].role = 'admin'; db.session.commit()
+        g = self.group(); self.join(g); self.join(g, 2)
+        listing = self.admin('?search=' + g['name'][:3]).json
+        self.assertEqual(listing['total'], 1)
+        self.assertEqual(listing['clubs'][0]['member_count'], 3)
+        self.assertEqual(listing['stats']['memberships'], 3)
+        detail = self.admin('/' + g['id']).json
+        self.assertEqual([m['role'] for m in detail['members']], ['admin', 'member', 'member'])
+        self.assertEqual(self.admin('/' + g['id'], 'put', json={'name': 'Novo nome', 'is_public': True}).status_code, 200)
+        self.assertEqual(self.admin('/' + g['id']).json['name'], 'Novo nome')
+        owner = detail['members'][0]['id']
+        self.assertEqual(self.admin(f"/{g['id']}/members/{owner}/role", 'put', json={'role': 'member'}).status_code, 400)
+        self.assertEqual(self.admin(f"/{g['id']}/members/{owner}", 'delete').status_code, 200)
+        after = self.admin('/' + g['id']).json
+        self.assertEqual(after['member_count'], 2)
+        self.assertIn('admin', [m['role'] for m in after['members']])
+        self.assertEqual(after['owner']['id'], next(m['id'] for m in after['members'] if m['role'] == 'admin'))
+        old_code = after['invite_code']
+        self.assertNotEqual(self.admin(f"/{g['id']}/invite-code", 'post').json['invite_code'], old_code)
+        self.assertEqual(self.admin('/' + g['id'], 'delete').status_code, 200)
+        self.assertEqual(self.admin('/' + g['id']).status_code, 404)
 
 if __name__ == '__main__':
     unittest.main()

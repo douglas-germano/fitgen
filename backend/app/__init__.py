@@ -165,6 +165,8 @@ def create_app(config_name='default'):
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
     for community_bp in (community_feed_bp, community_groups_bp, community_challenges_bp, community_people_bp):
         app.register_blueprint(community_bp, url_prefix='/api/community')
+    from app.modules.community.interface.routes_admin import clubs_admin_bp
+    app.register_blueprint(clubs_admin_bp, url_prefix='/api/admin/clubs')
     
     from app.modules.communication.interface.routes_whatsapp import whatsapp_bp
     app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')

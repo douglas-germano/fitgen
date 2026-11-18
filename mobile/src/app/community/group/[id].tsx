@@ -26,7 +26,7 @@ export default function GroupScreen() {
   if (query.error || !query.data) return <QueryError title="Clube" back error={query.error} onRetry={query.refetch} />;
   const g = query.data;
   if (!g.my_role) return <Page topBar={<TopBar title={g.name} titleAccessory={<GroupAvatar group={g} size={30} />} back />} refreshing={refreshing} onRefresh={refresh}>
-    <Text variant="titleSm">Clube público · {g.member_count}/20 pessoas</Text>
+    <Text variant="titleSm">Clube público · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'}</Text>
     {g.description && <Text muted>{g.description}</Text>}
     <Text muted>Entre para acompanhar o feed, o ranking e os desafios deste clube.</Text>
     <Button title={g.member_count >= 20 ? 'Clube cheio' : 'Entrar no clube'} disabled={g.member_count >= 20} loading={join.isPending} onPress={() => join.mutate({ group_id: id }, { onError: error })} />

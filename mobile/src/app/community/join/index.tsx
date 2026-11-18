@@ -14,7 +14,7 @@ export default function JoinGroup() {
     <Input label="Código de convite" autoCapitalize="characters" value={code} onChangeText={v => { setCode(normalizeCode(v)); setPreviewCode(undefined); }} maxLength={12} />
     <Button title="Ver grupo" disabled={!code} loading={preview.isFetching} onPress={() => setPreviewCode(code)} />
     {preview.error && <Text>{errorMessage(preview.error)}</Text>}
-    {preview.data && <Card><Text variant="titleSm">{preview.data.name}</Text><Text>{preview.data.description}</Text><Text muted>{preview.data.member_count}/20 pessoas</Text>
+    {preview.data && <Card><Text variant="titleSm">{preview.data.name}</Text><Text>{preview.data.description}</Text><Text muted>{preview.data.member_count} {preview.data.member_count === 1 ? 'pessoa' : 'pessoas'}</Text>
       <Button title={preview.data.is_member ? 'Abrir grupo' : preview.data.is_full ? 'Grupo cheio' : 'Entrar'} disabled={preview.data.is_full && !preview.data.is_member} loading={join.isPending} onPress={() => preview.data?.is_member ? router.replace(`/community/group/${preview.data.id}`) : join.mutate(code, { onSuccess: g => router.replace(`/community/group/${g.id}`), onError: e => AppAlert.alert('Erro ao entrar', errorMessage(e)) })} />
     </Card>}
   </Page>;

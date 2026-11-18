@@ -18,7 +18,6 @@ from app.modules.community.interface.common import body, clean_text, fail, me
 
 groups_bp = Blueprint('community_groups', __name__)
 
-MAX_MEMBERS = 20
 MAX_GROUPS_PER_USER = 10
 INACTIVE_DAYS = 3
 
@@ -166,7 +165,7 @@ def preview_group(code):
     data = serializers.group(group, uid)
     data.pop('invite_code', None)
     data['is_member'] = any(m.user_id == uid for m in group.members)
-    data['is_full'] = len(group.members) >= MAX_MEMBERS
+    data['is_full'] = False  # no member cap; kept for older app builds
     return jsonify(data), 200
 
 
@@ -185,8 +184,6 @@ def join_group():
         return fail('Código de convite inválido.', 404)
     if any(m.user_id == uid for m in group.members):
         return jsonify(serializers.group(group, uid)), 200
-    if len(group.members) >= MAX_MEMBERS:
-        return fail(f'Este grupo já tem {MAX_MEMBERS} pessoas.', 409)
     if GroupMember.query.filter_by(user_id=uid).count() >= MAX_GROUPS_PER_USER:
         return fail(f'Você pode participar de até {MAX_GROUPS_PER_USER} grupos.')
     if any(graph.is_blocked(uid, m.user_id) for m in group.members if m.role == 'admin'):
