@@ -23,6 +23,7 @@ ACHIEVEMENTS_DATA = [
     {"code": "first_kg_lost", "name": "Primeiro Kg", "description": "Perca seu primeiro quilograma", "category": "milestone", "icon": "scale", "requirement_type": "weight_loss_kg", "requirement_value": 1},
     {"code": "5kg_lost", "name": "Transformação", "description": "Perca 5kg", "category": "milestone", "icon": "butterfly", "requirement_type": "weight_loss_kg", "requirement_value": 5},
     {"code": "10kg_lost", "name": "Nova Pessoa", "description": "Perca 10kg", "category": "milestone", "icon": "star", "requirement_type": "weight_loss_kg", "requirement_value": 10},
+    {"code": "challenge_completed", "name": "Desafio Cumprido", "description": "Complete um desafio da comunidade", "category": "social", "icon": "trophy", "requirement_type": "challenge_count", "requirement_value": 1},
     {"code": "first_pr", "name": "Recorde Pessoal", "description": "Quebre seu primeiro PR", "category": "workout", "icon": "trophy", "requirement_type": "pr_break", "requirement_value": 1},
 ]
 
@@ -63,3 +64,66 @@ def promote_user_command(email):
     click.echo(f'   Email: {user.email}')
     click.echo(f'   Name: {user.name}')
     click.echo(f'   Role: {user.role}')
+
+
+@click.command(name='community-nudge')
+@with_appcontext
+def community_nudge_command():
+    """Remind group members who haven't trained in 3+ days while their group is active (run daily)."""
+    from datetime import timedelta
+    from app.shared.utils.timezone import now_cuiaba
+    from app.modules.community.application import graph, metrics
+    from app.modules.community.application.notify import notify
+    from app.modules.community.domain.models import CommunityGroup
+
+    cutoff = now_cuiaba() - timedelta(days=3)
+    sent = 0
+    for group in CommunityGroup.query.all():
+        ids = [m.user_id for m in group.members if graph.settings_for(m.user_id).share_workouts]
+        if len(ids) < 2:
+            continue
+        last = metrics.last_active(ids)
+        active = [uid for uid in ids if last.get(uid) and last[uid] >= cutoff]
+        if not active:
+            continue
+        for uid in ids:
+            if uid in active:
+                continue
+            notify(uid, f'O {group.name} está treinando 🔥',
+                   f'{len(active)} {"pessoa treinou" if len(active) == 1 else "pessoas treinaram"} nos últimos dias. Bora voltar?',
+                   link_type='community_group', link_id=group.id)
+            sent += 1
+    print(f'{sent} lembretes enviados.')
+
+
+OFFICIAL_CHALLENGES = [
+    {"title": "12 treinos no mês", "description": "Treine 12 vezes até o fim do mês. Três por semana já resolve!", "metric": "workouts", "target": 12},
+    {"title": "20 dias ativos", "description": "Registre treino, refeição ou água em 20 dias do mês.", "metric": "active_days", "target": 20},
+    {"title": "Hidratação em dia", "description": "Bata sua meta de água em 15 dias do mês.", "metric": "hydration_days", "target": 15},
+]
+
+
+def seed_official_challenges():
+    """This month's public FitGen challenges; returns how many were created (idempotent)."""
+    import calendar
+    from app.shared.utils.timezone import get_today_cuiaba
+    from app.modules.community.domain.models import Challenge
+
+    today = get_today_cuiaba()
+    start = today.replace(day=1)
+    end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    created = 0
+    for data in OFFICIAL_CHALLENGES:
+        if Challenge.query.filter_by(is_public=True, title=data['title'], start_date=start).first():
+            continue
+        db.session.add(Challenge(is_public=True, start_date=start, end_date=end, **data))
+        created += 1
+    db.session.commit()
+    return created
+
+
+@click.command(name='community-seed-challenges')
+@with_appcontext
+def community_seed_challenges_command():
+    """Create this month's public FitGen challenges (run on the 1st)."""
+    print(f'{seed_official_challenges()} desafios públicos criados.')

@@ -1,130 +1,102 @@
 "use client";
 
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fetchAPI, setToken } from "@/lib/api";
+import { fetchAPI, removeToken, setToken } from "@/lib/api";
 import { setStorageItem } from "@/lib/storage";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 
 export default function LoginPage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [formData, setFormData] = useState({
-        email: "",
-        password: ""
-    });
-
-    const handleLoginSuccess = async (data: any) => {
-        // Store tokens using async storage layer
-        await Promise.all([
-            setToken(data.access_token),
-            setStorageItem("refresh_token", data.refresh_token)
-        ]);
-
-        toast.success("Login realizado com sucesso!");
-
-        // Redirect based on onboarding status
-        if (data.onboarding_completed) {
-            router.push("/dashboard");
-        } else {
-            router.push("/onboarding");
-        }
-    };
+    const [formData, setFormData] = useState({ email: "", password: "" });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError(""); // Clear previous errors
+        setError("");
 
         try {
             const data = await fetchAPI("/auth/login", {
                 method: "POST",
                 body: JSON.stringify(formData),
-                skipAuthRedirect: true
+                skipAuthRedirect: true,
             });
+            if (!data) return;
 
-            if (data) {
-                await handleLoginSuccess(data);
+            await Promise.all([setToken(data.access_token), setStorageItem("refresh_token", data.refresh_token)]);
+            queryClient.clear();
+
+            // The web app is admin-only: refuse any other account.
+            const me = await fetchAPI("/profile/me", { skipAuthRedirect: true });
+            if (me?.role !== "admin" && me?.is_admin !== true) {
+                await removeToken();
+                setError("Esta conta não tem acesso ao painel. Use o app FitGen no seu celular.");
+                return;
             }
-        } catch (error: any) {
-            setError(error.message || "Falha ao realizar login");
+            router.push("/admin");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Falha ao realizar login");
         } finally {
             setLoading(false);
         }
     };
 
-
-
     return (
-        <Card className="glass-card shadow-2xl border-white/10">
-            <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-bold tracking-tight">Bem vindo de volta</CardTitle>
-                <CardDescription>
-                    Digite seu email e senha para acessar sua conta
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="seu@email.com"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                            className="bg-background/50 border-white/10 focus:ring-primary/20 backdrop-blur-sm"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="password">Senha</Label>
-                            <Link
-                                href="/forgot-password"
-                                className="text-xs text-primary hover:text-primary/80 hover:underline underline-offset-4 transition-colors"
-                            >
-                                Esqueceu a senha?
-                            </Link>
-                        </div>
-                        <Input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            required
-                            className="bg-background/50 border-white/10 focus:ring-primary/20 backdrop-blur-sm"
-                        />
-                    </div>
-                    {error && (
-                        <div className="text-sm font-medium text-destructive animate-in fade-in slide-in-from-top-1 bg-destructive/10 p-3 rounded-md border border-destructive/20">
-                            {error}
-                        </div>
-                    )}
-                    <Button type="submit" className="w-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all font-semibold" disabled={loading}>
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Entrar
-                    </Button>
-                </form>
+        <div className="space-y-6">
+            <div className="space-y-1">
+                <h1 className="text-[28px] font-bold leading-9 tracking-[-0.02em]">Entrar no painel</h1>
+                <p className="text-sm text-muted-foreground">Acesso exclusivo para administradores.</p>
+            </div>
 
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-[13px] font-semibold">E-mail</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="voce@fitgen.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="text-[13px] font-semibold">Senha</Label>
+                        <Link href="/forgot-password" className="text-xs font-semibold text-volt-ink underline-offset-4 hover:underline">
+                            Esqueceu a senha?
+                        </Link>
+                    </div>
+                    <Input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                    />
+                </div>
 
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4 text-center text-sm text-muted-foreground border-t border-white/5 pt-6 mt-2">
-                <p>
-                    Não tem uma conta?{" "}
-                    <Link href="https://pay.kiwify.com.br/14AVh4x" className="font-medium text-primary hover:underline underline-offset-4">
-                        Comece hoje mesmo!
-                    </Link>
-                </p>
-            </CardFooter>
-        </Card>
+                {error && (
+                    <p role="alert" className="rounded-[var(--radius-md)] bg-danger-soft px-4 py-3 text-sm font-medium text-destructive">
+                        {error}
+                    </p>
+                )}
+
+                <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="animate-spin" />}
+                    Entrar
+                </Button>
+            </form>
+        </div>
     );
 }

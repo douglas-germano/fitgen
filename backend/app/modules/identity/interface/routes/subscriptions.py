@@ -1,8 +1,11 @@
-from flask import Blueprint, request, jsonify
+import os
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.modules.identity.domain.models import User
 from app.modules.identity.domain.subscription import Subscription
+from app.modules.identity.application.revenuecat import sync_user_access
+from app.shared.subscription_access import access_payload
 from datetime import datetime, timedelta
 import uuid
 
@@ -120,5 +123,25 @@ def get_subscription_status():
     return jsonify({
         "status": user.subscription_status,
         "expires_at": user.subscription_expires_at.isoformat() if user.subscription_expires_at else None,
-        "is_active": user.subscription_status == 'active'
+        "is_active": user.subscription_status == 'active',
+        **access_payload(user)
     }), 200
+
+
+@subscriptions_bp.route('/sync', methods=['POST'])
+@jwt_required()
+def sync_subscription():
+    """Refresh access from RevenueCat right after a purchase/restore (the webhook may lag)."""
+    user = User.query.get(get_jwt_identity())
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    if not os.getenv('REVENUECAT_SECRET_API_KEY'):
+        return jsonify({"msg": "Sync not configured", **access_payload(user)}), 503
+    try:
+        outcome = sync_user_access(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("RevenueCat sync failed for %s", user.email)
+        return jsonify({"msg": "Could not reach RevenueCat", **access_payload(user)}), 502
+    return jsonify({**outcome, **access_payload(user)}), 200

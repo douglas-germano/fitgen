@@ -206,7 +206,7 @@ classDiagram
 | **Nutrition** | Refeições, planos de dieta, preferências alimentares, hidratação |
 | **Analytics** | Métricas corporais, metas, fotos de progresso |
 | **Gamification** | XP, níveis, conquistas, streaks |
-| **Coach** | Coach Virtual com IA (Gemini + function calling) |
+| **Coach** | Coach Virtual com IA (OpenRouter + function calling) |
 | **Communication** | Notificações (push, web), email (Brevo), WhatsApp (Evolution API), feedback |
 
 ## Fluxo de Dependência
@@ -224,7 +224,7 @@ flowchart LR
         API[Flask API]
     end
 
-    API --> Gemini[Google Gemini IA]
+    API --> OpenRouter[OpenRouter IA]
     API --> Stripe[Stripe Payments]
     API --> FCM[Firebase FCM]
     API --> Brevo[Brevo Email]

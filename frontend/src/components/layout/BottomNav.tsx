@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
     { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
     { href: "/workouts", label: "Treino", icon: Dumbbell },
-    { href: "/coach", label: "IA Coach", icon: Sparkles, isCenter: true },
+    { href: "/coach", label: "Otto", icon: Sparkles, isCenter: true },
     { href: "/diet", label: "Dieta", icon: Utensils },
     { href: "/metrics", label: "Medidas", icon: Activity },
 ];
@@ -36,7 +36,7 @@ export function BottomNav() {
                             aria-current={isActive ? "page" : undefined}
                             aria-label={item.label}
                             className={cn(
-                                "relative flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-300",
+                                "relative flex min-h-11 min-w-11 items-center justify-center p-2 rounded-2xl transition-all duration-300",
                                 isActive ? "text-white" : "text-white/40 hover:text-white/70"
                             )}
                         >
@@ -53,13 +53,6 @@ export function BottomNav() {
                                 )} />
                             </div>
 
-                            {/* Label */}
-                            <span className={cn(
-                                "text-[10px] font-medium mt-1 transition-all duration-300",
-                                isActive ? "opacity-100 text-white" : "opacity-0 h-0 overflow-hidden"
-                            )}>
-                                {item.label}
-                            </span>
                         </Link>
                     );
                 })}

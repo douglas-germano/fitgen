@@ -4,22 +4,43 @@ export default function AuthLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 overflow-hidden relative">
-            {/* Premium Background */}
-            <div className="absolute inset-0 bg-background -z-20" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background -z-10" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-500/10 via-background to-background -z-10" />
-
-            <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-500 relative z-10">
-                <div className="text-center space-y-2">
-                    <h1 className="text-4xl font-bold tracking-tighter text-foreground bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-                        FitGen
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                        Your personal evolution starts here.
-                    </p>
+        <div className="min-h-[100dvh] w-full bg-background">
+            <div className="grid min-h-[100dvh] w-full lg:grid-cols-[1.1fr_1fr]">
+                {/* Brand panel: text on top, symbol anchored at the bottom so they never overlap */}
+                <div className="relative hidden flex-col gap-14 overflow-hidden bg-inverse p-12 text-inverse-foreground lg:flex xl:p-16">
+                    <div className="relative flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/brand/fitgen-mark.png" alt="" aria-hidden width={40} height={38} className="h-9 w-auto" />
+                        <span className="text-xl font-extrabold italic tracking-tight">FitGen</span>
+                    </div>
+                    <div className="relative max-w-md">
+                        <p className="text-[40px] font-bold leading-[1.08] tracking-[-0.02em]">
+                            Tudo do FitGen, <span className="text-volt">em um só painel.</span>
+                        </p>
+                        <p className="mt-3 text-sm text-inverse-foreground/65">
+                            Usuários, treinos, exercícios e notificações — com a mesma identidade do app.
+                        </p>
+                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src="/brand/fitgen-mark.png"
+                        alt=""
+                        aria-hidden
+                        className="pointer-events-none absolute -bottom-24 -right-28 w-[min(46vw,560px)] max-w-none"
+                    />
                 </div>
-                {children}
+
+                <div className="flex items-center justify-center p-6 sm:p-10">
+                    <div className="w-full max-w-sm space-y-8">
+                        <div className="flex justify-center lg:hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/brand/fitgen-logo.png" alt="FitGen" width={158} height={45} className="h-11 w-auto dark:hidden" />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/brand/fitgen-mark.png" alt="FitGen" width={46} height={44} className="hidden h-11 w-auto dark:block" />
+                        </div>
+                        {children}
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -77,6 +77,9 @@ class UserProfile(db.Model):
     injuries_limitations = db.Column(db.Text)
     dietary_restrictions = db.Column(db.Text)
     
+    # Full, validated chat preferences (versioned independently of the UI).
+    onboarding_answers = db.Column(JSON, nullable=True)
+
     # Onboarding status
     onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
     

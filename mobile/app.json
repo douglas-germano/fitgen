@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "FitGen",
+    "slug": "fitgen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "fitgen",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.douglas.fitgen",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.douglas.fitgen",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 140,
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#111416"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O FitGen usa suas fotos para estimar as calorias das refeições.",
+          "cameraPermission": "O FitGen usa a câmera para fotografar suas refeições e estimar as calorias."
+        }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "O FitGen lê seus passos, energia ativa e medidas corporais do app Saúde para acompanhar sua evolução.",
+          "NSHealthUpdateUsageDescription": "O FitGen salva no app Saúde seus treinos, refeições, água e medidas registrados no app.",
+          "background": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "92ca68eb-3c9d-4e14-9c27-65f708c5bb20"
+      }
+    },
+    "owner": "eudouglasgermano"
+  }
+}

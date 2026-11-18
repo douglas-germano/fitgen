@@ -1,72 +1,45 @@
 #!/usr/bin/env python3
 """
-Test script to validate Gemini function calling is working correctly
+Smoke test: validates OpenRouter tool calling with the real coach tool declarations.
+No database writes — tool calls are captured and answered with a fake result.
+
+Usage (from backend/):
+    OPENROUTER_API_KEY=... python scripts/test_function_calling.py ["Comi uma banana"]
 """
 import os
-import google.generativeai as genai
+import sys
 
-# Configure Gemini
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    print("❌ GEMINI_API_KEY not set")
-    exit(1)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-genai.configure(api_key=api_key)
+from app.modules.coach.infrastructure.ai_service import AIService  # noqa: E402
+from app.modules.coach.application.coach_functions import COACH_FUNCTION_DECLARATIONS  # noqa: E402
 
-# Define a simple test function
-def log_meal(name: str, calories: int, protein: int = 0, carbs: int = 0, fats: int = 0):
-    """Logs a meal with nutritional information"""
-    return {
-        "success": True,
-        "message": f"Logged {name} with {calories} calories"
-    }
+if not os.environ.get("OPENROUTER_API_KEY"):
+    print("❌ OPENROUTER_API_KEY not set")
+    sys.exit(1)
 
-# Test with function declarations
-test_declarations = [
-    {
-        "name": "log_meal",
-        "description": "Logs a meal. When user mentions food, estimate nutritional values and call this function.",
-        "parameters": {
-            "type_": "OBJECT",
-            "properties": {
-                "name": {"type_": "STRING", "description": "Meal name"},
-                "calories": {"type_": "INTEGER", "description": "Estimated calories"},
-                "protein": {"type_": "INTEGER", "description": "Protein in grams"},
-                "carbs": {"type_": "INTEGER", "description": "Carbs in grams"},
-                "fats": {"type_": "INTEGER", "description": "Fats in grams"}
-            },
-            "required": ["name", "calories", "protein", "carbs", "fats"]
-        }
-    }
-]
+message = sys.argv[1] if len(sys.argv) > 1 else "Comi uma banana"
+calls = []
 
-print("🧪 Testing Gemini Function Calling...")
-print(f"📋 Declarations: {test_declarations}")
 
-try:
-    model = genai.GenerativeModel('gemini-2.0-flash', tools=test_declarations)
-    chat = model.start_chat()
-    
-    print("\n💬 Sending: 'Comi uma banana'")
-    response = chat.send_message("Comi uma banana")
-    
-    print(f"\n📤 Response candidates: {len(response.candidates)}")
-    
-    if response.candidates:
-        candidate = response.candidates[0]
-        print(f"📦 Content parts: {len(candidate.content.parts)}")
-        
-        for i, part in enumerate(candidate.content.parts):
-            print(f"\n  Part {i}:")
-            if hasattr(part, 'function_call') and part.function_call:
-                print(f"    ✅ FUNCTION CALL: {part.function_call.name}")
-                print(f"    📊 Args: {dict(part.function_call.args)}")
-            elif hasattr(part, 'text') and part.text:
-                print(f"    💬 TEXT: {part.text[:100]}")
-    
-    print("\n✅ Test completed!")
-    
-except Exception as e:
-    print(f"\n❌ Error: {e}")
-    import traceback
-    traceback.print_exc()
+def fake_executor(name, args):
+    calls.append((name, args))
+    return {"success": True, "message": f"{name} executed (fake)"}
+
+
+ai = AIService()
+print(f"🧪 Model: {ai.model}")
+print(f"💬 Sending: {message!r}")
+
+reply = ai.generate_with_functions(
+    message,
+    COACH_FUNCTION_DECLARATIONS,
+    fake_executor,
+    system_prompt="Você é um coach de fitness. Use as funções disponíveis para registrar dados.",
+)
+
+for name, args in calls:
+    print(f"  ✅ FUNCTION CALL: {name} {args}")
+if not calls:
+    print("  ⚠️ No function calls made")
+print(f"\n💬 Final reply: {reply}")

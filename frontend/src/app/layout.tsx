@@ -1,35 +1,41 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const viewport: Viewport = {
-  themeColor: "#9500ff",
+  themeColor: "#a1ec03",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
 };
 
-export const metadata: Metadata = {
-  title: "FitGen",
-  description: "Your AI-powered fitness evolution.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "FitGen",
-  },
-};
+// The same code is published twice (see scripts/prune-export.mjs): the sales page (lp.fitgen.pro)
+// and the admin panel (admin.fitgen.pro, an installable PWA).
+const isLanding = process.env.NEXT_PUBLIC_SITE === "lp";
+
+export const metadata: Metadata = isLanding
+  ? {
+      title: "FitGen — Treino e dieta personalizados com IA",
+      description: "O FitGen cria um plano de treino adequado ao seu nível, objetivos e tempo disponível e ajusta a progressão conforme você evolui.",
+    }
+  : {
+      title: "FitGen Admin",
+      description: "Painel administrativo do FitGen.",
+      manifest: "/manifest.json",
+      robots: { index: false, follow: false },
+      appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "FitGen",
+      },
+    };
 
 import { Toaster } from "@/components/ui/sonner";
 import QueryProvider from "@/providers/QueryProvider";
@@ -41,9 +47,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${jakarta.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider>

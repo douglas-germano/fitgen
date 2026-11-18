@@ -87,7 +87,8 @@ def register():
         email=validated_data['email'],
         password_hash=hashed_password,
         name=validated_data['name'],
-        phone=phone
+        phone=phone,
+        subscription_status='free'  # no access until a subscription / trial starts
     )
     
     db.session.add(new_user)

@@ -32,7 +32,7 @@ Este documento lista todos os endpoints disponíveis na API do FitGen, agrupados
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/exercises/sessions/start` | Iniciar sessão de treino |
-| POST | `/api/exercises/sessions/<uuid:session_id>/log-set` | Registrar série de exercício |
+| POST | `/api/exercises/sessions/<uuid:session_id>/log-set` | Registrar série de exercício (repetir a mesma série corrige peso e reps) |
 | PUT | `/api/exercises/sessions/<uuid:session_id>/finish` | Finalizar sessão de treino |
 
 ## Nutrition (`/api/nutrition`)
@@ -78,7 +78,7 @@ Este documento lista todos os endpoints disponíveis na API do FitGen, agrupados
 ## Coach Virtual (`/api/chat`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/chat` | Enviar mensagem ao coach (Gemini + function calling) |
+| POST | `/api/chat` | Enviar mensagem ao coach (OpenRouter + function calling) |
 | GET | `/api/chat/history` | Histórico de conversas |
 | DELETE | `/api/chat/clear` | Limpar histórico |
 
@@ -111,6 +111,9 @@ Este documento lista todos os endpoints disponíveis na API do FitGen, agrupados
 | POST | `/api/subscriptions/checkout` | Criar sessão de checkout Stripe |
 | GET | `/api/subscriptions/status` | Status da assinatura |
 | POST | `/api/subscriptions/webhook` | Webhook do Stripe |
+| POST | `/api/webhooks/revenuecat` | Webhook do RevenueCat (App Store / Google Play); exige header `Authorization` = `REVENUECAT_WEBHOOK_AUTH` |
+| GET | `/api/admin/finance/summary` | Admin: KPIs financeiros (MRR, receita, churn) |
+| GET | `/api/admin/finance/payments` | Admin: pagamentos (`?export=true` gera CSV) |
 
 ## WhatsApp (`/api/whatsapp`)
 | Method | Endpoint | Description |

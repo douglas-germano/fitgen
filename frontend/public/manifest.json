@@ -1,22 +1,24 @@
 {
-    "name": "FitGen",
+    "name": "FitGen Admin",
     "short_name": "FitGen",
-    "description": "Seu gerador de treinos e dieta personalizado.",
+    "description": "Painel administrativo do FitGen.",
     "version": "2.0.0",
-    "start_url": "/dashboard?v=2.0.0",
+    "start_url": "/admin",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#9500ff",
+    "theme_color": "#a1ec03",
     "icons": [
         {
             "src": "/icons/icon-192x192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "/icons/icon-512x512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         }
     ],
     "orientation": "portrait"

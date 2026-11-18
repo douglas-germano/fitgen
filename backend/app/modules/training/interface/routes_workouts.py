@@ -6,7 +6,65 @@ from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 
+
+def exercise_fields(data):
+    if not isinstance(data, dict) or not isinstance(data.get('name'), str) or not data['name'].strip():
+        raise ValueError('Informe o nome do exercício.')
+    sets = data.get('sets', 3)
+    rest = data.get('rest_seconds', 60)
+    if isinstance(sets, bool) or not isinstance(sets, int) or not 1 <= sets <= 50:
+        raise ValueError('Informe de 1 a 50 séries.')
+    if isinstance(rest, bool) or not isinstance(rest, int) or not 0 <= rest <= 3600:
+        raise ValueError('Informe um descanso de 0 a 3600 segundos.')
+    reps = str(data.get('reps') or '').strip()
+    if not reps:
+        raise ValueError('Informe as repetições.')
+    return dict(name=data['name'].strip(), sets=sets, reps=reps,
+                rest_seconds=rest, notes=data.get('notes') or '')
+
 workouts_bp = Blueprint('workouts', __name__)
+
+
+@workouts_bp.route('/day/<uuid:day_id>/exercises', methods=['POST'])
+@jwt_required()
+def add_exercise(day_id):
+    user_id = uuid.UUID(get_jwt_identity())
+    day = WorkoutDay.query.filter_by(id=day_id, user_id=user_id).first()
+    if not day:
+        return jsonify({'msg': 'Treino não encontrado.'}), 404
+    try:
+        fields = exercise_fields(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify({'msg': str(error)}), 400
+    order = max((exercise.order or 0 for exercise in day.exercises), default=0) + 1
+    exercise = Exercise(workout_day_id=day.id, user_id=user_id, order=order, **fields)
+    db.session.add(exercise)
+    db.session.commit()
+    return jsonify({'id': str(exercise.id), 'msg': 'Exercício adicionado.'}), 201
+
+
+@workouts_bp.route('/exercises/<uuid:exercise_id>', methods=['PUT', 'DELETE'])
+@jwt_required()
+def edit_exercise(exercise_id):
+    user_id = uuid.UUID(get_jwt_identity())
+    exercise = Exercise.query.filter_by(id=exercise_id, user_id=user_id).first()
+    if not exercise:
+        return jsonify({'msg': 'Exercício não encontrado.'}), 404
+    if request.method == 'DELETE':
+        # Keep completed session logs attached to their original exercise.
+        from app.modules.training.domain.models import ExerciseLog
+        if ExerciseLog.query.filter_by(exercise_id=exercise_id).first():
+            return jsonify({'msg': 'Este exercício já tem séries registradas. Edite-o ou gere um novo plano para preservar seu histórico.'}), 409
+        db.session.delete(exercise)
+    else:
+        try:
+            fields = exercise_fields(request.get_json(silent=True))
+        except ValueError as error:
+            return jsonify({'msg': str(error)}), 400
+        for key, value in fields.items():
+            setattr(exercise, key, value)
+    db.session.commit()
+    return jsonify({'msg': 'Exercício atualizado.'}), 200
 
 @workouts_bp.route('', methods=['GET'])
 @jwt_required()
@@ -42,7 +100,7 @@ def get_workouts():
             "description": p.description,
             "is_active": p.is_active,
             "generated_by_ai": p.generated_by_ai,
-            "created_at": p.created_at.isoformat()
+            "created_at": p.created_at.isoformat() if p.created_at else None
         })
         
     return jsonify(result), 200
@@ -103,6 +161,7 @@ def get_workout_details(plan_id):
         "name": plan.name,
         "description": plan.description,
         "is_active": plan.is_active,
+        "created_at": plan.created_at.isoformat() if plan.created_at else None,
         "days": days_data
     }), 200
 

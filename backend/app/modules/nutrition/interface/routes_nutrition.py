@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.modules.nutrition.domain.models import Meal
 from app.modules.analytics.domain.nutrition_analyzer import NutritionAnalyzerService
-from app.modules.coach.infrastructure.gemini_service import GeminiService
+from app.modules.coach.infrastructure.ai_service import AIService
 from datetime import datetime
 import uuid
 from app.shared.utils.timezone import now_cuiaba, get_today_cuiaba
@@ -76,7 +76,7 @@ def estimate_nutrition():
                 return jsonify(result), 200
 
         # Text only analysis (existing logic)
-        gemini = GeminiService()
+        ai = AIService()
         
         prompt = f"""Analise a seguinte descrição de alimento e retorne APENAS um JSON válido com as estimativas nutricionais:
 
@@ -103,10 +103,11 @@ Exemplo para "200g de frango grelhado":
 IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem código adicional."""
 
         # Generate content
-        response = gemini.model.generate_content(prompt)
-        response_text = response.text.strip()
+        response_text = ai.generate_text(prompt)
+        if not response_text:
+            raise ValueError("Empty response from AI provider")
         
-        print(f"Gemini response: {response_text}")  # Debug log
+        print(f"AI response: {response_text}")  # Debug log
         
         # Parse JSON response
         import json

@@ -149,6 +149,9 @@ def log_intake():
             is_goal_met = True
             
         GamificationService.handle_activity(user_id, 'hydration_log', is_goal_met=is_goal_met)
+        if is_goal_met:
+            from app.modules.community.application import publisher
+            publisher.on_hydration_goal(user_id, total, target, today)
             
     except Exception as e:
         print(f"Gamification error: {e}")

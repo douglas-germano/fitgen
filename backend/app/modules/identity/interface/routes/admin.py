@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
+from app.shared.subscription_access import user_has_access
 from app.modules.identity.domain.models import User
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from app.modules.training.domain.models import Exercise
@@ -299,6 +300,8 @@ def get_user_details(id):
         "email": user.email,
         "role": user.role,
         "status": user.subscription_status,
+        "subscription_expires_at": user.subscription_expires_at.isoformat() if user.subscription_expires_at else None,
+        "has_access": user_has_access(user),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "profile": profile_data,
         "activity": {
@@ -319,6 +322,34 @@ def update_user(id):
     
     db.session.commit()
     return jsonify({"msg": "User updated"}), 200
+
+@admin_bp.route('/users/<uuid:id>/grant-access', methods=['PUT'])
+def grant_access(id):
+    """Gives (or, with days=0, ends) subscription access without a payment.
+
+    Used for demo/review accounts, beta testers and courtesies. Extends from the later of
+    now and the current expiry, so it never shortens an existing paid period.
+    """
+    from datetime import datetime, timedelta
+    user = User.query.get_or_404(id)
+    days = (request.get_json(silent=True) or {}).get('days')
+    if not isinstance(days, int) or isinstance(days, bool) or not 0 <= days <= 3650:
+        return jsonify({"msg": "days must be an integer between 0 and 3650"}), 400
+    now = datetime.utcnow()
+    if days == 0:
+        user.subscription_status = 'canceled'
+        user.subscription_expires_at = now
+    else:
+        base = max(now, user.subscription_expires_at or now)
+        user.subscription_status = 'active'
+        user.subscription_expires_at = base + timedelta(days=days)
+    db.session.commit()
+    return jsonify({
+        "msg": "Access updated",
+        "status": user.subscription_status,
+        "subscription_expires_at": user.subscription_expires_at.isoformat(),
+        "has_access": user_has_access(user),
+    }), 200
 
 @admin_bp.route('/users/<uuid:id>/suspend', methods=['PUT'])
 def suspend_user(id):

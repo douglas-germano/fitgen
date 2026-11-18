@@ -1,5 +1,5 @@
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.modules.identity.domain.models import User, UserProfile
@@ -173,11 +173,8 @@ def generate_workout():
             "plan_name": plan.name
         }), 200
     except Exception as e:
-        import traceback
-        with open("/var/www/fitgen/backend/debug_error.log", "a") as f:
-            f.write(f"Error generating workout: {e}\n")
-            f.write(traceback.format_exc())
-            f.write("\n" + "="*50 + "\n")
+        db.session.rollback()
+        current_app.logger.exception('Failed to generate onboarding workout')
         return jsonify({"msg": "Failed to generate workout plan"}), 500
 
 @onboarding_bp.route('/status', methods=['GET'])
@@ -206,3 +203,48 @@ def get_status():
         "onboarding_completed": user.onboarding_completed,
         "has_profile": user.profile is not None
     }), 200
+
+
+@onboarding_bp.route('/complete', methods=['POST'])
+@jwt_required()
+def complete_conversation():
+    from sqlalchemy.exc import SQLAlchemyError
+    from app.modules.identity.application.onboarding import validate_answers
+    from app.modules.nutrition.domain.diet import DietPreference
+    data = request.get_json(silent=True)
+    try:
+        answers, fields, nutrition = validate_answers(data.get('answers') if isinstance(data, dict) else None)
+    except ValueError as error:
+        return jsonify({'msg': str(error)}), 400
+    user_id = uuid.UUID(get_jwt_identity())
+    try:
+        # Serialize completion/retries for this user; baseline is only recorded once.
+        user = User.query.filter_by(id=user_id).with_for_update().first()
+        if not user:
+            return jsonify({'msg': 'Usuário não encontrado.'}), 404
+        profile = UserProfile.query.filter_by(user_id=user_id).first()
+        if not profile:
+            profile = UserProfile(user_id=user_id)
+            db.session.add(profile)
+        for key, value in fields.items():
+            setattr(profile, key, value)
+        profile.onboarding_answers = answers
+        profile.onboarding_completed = True
+        profile.bmr = calculate_bmr(fields['current_weight_kg'], fields['height_cm'], fields['age'], fields['gender'])
+        profile.tdee = calculate_tdee(profile.bmr, fields['activity_level'])
+        pref = DietPreference.query.filter_by(user_id=user_id).first()
+        if not pref:
+            pref = DietPreference(user_id=user_id)
+            db.session.add(pref)
+        for key, value in nutrition.items():
+            setattr(pref, key, value)
+        if not BodyMetric.query.filter_by(user_id=user_id).first():
+            db.session.add(BodyMetric(user_id=user_id, weight_kg=fields['current_weight_kg'], notes='Peso inicial informado no onboarding'))
+        user.name = answers['name']
+        user.onboarding_completed = True
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('Could not save onboarding conversation')
+        return jsonify({'msg': 'Não foi possível salvar agora. Suas respostas continuam no aparelho. Tente novamente.'}), 503
+    return jsonify({'msg': 'Seu perfil e suas preferências foram salvos.', 'onboarding_completed': True}), 200

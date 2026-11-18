@@ -7,6 +7,26 @@ from app.shared.utils.timezone import now_cuiaba
 
 exercises_bp = Blueprint('exercises', __name__)
 
+
+@exercises_bp.route('/sessions/active', methods=['GET'])
+@jwt_required()
+def get_active_session():
+    user_id = get_jwt_identity()
+    session = WorkoutSession.query.filter_by(user_id=user_id, status='in_progress').first()
+    if not session:
+        return jsonify({'msg': 'Nenhuma sessão ativa.'}), 404
+    day = WorkoutDay.query.filter_by(id=session.workout_day_id, user_id=user_id).first()
+    if not day:
+        return jsonify({'msg': 'Treino não encontrado.'}), 404
+    return jsonify({
+        'session_id': str(session.id), 'workout_day_id': str(day.id),
+        'plan_id': str(day.workout_plan_id), 'started_at': session.started_at.isoformat(),
+        'elapsed_seconds': max(0, int((now_cuiaba() - session.started_at).total_seconds())),
+        'logs': [{'exercise_id': str(log.exercise_id), 'set_number': log.set_number,
+                  'reps_done': log.reps_done, 'weight_used_kg': log.weight_used_kg}
+                 for log in session.logs if log.completed],
+    }), 200
+
 @exercises_bp.route('/sessions/start', methods=['POST'])
 @jwt_required()
 def start_session():
@@ -112,6 +132,25 @@ def log_set(session_id):
         return jsonify({"msg": "Active session not found"}), 404
         
     exercise_id = data.get('exercise_id')
+    exercise = Exercise.query.filter_by(id=exercise_id, user_id=user_id, workout_day_id=session.workout_day_id).first()
+    if not exercise:
+        return jsonify({'msg': 'Exercício não encontrado neste treino.'}), 404
+    reps = data.get('reps_done')
+    weight = data.get('weight_used_kg')
+    set_number = data.get('set_number', 1)
+    import math
+    if (isinstance(reps, bool) or not isinstance(reps, int) or reps <= 0 or
+            isinstance(weight, bool) or not isinstance(weight, (int, float)) or not math.isfinite(weight) or weight < 0 or
+            isinstance(set_number, bool) or not isinstance(set_number, int) or not 1 <= set_number <= (exercise.sets or 0)):
+        return jsonify({'msg': 'Informe série, repetições e peso válidos.'}), 400
+    existing = ExerciseLog.query.filter_by(workout_session_id=session.id, exercise_id=exercise.id, set_number=set_number).first()
+    if existing:
+        # Re-posting a set corrects it (the app lets the user edit a finished set);
+        # a retry with identical values is a no-op.
+        existing.reps_done = reps
+        existing.weight_used_kg = weight
+        db.session.commit()
+        return jsonify({'msg': 'Série atualizada.', 'log_id': str(existing.id)}), 200
     
     log = ExerciseLog(
         workout_session_id=session.id,
@@ -160,6 +199,10 @@ def finish_session(session_id):
     session = WorkoutSession.query.filter_by(id=session_id, user_id=user_id).first()
     if not session:
         return jsonify({"msg": "Session not found"}), 404
+    if session.status == 'completed':
+        return jsonify({'msg': 'Session finished', 'duration': session.total_duration_seconds, 'calories': session.calories_burned}), 200
+    if session.status != 'in_progress':
+        return jsonify({'msg': 'A sessão não está em andamento.'}), 409
         
     session.status = 'completed'
     session.completed_at = now_cuiaba()
@@ -174,8 +217,8 @@ def finish_session(session_id):
     from app.modules.identity.domain.models import User
     user = User.query.get(user_id)
     
-    if user and user.profile and user.profile.weight_kg:
-        weight_kg = user.profile.weight_kg
+    if user and user.profile and user.profile.current_weight_kg:
+        weight_kg = user.profile.current_weight_kg
         hours = duration / 3600
         met_value = 6.0  # Moderate-intensity weight training
         calories = met_value * weight_kg * hours
@@ -193,6 +236,11 @@ def finish_session(session_id):
         GamificationService.handle_activity(user_id, 'workout_finish')
     except Exception as e:
         print(f"Gamification error: {e}")
+
+    # Community: share the workout (respects the user's privacy settings) and update challenges.
+    from app.modules.community.application import publisher
+    publisher.on_workout_finished(user_id, session)
+    publisher.after_activity(user_id)
 
     return jsonify({
         "msg": "Session finished", 

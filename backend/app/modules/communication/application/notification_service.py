@@ -15,12 +15,15 @@ class NotificationService:
         today = get_today_cuiaba()
         start_of_day = datetime.combine(today, datetime.min.time())
         
-        existing = Notification.query.filter(
+        dedupe = Notification.query.filter(
             Notification.user_id == user_id,
             Notification.type == type,
             Notification.title == title,
             Notification.created_at >= start_of_day
-        ).first()
+        )
+        if type == 'social':
+            dedupe = dedupe.filter(Notification.link_type == link_type, Notification.link_id == link_id)
+        existing = dedupe.first()
         
         if existing:
             return None # Already notified today

@@ -1,8 +1,8 @@
-from app.modules.coach.infrastructure.gemini_service import GeminiService
+from app.modules.coach.infrastructure.ai_service import AIService
 
 class NutritionAnalyzerService:
     def __init__(self):
-        self.gemini = GeminiService()
+        self.ai = AIService()
 
     def analyze_meal(self, images_data, description=None, mime_type='image/jpeg'):
         """
@@ -51,10 +51,10 @@ class NutritionAnalyzerService:
         """
         
         if isinstance(images_data, list):
-             result = self.gemini.analyze_image(prompt, images_data)
+             result = self.ai.analyze_image(prompt, images_data)
         else:
              # Legacy support or single image -> wrap in list
-             result = self.gemini.analyze_image(prompt, [{'data': images_data, 'mime_type': mime_type}])
+             result = self.ai.analyze_image(prompt, [{'data': images_data, 'mime_type': mime_type}])
         
         # Normalize field names if needed
         if result and 'food_name' in result:

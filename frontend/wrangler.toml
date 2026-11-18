@@ -1,20 +1,7 @@
-name = "fitgen-frontend"
+# Cloudflare Pages: painel admin do FitGen (site estático gerado por `npm run build:pages`).
+name = "fitgen-admin"
 compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+pages_build_output_dir = "out"
 
-[vars]
-# Defina suas variáveis de ambiente aqui. 
-# Nota: Para segredos, use 'wrangler pages secret put'
-NEXT_PUBLIC_API_URL = "https://fitgen-production.up.railway.app/api"
-
-# Configuração para KV Namespaces (se necessário)
-# [[kv_namespaces]]
-# binding = "MY_KV"
-# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# Configuração para D1 Database (se necessário)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "my-database"
-# database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# A URL da API é fixada no build (NEXT_PUBLIC_API_URL), não aqui:
+#   NEXT_PUBLIC_API_URL=https://dev-api.fitgen.pro/api npm run deploy:pages

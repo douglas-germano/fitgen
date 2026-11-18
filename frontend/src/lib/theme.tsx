@@ -15,7 +15,7 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>("dark");
+    const [theme, setThemeState] = useState<Theme>("light");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -41,10 +41,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             document.documentElement.classList.toggle("dark", savedTheme === "dark");
             updateStatusBarStyle(savedTheme);
         } else {
-            // Default to dark mode
-            setThemeState("dark");
-            document.documentElement.classList.add("dark");
-            updateStatusBarStyle("dark");
+            // Default to the light Volt Fit theme
+            setThemeState("light");
+            document.documentElement.classList.remove("dark");
+            updateStatusBarStyle("light");
         }
     }, []);
 
