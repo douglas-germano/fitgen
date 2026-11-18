@@ -2,7 +2,7 @@ import { AppAlert, AppActionSheet } from '@/lib/feedback';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { ImagePlus, X } from 'lucide-react-native';
+import { ImagePlus, Sparkles, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Keyboard, Platform, Pressable, View } from 'react-native';
 
@@ -13,6 +13,8 @@ import { useEstimateMeal, useLogMeal } from '@/hooks/queries';
 import { errorMessage, isPremiumRequired } from '@/lib/api';
 import type { MealEstimate, MealType } from '@/types/api';
 import { usePremium } from '@/hooks/use-premium';
+import { decimal } from '@/lib/forms';
+import { openPremiumSheet } from '@/lib/premium-sheet';
 
 export const MEAL_TYPES: { value: MealType; label: string; short: string }[] = [
   { value: 'breakfast', label: 'Café da Manhã', short: 'Café' },
@@ -36,7 +38,11 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const sheet = useRef<DialogHandle>(null);
   const estimateMeal = useEstimateMeal();
-  const { requirePremium } = usePremium();
+  const { locked } = usePremium();
+  // Freemium: free users log meals manually; the AI estimate is Premium.
+  const manual = locked('meal_estimate');
+  const [macros, setMacros] = useState({ calories: '', protein: '', carbs: '', fats: '' });
+  const upsell = useRef(false);
   const logMeal = useLogMeal();
 
   const close = () => sheet.current?.dismiss();
@@ -44,8 +50,19 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
     setDescription('');
     setPhotos([]);
     setEstimate(null);
+    setMacros({ calories: '', protein: '', carbs: '', fats: '' });
     setMealType(defaultMealType());
     onClose();
+  };
+  // iOS shows one modal at a time: open the purchase card once this sheet is fully gone.
+  const afterDismiss = () => {
+    if (!upsell.current) return;
+    upsell.current = false;
+    openPremiumSheet('meal_estimate');
+  };
+  const unlockAi = () => {
+    upsell.current = true;
+    close();
   };
 
   const pick = async (source: 'camera' | 'library') => {
@@ -84,7 +101,7 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
 
   const analyze = async () => {
     if ((!description.trim() && !photos.length) || estimateMeal.isPending || logMeal.isPending) return;
-    if (!requirePremium('meal_estimate')) return;
+    if (manual) { unlockAi(); return; }
     Keyboard.dismiss();
     try {
       setEstimate(await estimateMeal.mutateAsync({ description: description.trim(), photos }));
@@ -105,10 +122,28 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
   };
 
   const canAnalyze = !!description.trim() || photos.length > 0;
+  const manualCalories = decimal(macros.calories);
+  const canSaveManual = !!description.trim() && manualCalories !== undefined && manualCalories > 0;
+  const saveManual = async () => {
+    if (!canSaveManual || logMeal.isPending) return;
+    try {
+      await logMeal.mutateAsync({
+        name: description.trim(), meal_type: mealType, calories: manualCalories!,
+        protein: decimal(macros.protein) ?? 0, carbs: decimal(macros.carbs) ?? 0, fats: decimal(macros.fats) ?? 0,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      close();
+    } catch (e) {
+      AppAlert.alert('Erro ao registrar refeição.', errorMessage(e));
+    }
+  };
+  const macro = (key: keyof typeof macros) => (t: string) => setMacros((m) => ({ ...m, [key]: t }));
 
   return (
-    <Dialog ref={sheet} sheet sheetSize="registration" scrollable={false} visible={visible} onClose={afterClose} title="Registrar Refeição"
-      footer={estimate ? (
+    <Dialog ref={sheet} sheet sheetSize="registration" scrollable={manual} visible={visible} onClose={afterClose} onDismissed={afterDismiss} title="Registrar Refeição"
+      footer={manual ? (
+        <Button size="lg" title="Salvar Refeição" onPress={saveManual} loading={logMeal.isPending} disabled={!canSaveManual} />
+      ) : estimate ? (
         <Row style={{ gap: Spacing.three }}>
           <Button variant="soft" size="lg" title="Editar refeição" onPress={() => setEstimate(null)} disabled={logMeal.isPending} style={{ flex: 1 }} />
           <Button size="lg" title="Salvar Refeição" onPress={save} loading={logMeal.isPending} style={{ flex: 1 }} />
@@ -154,7 +189,21 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
         </Row>
       )}
 
-      <Button variant="soft" size="lg" icon={ImagePlus} title="Adicionar Foto" onPress={addPhoto} disabled={photos.length >= 3} />
+      {manual ? (
+        <>
+          <Row style={{ gap: Spacing.three }}>
+            <Input label="Calorias (kcal)" placeholder="Ex: 550" keyboardType="decimal-pad" value={macros.calories} onChangeText={macro('calories')} containerStyle={{ flex: 1 }} />
+            <Input label="Proteína (g)" placeholder="Opcional" keyboardType="decimal-pad" value={macros.protein} onChangeText={macro('protein')} containerStyle={{ flex: 1 }} />
+          </Row>
+          <Row style={{ gap: Spacing.three }}>
+            <Input label="Carboidratos (g)" placeholder="Opcional" keyboardType="decimal-pad" value={macros.carbs} onChangeText={macro('carbs')} containerStyle={{ flex: 1 }} />
+            <Input label="Gordura (g)" placeholder="Opcional" keyboardType="decimal-pad" value={macros.fats} onChangeText={macro('fats')} containerStyle={{ flex: 1 }} />
+          </Row>
+          <Button variant="soft" size="lg" icon={Sparkles} title="Calcular com IA · Premium" onPress={unlockAi} />
+        </>
+      ) : (
+        <Button variant="soft" size="lg" icon={ImagePlus} title="Adicionar Foto" onPress={addPhoto} disabled={photos.length >= 3} />
+      )}
       </>}
 
       {estimate && (

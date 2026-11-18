@@ -23,6 +23,7 @@ import { usePurchasesIdentity } from '@/hooks/use-purchases';
 import { useAnalyticsIdentity, useScreenTracking } from '@/hooks/use-analytics';
 import { withMonitoring } from '@/lib/analytics';
 import { PaywallView } from '@/components/paywall-view';
+import { PremiumSheetHost } from '@/components/premium-sheet';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -137,6 +138,7 @@ function RootNavigator() {
           <Stack.Screen name="reset-password" />
         </Stack.Protected>
       </Stack>
+      {signedIn && <PremiumSheetHost />}
     </ThemeProvider>
   );
 }

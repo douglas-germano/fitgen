@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { useProfile } from '@/hooks/queries';
+import { openPremiumSheet, type PremiumFeature } from '@/lib/premium-sheet';
 
-export type PremiumFeature = 'coach' | 'diet_plan' | 'meal_estimate' | 'workout_plan';
+export type { PremiumFeature };
 
 /**
  * Freemium state from `profile/me`. Older backends don't send `is_premium`: fall back to
@@ -15,10 +15,13 @@ export function usePremium() {
   const isPremium = data?.is_premium ?? data?.has_access ?? true;
   const locked = (feature: PremiumFeature) => !isPremium && (data?.premium_features ?? []).includes(feature);
 
-  /** Opens the paywall and returns false when `feature` is locked; true when the user may go on. */
+  /**
+   * Opens the purchase card and returns false when `feature` is locked; true when the user may go on.
+   * Call it from a screen, not from inside another open sheet (iOS shows one modal at a time).
+   */
   const requirePremium = (feature: PremiumFeature) => {
     if (!locked(feature)) return true;
-    router.push('/paywall');
+    openPremiumSheet(feature);
     return false;
   };
 

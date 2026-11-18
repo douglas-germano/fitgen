@@ -23,7 +23,7 @@ import { useAuth } from '@/providers/auth';
 import { useColors } from '@/providers/theme';
 import type { Profile } from '@/types/api';
 
-const BENEFITS = [
+export const BENEFITS = [
   'IA Coach Otto 24h para tirar dúvidas e ajustar seu plano',
   'Plano alimentar com receitas e lista de compras',
   'Calorias da refeição pela foto ou descrição',
@@ -31,7 +31,7 @@ const BENEFITS = [
 ];
 
 const IS_ANDROID = Platform.OS === 'android';
-const MANAGE_URL = IS_ANDROID
+export const MANAGE_URL = IS_ANDROID
   ? 'https://play.google.com/store/account/subscriptions?package=com.douglas.fitgen'
   : 'https://apps.apple.com/account/subscriptions';
 const APPLE_EULA = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
@@ -40,7 +40,7 @@ const CANCEL_PATH = IS_ANDROID ? 'Play Store › Pagamentos e assinaturas › As
 const SUPPORT_MAIL = 'mailto:suporte@fitgen.com';
 
 /** Free-trial length in days, when the package has a free introductory offer. */
-function trialDays(pkg: PurchasesPackage): number | null {
+export function trialDays(pkg: PurchasesPackage): number | null {
   const intro = pkg.product.introPrice;
   if (!intro || intro.price !== 0) return null;
   const units = { DAY: 1, WEEK: 7, MONTH: 30, YEAR: 365 } as const;
@@ -50,14 +50,15 @@ function trialDays(pkg: PurchasesPackage): number | null {
 const PERIOD_LABEL: Record<string, string> = { MONTHLY: 'por mês', ANNUAL: 'por ano', THREE_MONTH: 'a cada 3 meses', SIX_MONTH: 'a cada 6 meses', WEEKLY: 'por semana' };
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Premium now? Freemium backends send `is_premium`; older ones only `has_access`. */
+const premiumIn = (profile: Profile) => profile.is_premium ?? profile.has_access !== false;
+
 /**
- * Subscription screen. With `gate` it is the whole app for users without access
- * (no navigator, no back button); otherwise it is a normal screen opened from the profile.
+ * Store purchase flow shared by the subscription screen and the purchase card:
+ * loads the offering, buys / restores, then waits until the server reports Premium.
  */
-export function PaywallView({ gate = false }: { gate?: boolean }) {
-  const Colors = useColors();
+export function usePurchaseFlow({ source, onUnlocked }: { source: string; onUnlocked?: (title: string) => void }) {
   const qc = useQueryClient();
-  const { signOut } = useAuth();
   const [packages, setPackages] = useState<PurchasesPackage[] | null>(null);
   const [info, setInfo] = useState<CustomerInfo | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -65,7 +66,6 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
   const [error, setError] = useState('');
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
-  useEffect(() => { track('paywall_viewed', { gate }); }, [gate]);
 
   const load = useCallback(async () => {
     setError('');
@@ -84,14 +84,14 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     if (purchasesEnabled) void Promise.resolve().then(load);
   }, [load]);
 
-  /** Asks the server to refresh access from RevenueCat, then waits for the profile to unlock. */
+  /** Asks the server to refresh access from RevenueCat, then waits for the profile to report Premium. */
   const confirmAccess = async (customer: CustomerInfo) => {
     setInfo(customer);
     setBusy('confirm');
     try { await api('/subscriptions/sync', { method: 'POST' }); } catch { /* the webhook will catch up */ }
     for (let attempt = 0; attempt < 10 && alive.current; attempt++) {
       const profile = await qc.fetchQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/profile/me'), staleTime: 0 });
-      if (profile.has_access !== false) return true;
+      if (premiumIn(profile)) return true;
       await sleep(2000);
     }
     return false;
@@ -101,14 +101,14 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     const unlocked = await confirmAccess(customer);
     if (!alive.current) return;
     if (!unlocked) AppAlert.alert('Confirmando sua assinatura', 'A compra foi recebida e seu acesso será liberado em instantes. Se demorar, toque em “Restaurar compras”.');
-    else if (!gate) AppAlert.alert(successTitle, 'Sua assinatura está ativa.');
+    else onUnlocked?.(successTitle);
   };
 
   const subscribe = async () => {
     const pkg = packages?.find((p) => p.identifier === selected);
     if (!pkg || busy) return;
     setBusy('buy');
-    const props = { package: pkg.identifier, product: pkg.product.identifier, trial_days: trialDays(pkg), gate };
+    const props = { package: pkg.identifier, product: pkg.product.identifier, trial_days: trialDays(pkg), source };
     track('purchase_started', props);
     try {
       const customer = await purchase(pkg);
@@ -116,7 +116,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
       if (customer) await finish(customer, 'Tudo certo!');
     } catch (purchaseError) {
       track('purchase_failed', props);
-      captureError(purchaseError, { where: 'paywall.purchase', package: pkg.identifier });
+      captureError(purchaseError, { where: 'paywall.purchase', package: pkg.identifier, source });
       AppAlert.alert('Não foi possível concluir', 'A compra não foi finalizada. Você não foi cobrado. Tente novamente.');
     } finally {
       if (alive.current) setBusy(null);
@@ -129,7 +129,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     try {
       const customer = await restore();
       if (isPremium(customer)) {
-        track('purchase_restored', { gate });
+        track('purchase_restored', { source });
         await finish(customer, 'Assinatura restaurada');
       }
       else AppAlert.alert('Nada para restaurar', `Não encontramos uma assinatura ativa nesta ${STORE_ACCOUNT}.`);
@@ -140,11 +140,104 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     }
   };
 
-  const active = info ? isPremium(info) : false;
-  const entitlement = info?.entitlements.active[PREMIUM_ENTITLEMENT];
   const chosen = packages?.find((p) => p.identifier === selected);
-  const chosenTrial = chosen ? trialDays(chosen) : null;
-  const working = busy !== null;
+  return {
+    packages, selected, setSelected, busy, error, load, subscribe, restorePurchases,
+    active: info ? isPremium(info) : false,
+    entitlement: info?.entitlements.active[PREMIUM_ENTITLEMENT],
+    chosen,
+    chosenTrial: chosen ? trialDays(chosen) : null,
+  };
+}
+
+export type PurchaseFlow = ReturnType<typeof usePurchaseFlow>;
+
+/** Selectable store packages (radio cards). */
+export function PlanOptions({ flow }: { flow: PurchaseFlow }) {
+  const Colors = useColors();
+  if (flow.packages === null) return <ActivityIndicator color={Colors.inkMuted} />;
+  return (
+    <View style={{ gap: Spacing.three }}>
+      {flow.error ? <Text accessibilityRole="alert" color={Colors.danger}>{flow.error}</Text> : null}
+      {flow.packages.map((pkg) => {
+        const isSelected = pkg.identifier === flow.selected;
+        const trial = trialDays(pkg);
+        return (
+          <Pressable
+            key={pkg.identifier}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: isSelected }}
+            onPress={() => flow.setSelected(pkg.identifier)}
+            style={{
+              borderRadius: Radius.md,
+              borderCurve: 'continuous',
+              borderWidth: 2,
+              borderColor: isSelected ? Colors.ink : Colors.line,
+              backgroundColor: isSelected ? Colors.voltSoft : Colors.surfaceSunken,
+              padding: Spacing.four,
+              gap: Spacing.one,
+            }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text variant="titleMd">{pkg.product.title.replace(/\s*\(.*\)$/, '') || 'FitGen Premium'}</Text>
+              {trial ? <Badge label={`${trial} dias grátis`} /> : null}
+            </Row>
+            <Text variant="titleLg">
+              {pkg.product.priceString} <Text muted>{PERIOD_LABEL[pkg.packageType] ?? ''}</Text>
+            </Text>
+          </Pressable>
+        );
+      })}
+      {flow.packages.length === 0 && !flow.error ? <Text muted>Nenhum plano disponível no momento.</Text> : null}
+      {flow.packages.length === 0 ? <Button variant="soft" title="Tentar novamente" onPress={flow.load} /> : null}
+    </View>
+  );
+}
+
+export function subscribeTitle(flow: PurchaseFlow) {
+  if (flow.busy === 'confirm') return 'Confirmando assinatura…';
+  return flow.chosenTrial ? `Começar ${flow.chosenTrial} dias grátis` : 'Assinar';
+}
+
+/** Restore link, store renewal terms and legal links (required next to any purchase button). */
+export function PurchaseFinePrint({ flow, external = false }: { flow: PurchaseFlow; external?: boolean }) {
+  return (
+    <View style={{ gap: Spacing.three, alignItems: 'center' }}>
+      {purchasesEnabled && (!flow.active || external) && (
+        <>
+          <LinkText title={flow.busy === 'restore' ? 'Restaurando…' : 'Restaurar compras'} onPress={flow.restorePurchases} />
+          <Text variant="caption" style={{ textAlign: 'center' }}>
+            {flow.chosenTrial ? `Após o período grátis, a assinatura é cobrada ${flow.chosen ? `(${flow.chosen.product.priceString})` : ''} e renova automaticamente. ` : 'A assinatura renova automaticamente. '}
+            O pagamento é cobrado na sua {STORE_ACCOUNT} na confirmação da compra. Para evitar a cobrança, cancele em {CANCEL_PATH} pelo menos 24 horas antes do fim do período.
+          </Text>
+        </>
+      )}
+      <Row style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+        <LinkText title="Política de Privacidade" onPress={() => (external ? Linking.openURL(`${WEB_URL}/privacidade`) : router.push('/privacy'))} />
+        {!IS_ANDROID && (
+          <>
+            <Text variant="caption">·</Text>
+            <LinkText title="Termos de Uso (Apple)" onPress={() => Linking.openURL(APPLE_EULA)} />
+          </>
+        )}
+      </Row>
+    </View>
+  );
+}
+
+/**
+ * Subscription screen. With `gate` it is the whole app for users without access (hard-gate
+ * mode: no navigator, no back button); otherwise a normal screen opened from the profile.
+ * Locked features open the purchase card (`PremiumSheet`) instead.
+ */
+export function PaywallView({ gate = false }: { gate?: boolean }) {
+  const Colors = useColors();
+  const { signOut } = useAuth();
+  const flow = usePurchaseFlow({
+    source: gate ? 'gate' : 'screen',
+    onUnlocked: (title) => { if (!gate) AppAlert.alert(title, 'Sua assinatura está ativa.'); },
+  });
+  useEffect(() => { track('paywall_viewed', { gate }); }, [gate]);
+  const working = flow.busy !== null;
 
   return (
     <Page topBar={<TopBar title={gate ? 'FitGen' : 'Assinatura'} back={!gate} />}>
@@ -176,92 +269,40 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
           </Text>
           {gate && <Button variant="soft" title="Falar com o suporte" onPress={() => Linking.openURL(SUPPORT_MAIL)} />}
         </Card>
-      ) : packages === null ? (
-        <ActivityIndicator color={Colors.inkMuted} />
-      ) : active && !gate ? (
+      ) : flow.active && !gate ? (
         <Card>
           <Badge label="Assinatura ativa" tone="soft" />
-          {entitlement?.expirationDate ? (
+          {flow.entitlement?.expirationDate ? (
             <Text muted>
-              {entitlement.willRenew ? 'Renova em ' : 'Acesso até '}
-              {new Date(entitlement.expirationDate).toLocaleDateString('pt-BR')}
+              {flow.entitlement.willRenew ? 'Renova em ' : 'Acesso até '}
+              {new Date(flow.entitlement.expirationDate).toLocaleDateString('pt-BR')}
             </Text>
           ) : null}
           <Button variant="soft" title="Gerenciar assinatura" onPress={() => Linking.openURL(MANAGE_URL)} />
         </Card>
       ) : (
         <View style={{ gap: Spacing.three }}>
-          {error ? <Text accessibilityRole="alert" color={Colors.danger}>{error}</Text> : null}
-          {packages.map((pkg) => {
-            const isSelected = pkg.identifier === selected;
-            const trial = trialDays(pkg);
-            return (
-              <Pressable
-                key={pkg.identifier}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isSelected }}
-                onPress={() => setSelected(pkg.identifier)}
-                style={{
-                  borderRadius: Radius.md,
-                  borderCurve: 'continuous',
-                  borderWidth: 2,
-                  borderColor: isSelected ? Colors.ink : Colors.line,
-                  backgroundColor: isSelected ? Colors.voltSoft : Colors.surfaceSunken,
-                  padding: Spacing.four,
-                  gap: Spacing.one,
-                }}>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <Text variant="titleMd">{pkg.product.title.replace(/\s*\(.*\)$/, '') || 'FitGen Premium'}</Text>
-                  {trial ? <Badge label={`${trial} dias grátis`} /> : null}
-                </Row>
-                <Text variant="titleLg">
-                  {pkg.product.priceString} <Text muted>{PERIOD_LABEL[pkg.packageType] ?? ''}</Text>
-                </Text>
-              </Pressable>
-            );
-          })}
-          {packages.length === 0 && !error ? <Text muted>Nenhum plano disponível no momento.</Text> : null}
-          {packages.length > 0 ? (
+          <PlanOptions flow={flow} />
+          {flow.packages && flow.packages.length > 0 ? (
             <Button
               size="lg"
-              title={busy === 'confirm' ? 'Confirmando assinatura…' : chosenTrial ? `Começar ${chosenTrial} dias grátis` : 'Assinar'}
-              loading={busy === 'buy' || busy === 'confirm'}
-              disabled={!selected || working}
-              onPress={subscribe}
+              title={subscribeTitle(flow)}
+              loading={flow.busy === 'buy' || flow.busy === 'confirm'}
+              disabled={!flow.selected || working}
+              onPress={flow.subscribe}
             />
-          ) : (
-            <Button variant="soft" title="Tentar novamente" onPress={load} />
-          )}
+          ) : null}
         </View>
       )}
 
-      {purchasesEnabled && (
+      <PurchaseFinePrint flow={flow} external={gate} />
+
+      {gate && (
         <View style={{ gap: Spacing.three, alignItems: 'center' }}>
-          {(!active || gate) && <LinkText title={busy === 'restore' ? 'Restaurando…' : 'Restaurar compras'} onPress={restorePurchases} />}
-          {(!active || gate) && <Text variant="caption" style={{ textAlign: 'center' }}>
-            {chosenTrial ? `Após o período grátis, a assinatura é cobrada ${chosen ? `(${chosen.product.priceString})` : ''} e renova automaticamente. ` : 'A assinatura renova automaticamente. '}
-            O pagamento é cobrado na sua {STORE_ACCOUNT} na confirmação da compra. Para evitar a cobrança, cancele em {CANCEL_PATH} pelo menos 24 horas antes do fim do período.
-          </Text>}
+          <Button variant="inverse" title="Sair da conta" onPress={() => void signOut()} style={{ alignSelf: 'stretch' }} />
+          <LinkText title="Excluir minha conta" onPress={() => Linking.openURL(`${SUPPORT_MAIL}?subject=${encodeURIComponent('Exclusão de Conta')}`)} />
         </View>
       )}
-
-      <View style={{ gap: Spacing.three, alignItems: 'center' }}>
-        <Row style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-          <LinkText title="Política de Privacidade" onPress={() => (gate ? Linking.openURL(`${WEB_URL}/privacidade`) : router.push('/privacy'))} />
-          {!IS_ANDROID && (
-            <>
-              <Text variant="caption">·</Text>
-              <LinkText title="Termos de Uso (Apple)" onPress={() => Linking.openURL(APPLE_EULA)} />
-            </>
-          )}
-        </Row>
-        {gate && (
-          <>
-            <Button variant="inverse" title="Sair da conta" onPress={() => void signOut()} style={{ alignSelf: 'stretch' }} />
-            <LinkText title="Excluir minha conta" onPress={() => Linking.openURL(`${SUPPORT_MAIL}?subject=${encodeURIComponent('Exclusão de Conta')}`)} />
-          </>
-        )}
-      </View>
     </Page>
   );
 }

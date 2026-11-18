@@ -1,19 +1,21 @@
-import { router } from 'expo-router';
 import { Check, Lock, type LucideIcon } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { BadgeIcon, Button, Card, Page, Text, TopBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { openPremiumSheet, type PremiumFeature } from '@/lib/premium-sheet';
 import { useColors } from '@/providers/theme';
 
 /** Full-screen state for a Premium-only screen (freemium): explains the feature and opens the paywall. */
 export function PremiumLocked({
+  feature,
   title,
   headline,
   description,
   perks,
   icon = Lock,
 }: {
+  feature: PremiumFeature;
   title: string;
   headline: string;
   description: string;
@@ -38,7 +40,7 @@ export function PremiumLocked({
           ))}
         </View>
       </Card>
-      <Button size="lg" title="Começar 7 dias grátis" onPress={() => router.push('/paywall')} />
+      <Button size="lg" title="Começar 7 dias grátis" onPress={() => openPremiumSheet(feature)} />
       <Text variant="caption" style={{ textAlign: 'center' }}>Registrar treinos, refeições, água e medidas continua grátis.</Text>
     </Page>
   );

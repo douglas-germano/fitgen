@@ -32,6 +32,7 @@ export default function CoachScreen() {
   if (locked('coach')) {
     return (
       <PremiumLocked
+        feature="coach"
         title="IA Coach"
         icon={Bot}
         headline="Seu coach de IA, 24h"

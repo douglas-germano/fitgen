@@ -55,10 +55,15 @@ function enqueue(request: Omit<FeedbackRequest, 'id' | 'scope'>) {
   emit();
 }
 
+let lastClosedAt = 0;
+/** When the last alert/menu finished closing (its native modal may still be tearing down on iOS). */
+export const lastFeedbackClosedAt = () => lastClosedAt;
+
 /** Called after the exit animation. Returning the action keeps presentation and effects separate. */
 export function completeFeedback(id: number, index: number | null): (() => void) | undefined {
   const request = feedbackSnapshot();
   if (!request || request.id !== id) return;
+  lastClosedAt = Date.now();
   queue = queue.slice(1);
   emit();
   return index === null
