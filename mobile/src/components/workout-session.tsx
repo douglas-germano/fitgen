@@ -1,11 +1,13 @@
 import { Check, Play } from 'lucide-react-native';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { KeyboardDoneBar, Stepper } from '@/components/stepper';
 import { Badge, Button, Dialog, IconButton, LinkText, ProgressBar, Row, Text, type DialogHandle } from '@/components/ui';
+import { ExerciseGuide } from '@/components/exercise-guide';
 import { Radius, Spacing } from '@/constants/theme';
+import { useExerciseLibrary } from '@/hooks/queries';
 import { useColors } from '@/providers/theme';
 import { repsLabel } from '@/lib/workout';
 import type { Exercise } from '@/types/api';
@@ -112,6 +114,10 @@ export function SetsSheet({
   /** The set whose numbers are on the steppers: the one being corrected, or the next one to do. */
   const focusIdx = !started ? -1 : editingSet ?? (exerciseDone ? -1 : current);
   const doneCount = sets.filter((s) => s.done).length;
+  // "Como fazer" from the library, collapsed so the sets stay in view.
+  const library = useExerciseLibrary();
+  const guide = exercise.exercise_library_id ? library.data?.find((ex) => ex.id === exercise.exercise_library_id) : undefined;
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const primary = !started
     ? { title: 'Iniciar Treino', onPress: onStart, loading: starting }
@@ -194,6 +200,12 @@ export function SetsSheet({
       </View>
 
       {exercise.notes ? <Text variant="caption" style={{ fontSize: 12 }}>Observações: {exercise.notes}</Text> : null}
+      {guide && (
+        <View style={{ gap: Spacing.four }}>
+          <LinkText title={guideOpen ? 'Ocultar como fazer' : 'Ver como fazer'} onPress={() => setGuideOpen(!guideOpen)} />
+          {guideOpen && <ExerciseGuide exercise={guide} compact />}
+        </View>
+      )}
       <KeyboardDoneBar />
     </Dialog>
   );

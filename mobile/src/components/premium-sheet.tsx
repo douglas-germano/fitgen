@@ -32,6 +32,11 @@ const COPY: Record<PremiumFeature | 'default', { title: string; headline: string
     headline: 'Um treino novo sempre que evoluir',
     description: 'Gere novos planos de treino ajustados ao seu nível, objetivo e equipamentos.',
   },
+  exercise_history: {
+    title: 'Histórico do exercício',
+    headline: 'Acompanhe sua evolução neste exercício',
+    description: 'Reveja as séries, cargas e repetições que você registrou nos treinos anteriores.',
+  },
   default: {
     title: 'FitGen Premium',
     headline: 'Libere a IA do FitGen',

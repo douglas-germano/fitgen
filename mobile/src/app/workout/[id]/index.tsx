@@ -16,9 +16,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Dumbbell, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { ExerciseFormSheet } from '@/components/exercise-form-sheet';
+import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useWorkoutPlan } from '@/hooks/queries';
@@ -33,6 +34,7 @@ import {
   workoutTitle,
 } from '@/lib/workout';
 import type { Exercise, WorkoutDay } from '@/types/api';
+import { muscleLabel } from '@/lib/exercise-library';
 
 const DAY_INDEX: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
@@ -133,7 +135,7 @@ export default function WorkoutPlanScreen() {
               {isToday(activeDay) && <Badge label="Hoje" />}
             </Row>
             <Text muted>
-              {activeDay.muscle_groups?.join(', ') || activeDay.focus} · {workoutSummary(activeDay)}
+              {activeDay.muscle_groups?.map(muscleLabel).join(', ') || activeDay.focus} · {workoutSummary(activeDay)}
             </Text>
           </View>
 
@@ -150,10 +152,17 @@ export default function WorkoutPlanScreen() {
                     borderTopWidth: i === 0 ? 0 : 1,
                     borderTopColor: Colors.line,
                   }}>
-                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700' }}>{i + 1}</Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <ExerciseThumbnail exercise={ex} />
+                  <Pressable
+                    style={{ flex: 1, gap: 2 }}
+                    disabled={!ex.exercise_library_id}
+                    onPress={() => {
+                      if (ex.exercise_library_id) {
+                        router.push({ pathname: '/exercises/[id]', params: { id: ex.exercise_library_id } });
+                      }
+                    }}
+                    accessibilityRole={ex.exercise_library_id ? 'button' : undefined}
+                    accessibilityHint={ex.exercise_library_id ? 'Mostra como fazer o exercício' : undefined}>
                     <Text variant="titleSm" style={{ fontSize: 15 }} numberOfLines={2}>
                       {ex.name}
                     </Text>
@@ -166,7 +175,7 @@ export default function WorkoutPlanScreen() {
                         {ex.notes}
                       </Text>
                     ) : null}
-                  </View>
+                  </Pressable>
                   <MoreButton size="sm" onPress={() => exerciseMenu(ex)} />
                 </Row>
               ))}
