@@ -104,6 +104,10 @@ def create_app(config_name='default'):
     # Setup logging
     setup_logger(app)
 
+    from app.modules.communication.application.email_service import missing_config as email_missing_config
+    if not app.testing and email_missing_config():
+        app.logger.warning('Brevo email disabled, missing env: %s', ', '.join(email_missing_config()))
+
     # Import models to ensure they are registered with SQLAlchemy
     # Import model registry to ensure all models are known to SQLAlchemy
     from app.shared import model_registry

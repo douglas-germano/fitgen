@@ -1,39 +1,41 @@
 #!/usr/bin/env python3
 """
-Script para testar envio de email via Brevo
+Send the FitGen transactional emails to an address, through Brevo.
+
+    cd backend && python scripts/test_email.py you@example.com [reset|welcome|all]
 """
+import os
 import sys
+
 from dotenv import load_dotenv
 
 load_dotenv()
-sys.path.insert(0, '/var/www/fitgen/backend')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import create_app
-from app.modules.communication.application.email_service import EmailService
+from app import create_app  # noqa: E402
+from app.modules.communication.application.email_service import EmailService, missing_config  # noqa: E402
 
-def test_email(to_email):
+
+def main(to_email, which):
+    if missing_config():
+        print(f"Faltam variáveis: {', '.join(missing_config())}")
+        return 1
     app = create_app()
-    
     with app.app_context():
-        email_service = EmailService()
-        
-        print(f"📧 Enviando email de teste para: {to_email}")
-        success = email_service.send_welcome_email(
-            to_email=to_email,
-            name="Teste",
-            password="senha123"
-        )
-        
-        if success:
-            print("✅ Email enviado com sucesso!")
-            return 0
-        else:
-            print("❌ Falha ao enviar email. Verifique os logs acima.")
-            return 1
+        service = EmailService()
+        results = {}
+        if which in ("reset", "all"):
+            base = os.getenv('FRONTEND_URL', 'https://admin.fitgen.pro').rstrip('/')
+            results["reset"] = service.send_password_reset_email(to_email, f"{base}/reset-password?token=teste")
+        if which in ("welcome", "all"):
+            results["welcome"] = service.send_welcome_email(to_email, "Teste FitGen", "senha-de-teste")
+    for name, ok in results.items():
+        print(f"{'✅' if ok else '❌'} {name}")
+    return 0 if all(results.values()) else 1
+
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Uso: python test_email.py <email>")
+    if len(sys.argv) not in (2, 3):
+        print(__doc__)
         sys.exit(1)
-    
-    sys.exit(test_email(sys.argv[1]))
+    sys.exit(main(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else "all"))

@@ -292,8 +292,8 @@ def forgot_password():
     import os
     email_service = EmailService()
     
-    # Use environment variable or fallback to domain
-    frontend_url = os.getenv('FRONTEND_URL', 'https://fitgen.suacozinha.site')
+    # The web reset page lives on the admin site (frontend `reset-password`, admin.fitgen.pro).
+    frontend_url = os.getenv('FRONTEND_URL', 'https://admin.fitgen.pro').rstrip('/')
     reset_link = f"{frontend_url}/reset-password?token={token}"
     
     # Try to send email, log result

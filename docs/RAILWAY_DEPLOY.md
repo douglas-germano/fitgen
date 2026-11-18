@@ -79,10 +79,11 @@ EVOLUTION_API_URL=https://your-evolution-api-url
 EVOLUTION_API_KEY=your_evolution_api_key
 EVOLUTION_INSTANCE_NAME=FitGen
 
-# Opcional - Brevo (Email)
+# Brevo (Email: reset de senha, boas-vindas). Sem a chave nenhum email sai.
 BREVO_API_KEY=your_brevo_api_key
-BREVO_SENDER_EMAIL=your@email.com
+BREVO_SENDER_EMAIL=no-reply@fitgen.pro   # remetente verificado no Brevo (SPF/DKIM do fitgen.pro)
 BREVO_SENDER_NAME=FitGen
+FRONTEND_URL=https://admin.fitgen.pro    # onde fica a página /reset-password
 
 # Opcional - Stripe (Pagamentos)
 STRIPE_SECRET_KEY=your_stripe_secret_key

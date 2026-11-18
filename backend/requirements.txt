@@ -11,7 +11,6 @@ gunicorn>=21.2.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 flasgger>=0.9.7
-sib-api-v3-sdk>=7.6.0
 firebase-admin
 pywebpush
 gevent>=23.9.1
