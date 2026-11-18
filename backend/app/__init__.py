@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 import os
 from flask_cors import CORS
 from app.shared.config import config
@@ -87,6 +87,17 @@ def create_app(config_name='default'):
     
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    # Flask-JWT-Extended answers 422 for bad/foreign tokens (e.g. signed with an
+    # old SECRET). Clients only recover the session on 401, so normalize it.
+    @jwt.invalid_token_loader
+    def _invalid_token(reason):
+        return jsonify({'msg': reason, 'error': 'invalid_token'}), 401
+
+    @jwt.unauthorized_loader
+    def _missing_token(reason):
+        return jsonify({'msg': reason, 'error': 'authorization_required'}), 401
+
     swagger.init_app(app)
     cache.init_app(app)
     
