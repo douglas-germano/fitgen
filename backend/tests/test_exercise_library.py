@@ -11,6 +11,8 @@ from flask_jwt_extended import JWTManager, create_access_token
 from app.shared.extensions import db
 from app.modules.training.data import exercise_catalog as catalog
 from app.modules.training.domain.exercise_library import ExerciseLibrary
+from app.modules.identity.domain.models import User
+from app.modules.training.domain.models import Exercise, ExerciseLog, WorkoutDay, WorkoutPlan, WorkoutSession
 from app.shared import model_registry  # noqa: F401  (maps every model so relationships resolve)
 from app.modules.training.application.exercise_library_seed import seed_exercise_library
 from app.modules.training.application.exercise_animations import ANIMATIONS
@@ -24,15 +26,17 @@ class ExerciseLibraryTests(unittest.TestCase):
         db.init_app(self.app)
         JWTManager(self.app)
         self.app.register_blueprint(routes_exercises.exercises_bp, url_prefix='/exercises')
+        self.app.register_blueprint(routes_workouts.workouts_bp, url_prefix='/workouts')
         self.ctx = self.app.app_context()
         self.ctx.push()
-        ExerciseLibrary.__table__.create(db.engine)
+        self.tables = [model.__table__ for model in (User, ExerciseLibrary, WorkoutPlan, WorkoutDay, Exercise, WorkoutSession, ExerciseLog)]
+        db.metadata.create_all(db.engine, tables=self.tables)
         self.headers = {'Authorization': 'Bearer ' + create_access_token(identity=str(uuid4()))}
         self.client = self.app.test_client()
 
     def tearDown(self):
         db.session.remove()
-        ExerciseLibrary.__table__.drop(db.engine)
+        db.metadata.drop_all(db.engine, tables=self.tables)
         self.ctx.pop()
 
     def test_catalog_is_valid(self):
@@ -94,6 +98,50 @@ class ExerciseLibraryTests(unittest.TestCase):
         for bad in ['nope', str(uuid4())]:
             with self.assertRaises(ValueError):
                 routes_workouts.exercise_fields({**base, 'exercise_library_id': bad})
+
+    @patch.dict(os.environ, {'SUBSCRIPTION_REQUIRED': 'true', 'FREEMIUM': 'true'})
+    def test_replacement_reuses_the_plan_row_and_keeps_premium_history(self):
+        seed_exercise_library()
+        original = ExerciseLibrary.query.filter_by(name='Prancha Frontal').one()
+        replacement = ExerciseLibrary.query.filter_by(name='Flexão de Braço').one()
+        user = User(name='Atleta', email='atleta@example.test', password_hash='unused', role='admin')
+        other = User(name='Outra pessoa', email='outra@example.test', password_hash='unused')
+        db.session.add_all([user, other])
+        db.session.flush()
+        plan = WorkoutPlan(name='Treino', user_id=user.id)
+        db.session.add(plan)
+        db.session.flush()
+        day = WorkoutDay(workout_plan_id=plan.id, user_id=user.id)
+        db.session.add(day)
+        db.session.flush()
+        exercise = Exercise(name=original.name, exercise_library_id=original.id, user_id=user.id, workout_day_id=day.id, sets=3)
+        session = WorkoutSession(workout_day_id=day.id, user_id=user.id, status='in_progress')
+        db.session.add_all([exercise, session])
+        db.session.commit()
+        headers = {'Authorization': 'Bearer ' + create_access_token(identity=str(user.id))}
+        other_headers = {'Authorization': 'Bearer ' + create_access_token(identity=str(other.id))}
+        self.assertEqual(self.client.post(f'/exercises/sessions/{session.id}/log-set', headers=headers, json={
+            'exercise_id': str(exercise.id), 'set_number': 1, 'reps_done': 12, 'weight_used_kg': 10,
+        }).status_code, 201)
+        body = {'name': 'Nome ignorado', 'exercise_library_id': str(replacement.id), 'sets': 3, 'reps': '12'}
+        path = f'/workouts/exercises/{exercise.id}'
+        self.assertEqual(self.client.put(path, headers=headers, json=body).status_code, 409)
+        session.status = 'completed'
+        db.session.commit()
+        self.assertEqual(self.client.put(path, headers=headers, json=body).status_code, 200)
+        self.assertEqual(Exercise.query.count(), 1)
+        self.assertEqual(ExerciseLibrary.query.count(), len(catalog.EXERCISES))
+        self.assertEqual((exercise.name, exercise.exercise_library_id), (replacement.name, replacement.id))
+        history_path = f'/exercises/library/{original.id}/history'
+        locked = self.client.get(history_path, headers=other_headers)
+        self.assertEqual(locked.status_code, 402)
+        self.assertEqual(locked.get_json()['feature'], 'exercise_history')
+        history = self.client.get(history_path, headers=headers).get_json()
+        self.assertEqual(history['sessions'][0]['sets'][0]['reps'], 12)
+        self.assertEqual(self.client.get(f'/exercises/library/{replacement.id}/history', headers=headers).get_json()['sessions'], [])
+        other.role = 'admin'
+        db.session.commit()
+        self.assertEqual(self.client.get(history_path, headers=other_headers).get_json()['sessions'], [])
 
 
 if __name__ == '__main__':

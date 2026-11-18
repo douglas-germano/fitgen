@@ -20,6 +20,36 @@ def ensure_animation_column():
             ))
 
 
+def ensure_exercise_history_schema():
+    with db.engine.begin() as connection:
+        columns = inspect(connection).get_columns('exercise_logs')
+        if any(column['name'] == 'exercise_library_id' for column in columns):
+            return
+        guard = ' IF NOT EXISTS' if connection.dialect.name == 'postgresql' else ''
+        connection.execute(text(
+            f'ALTER TABLE exercise_logs ADD COLUMN{guard} exercise_library_id UUID'
+        ))
+        # Match legacy entries only when the name is identical to an active catalog entry.
+        connection.execute(text("""
+            UPDATE exercises SET exercise_library_id = (
+                SELECT id FROM exercise_library WHERE name = exercises.name AND is_active = TRUE
+            )
+            WHERE exercise_library_id IS NULL AND EXISTS (
+                SELECT 1 FROM exercise_library WHERE name = exercises.name AND is_active = TRUE
+            )
+        """))
+        connection.execute(text("""
+            UPDATE exercise_logs SET exercise_library_id = (
+                SELECT exercise_library_id FROM exercises WHERE id = exercise_logs.exercise_id
+            )
+            WHERE exercise_library_id IS NULL
+        """))
+        connection.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_exercise_logs_user_library
+            ON exercise_logs (user_id, exercise_library_id)
+        """))
+
+
 def seed_exercise_library(overwrite=False):
     """Load the official catalog into exercise_library, matching rows by name.
 

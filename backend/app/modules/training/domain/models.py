@@ -81,6 +81,7 @@ class ExerciseLog(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workout_session_id = db.Column(UUID(as_uuid=True), db.ForeignKey('workout_sessions.id'), nullable=False)
     exercise_id = db.Column(UUID(as_uuid=True), db.ForeignKey('exercises.id'), nullable=False)
+    exercise_library_id = db.Column(UUID(as_uuid=True), nullable=True)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     
     set_number = db.Column(db.Integer)
