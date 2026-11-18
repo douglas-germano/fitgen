@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * fitgen.pro/assinar — web checkout through Stripe (card + Pix Automático).
+ * fitgen.pro/assinar — web checkout through Stripe: card subscription (7-day trial) or a
+ * prepaid Pix payment for 30 days (Pix Automático is not enabled on the Stripe account yet).
  *
  * 1. The visitor signs in or creates a FitGen account (same API as the app).
  * 2. The backend creates a Stripe Checkout session for that user (`/subscriptions/stripe/checkout`)
@@ -167,13 +168,13 @@ export default function SubscribeFlow() {
     }
   }
 
-  async function subscribe() {
+  async function subscribe(method: "card" | "pix" = "card") {
     if (!session) return;
     setError("");
     setNotice("");
     setBusy(true);
     try {
-      const { checkout_url } = await call<{ checkout_url: string }>("/subscriptions/stripe/checkout", { method: "POST", token: session.token });
+      const { checkout_url } = await call<{ checkout_url: string }>(method === "pix" ? "/subscriptions/stripe/pix" : "/subscriptions/stripe/checkout", { method: "POST", token: session.token });
       window.location.assign(checkout_url);
     } catch (err) {
       setBusy(false);
@@ -267,17 +268,26 @@ export default function SubscribeFlow() {
             <p className={styles.price}>{PRICE}<span>/mês</span></p>
             <p className={styles.trial}><strong>{TRIAL} grátis</strong> para novos assinantes. A primeira cobrança só acontece depois do teste, e você pode cancelar antes.</p>
             <ul className={styles.benefits}>
-              {["Treinos e dieta gerados por IA", "IA Coach 24h", "Medidas, progresso e hidratação", "Pague com cartão ou Pix", "Sem fidelidade: cancele quando quiser"].map((b) => (
+              {["Treinos e dieta gerados por IA", "IA Coach 24h", "Medidas, progresso e hidratação", "Sem fidelidade: cancele quando quiser"].map((b) => (
                 <li key={b}><Check size={18} aria-hidden="true" />{b}</li>
               ))}
             </ul>
             <p className={styles.account}>Conta: <strong>{session?.email}</strong></p>
             {notice && <p className={styles.notice} role="status">{notice}</p>}
             {error && <p className={styles.error} role="alert">{error}</p>}
-            <button className={site.button} type="button" onClick={subscribe} disabled={busy || step === "confirming"}>
+            <button className={site.button} type="button" onClick={() => subscribe("card")} disabled={busy || step === "confirming"}>
               {(busy || step === "confirming") && <Loader2 size={16} className={styles.spin} aria-hidden="true" />}
-              {step === "confirming" ? "Confirmando pagamento…" : `Começar ${TRIAL} grátis`}
+              {step === "confirming" ? "Confirmando pagamento…" : `Começar ${TRIAL} grátis no cartão`}
             </button>
+            {step !== "confirming" && (
+              <>
+                <div className={styles.or}><span>ou</span></div>
+                <button className={styles.pix} type="button" onClick={() => subscribe("pix")} disabled={busy}>
+                  Pagar 30 dias com Pix · {PRICE}
+                </button>
+                <p className={styles.fine}>O Pix libera 30 dias de acesso, sem renovação automática.</p>
+              </>
+            )}
             <p className={styles.fine}><ShieldCheck size={14} aria-hidden="true" /> Pagamento seguro processado pela Stripe.</p>
           </section>
         )}

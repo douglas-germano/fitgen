@@ -112,5 +112,30 @@ class StripeWebhookTests(unittest.TestCase):
         self.assertEqual(res.get_json()['msg'], 'ignored:unknown-user')
 
 
+    def pix_session(self, status='paid', **extra):
+        return {'object': 'checkout.session', 'id': extra.get('id', 'cs_pix_1'), 'mode': 'payment', 'customer': 'cus_1',
+                'client_reference_id': self.uid, 'payment_status': status, 'amount_total': 2990, 'currency': 'brl',
+                'metadata': {'user_id': self.uid, 'kind': 'pix_prepaid', 'days': '30'}}
+
+    def test_pix_prepaid_grants_30_days_once_after_async_payment(self):
+        # Checkout completes while the QR code is still unpaid: nothing is granted yet.
+        self.assertEqual(self.post(self.event('checkout.session.completed', self.pix_session('unpaid'))).get_json()['msg'], 'pix:awaiting-payment')
+        self.assertIsNone(self.user.subscription_expires_at)
+        self.assertEqual(self.post(self.event('checkout.session.async_payment_succeeded', self.pix_session())).get_json()['msg'], 'pix:+30d')
+        self.assertEqual(self.post(self.event('checkout.session.async_payment_succeeded', self.pix_session())).get_json()['msg'], 'pix:duplicate')
+        self.assertEqual(self.user.subscription_status, 'active')
+        self.assertTrue(timedelta(days=29) < self.user.subscription_expires_at - datetime.utcnow() <= timedelta(days=30))
+        payment = PaymentHistory.query.one()
+        self.assertEqual((str(payment.amount), payment.payment_method), ('29.90', 'pix'))
+
+    def test_pix_renewal_before_expiry_stacks_on_remaining_days(self):
+        self.post(self.event('checkout.session.async_payment_succeeded', self.pix_session(id='cs_a')))
+        self.post(self.event('checkout.session.async_payment_succeeded', self.pix_session(id='cs_b')))
+        self.assertGreater(self.user.subscription_expires_at - datetime.utcnow(), timedelta(days=59))
+
+    def test_failed_pix_grants_nothing(self):
+        self.assertEqual(self.post(self.event('checkout.session.async_payment_failed', self.pix_session('unpaid'))).get_json()['msg'], 'pix:payment-failed')
+        self.assertIsNone(self.user.subscription_expires_at)
+
 if __name__ == '__main__':
     unittest.main()

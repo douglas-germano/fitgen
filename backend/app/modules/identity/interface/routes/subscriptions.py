@@ -19,7 +19,7 @@ def create_stripe_checkout():
     user = User.query.get(get_jwt_identity())
     if not user:
         return jsonify({"msg": "User not found"}), 404
-    if user_has_access(user) and user.subscription_status == 'active':
+    if stripe_billing.has_card_subscription(user):
         return jsonify({"msg": "Você já tem uma assinatura ativa.", **access_payload(user)}), 409
     try:
         url = stripe_billing.create_checkout_session(user)
@@ -29,6 +29,26 @@ def create_stripe_checkout():
     except Exception:
         current_app.logger.exception("Stripe checkout failed")
         return jsonify({"msg": "Não foi possível iniciar o pagamento. Tente de novo."}), 502
+    return jsonify({"checkout_url": url}), 200
+
+
+@subscriptions_bp.route('/stripe/pix', methods=['POST'])
+@jwt_required()
+def create_stripe_pix_checkout():
+    """One-time Pix payment for 30 days of access (prepaid, no auto-renewal)."""
+    user = User.query.get(get_jwt_identity())
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    if stripe_billing.has_card_subscription(user):
+        return jsonify({"msg": "Você já tem uma assinatura no cartão.", **access_payload(user)}), 409
+    try:
+        url = stripe_billing.create_pix_checkout_session(user)
+    except stripe_billing.StripeNotConfigured as exc:
+        current_app.logger.error("Stripe Pix checkout unavailable: %s", exc)
+        return jsonify({"msg": "Pagamento pelo site indisponível no momento."}), 503
+    except Exception:
+        current_app.logger.exception("Stripe Pix checkout failed")
+        return jsonify({"msg": "Não foi possível gerar o Pix. Tente de novo."}), 502
     return jsonify({"checkout_url": url}), 200
 
 

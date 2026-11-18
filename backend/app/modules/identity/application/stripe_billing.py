@@ -17,13 +17,16 @@ Env:
   STRIPE_PRICE_LOOKUP_KEY    lookup key of the monthly BRL price (default fitgen_monthly_brl)
   STRIPE_TRIAL_DAYS          default 7 (0 disables the trial)
   STRIPE_PIX_MANDATE_MAX     max BRL cents the Pix Automático mandate allows (default 2× price)
-  STRIPE_PAYMENT_METHOD_CONFIGURATION  pmc_… with card + Pix enabled (else the account default)
+  STRIPE_PAYMENT_METHOD_CONFIGURATION      pmc_… for the card subscription (else the account default)
+  STRIPE_PIX_PRICE_LOOKUP_KEY              one-time price of the Pix prepaid period (default fitgen_pix_30d_brl)
+  STRIPE_PIX_PAYMENT_METHOD_CONFIGURATION  pmc_… with only Pix enabled, for the prepaid checkout
+  PIX_PREPAID_DAYS                         access granted per Pix payment (default 30)
   SITE_URL                   default https://fitgen.pro
 """
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import stripe
@@ -144,6 +147,67 @@ def create_checkout_session(user) -> str:
     return session.url
 
 
+def has_card_subscription(user) -> bool:
+    sub = _subscription_row(user)
+    return bool(sub and sub.stripe_subscription_id and user.subscription_status in ("active", "past_due"))
+
+
+def create_pix_checkout_session(user) -> str:
+    """One-time Pix payment that grants PIX_PREPAID_DAYS of access (no auto-renewal).
+
+    Pix Automático (recurring Pix) is not enabled on the account yet; until it is, Pix buyers
+    prepay each period. Paying while access is still valid extends it from the current expiry.
+    """
+    client = _client()
+    lookup = os.getenv("STRIPE_PIX_PRICE_LOOKUP_KEY", "fitgen_pix_30d_brl")
+    prices = client.v1.prices.list(params={"lookup_keys": [lookup], "active": True, "limit": 1})
+    if not prices.data:
+        raise StripeNotConfigured(f"No active Stripe price with lookup_key={lookup}")
+    days = str(int(os.getenv("PIX_PREPAID_DAYS", "30")))
+    metadata = {"user_id": str(user.id), "kind": "pix_prepaid", "days": days}
+    params = {
+        "mode": "payment",
+        "customer": _ensure_customer(client, user),
+        "client_reference_id": str(user.id),
+        "line_items": [{"price": prices.data[0].id, "quantity": 1}],
+        "metadata": metadata,
+        "payment_intent_data": {"metadata": metadata, "description": f"FitGen Completo · {days} dias (Pix)"},
+        "payment_method_options": {"pix": {"expires_after_seconds": 3600}},
+        "locale": "pt-BR",
+        "success_url": f"{_site()}/assinar?checkout=sucesso",
+        "cancel_url": f"{_site()}/assinar?checkout=cancelado",
+    }
+    pmc = os.getenv("STRIPE_PIX_PAYMENT_METHOD_CONFIGURATION")
+    if pmc:
+        params["payment_method_configuration"] = pmc
+    return client.v1.checkout.sessions.create(params=params).url
+
+
+def _grant_pix_prepaid(session) -> str:
+    """Extends access for a paid Pix prepaid Checkout session (idempotent per session)."""
+    from app.modules.identity.domain.subscription import PaymentHistory
+
+    user = _user_for(session)
+    if not user:
+        return "ignored:unknown-user"
+    if _get(session, "payment_status") != "paid":
+        return "pix:awaiting-payment"  # QR code issued; async_payment_succeeded follows
+    session_id = _get(session, "id")
+    if session_id and PaymentHistory.query.filter_by(external_payment_id=session_id, status="completed").first():
+        return "pix:duplicate"
+    days = int(_get(_get(session, "metadata", {}), "days", 30))
+    now = datetime.utcnow()
+    start = max(now, user.subscription_expires_at or now)
+    expires = start + timedelta(days=days)
+    user.subscription_status = "active"
+    user.subscription_expires_at = expires
+    safe_record(user, kind="paid", gateway=GATEWAY, method="pix",
+                amount=Decimal(_get(session, "amount_total", 0)) / 100,
+                currency=(_get(session, "currency") or "brl").upper(), external_id=session_id,
+                paid_at=now, next_billing=expires)
+    return f"pix:+{days}d"
+
+
 def create_portal_session(user) -> str:
     sub = _subscription_row(user)
     if not sub or not sub.stripe_customer_id:
@@ -232,6 +296,12 @@ def _apply_subscription(user, subscription) -> str:
 def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
     etype = _get(event, "type")
     obj = _get(_get(event, "data", {}), "object", {})
+
+    if etype in ("checkout.session.completed", "checkout.session.async_payment_succeeded") and \
+            _get(_get(obj, "metadata", {}), "kind") == "pix_prepaid":
+        return _grant_pix_prepaid(obj)
+    if etype == "checkout.session.async_payment_failed":
+        return "pix:payment-failed"  # QR code expired / not paid: nothing was granted
 
     if etype == "checkout.session.completed":
         user = _user_for(obj)

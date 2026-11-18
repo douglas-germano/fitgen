@@ -54,3 +54,7 @@
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .notice { background: #ffffffb3; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+.or { display: flex; align-items: center; gap: 10px; margin-block: 12px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: #10111233; }
+.offer .pix { width: 100%; min-height: 48px; border-radius: 100px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-weight: 750; font-size: 14px; }
+.offer .pix:hover { background: #ffffff66; }
