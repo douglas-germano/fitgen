@@ -54,7 +54,7 @@ export function MealLogger({ open, onOpenChange, onSuccess }: MealLoggerProps) {
                     formData.append("images", file);
                 });
 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/nutrition/estimate`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://dev-api.fitgen.pro/api'}/nutrition/estimate`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`

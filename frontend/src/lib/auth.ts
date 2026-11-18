@@ -1,7 +1,7 @@
 import { getTokenAsync, setToken, removeToken } from './api';
 import { getStorageItem, removeStorageItem } from './storage';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
 
 /**
  * Decode JWT token to get expiration time

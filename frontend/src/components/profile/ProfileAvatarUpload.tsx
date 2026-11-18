@@ -53,7 +53,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
                 throw new Error("Não autenticado");
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/profile/image`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://dev-api.fitgen.pro/api'}/profile/image`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -94,7 +94,7 @@ export function ProfileAvatarUpload({ currentImage, userName, size = "lg", class
         xl: "h-20 w-20"
     };
 
-    const imageUrl = preview || (currentImage ? (currentImage.startsWith("http") ? currentImage : `${process.env.NEXT_PUBLIC_API_URL || 'https://fitgen.suacozinha.site/api'}/static/${currentImage}`) : null);
+    const imageUrl = preview || (currentImage ? (currentImage.startsWith("http") ? currentImage : `${process.env.NEXT_PUBLIC_API_URL || 'https://dev-api.fitgen.pro/api'}/static/${currentImage}`) : null);
 
     return (
         <div className={cn("relative group", className)}>
