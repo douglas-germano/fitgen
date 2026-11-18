@@ -2,11 +2,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { CheckCircle2, Lock, Sparkles } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, View } from 'react-native';
 import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases';
 
 import { Badge, BadgeIcon, Button, Card, LinkText, Page, Row, Text, TopBar } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { captureError, track } from '@/lib/analytics';
 import { api, WEB_URL } from '@/lib/api';
 import { AppAlert } from '@/lib/feedback';
 import {
@@ -28,8 +29,13 @@ const BENEFITS = [
   'Medidas, hidratação e conquistas em um só lugar',
 ];
 
-const MANAGE_URL = 'https://apps.apple.com/account/subscriptions';
+const IS_ANDROID = Platform.OS === 'android';
+const MANAGE_URL = IS_ANDROID
+  ? 'https://play.google.com/store/account/subscriptions?package=com.douglas.fitgen'
+  : 'https://apps.apple.com/account/subscriptions';
 const APPLE_EULA = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const STORE_ACCOUNT = IS_ANDROID ? 'conta Google Play' : 'conta da Apple';
+const CANCEL_PATH = IS_ANDROID ? 'Play Store › Pagamentos e assinaturas › Assinaturas' : 'Ajustes › Apple ID › Assinaturas';
 const SUPPORT_MAIL = 'mailto:suporte@fitgen.com';
 
 /** Free-trial length in days, when the package has a free introductory offer. */
@@ -58,6 +64,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
   const [error, setError] = useState('');
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
+  useEffect(() => { track('paywall_viewed', { gate }); }, [gate]);
 
   const load = useCallback(async () => {
     setError('');
@@ -100,10 +107,15 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     const pkg = packages?.find((p) => p.identifier === selected);
     if (!pkg || busy) return;
     setBusy('buy');
+    const props = { package: pkg.identifier, product: pkg.product.identifier, trial_days: trialDays(pkg), gate };
+    track('purchase_started', props);
     try {
       const customer = await purchase(pkg);
+      track(customer ? 'purchase_completed' : 'purchase_cancelled', props);
       if (customer) await finish(customer, 'Tudo certo!');
-    } catch {
+    } catch (purchaseError) {
+      track('purchase_failed', props);
+      captureError(purchaseError, { where: 'paywall.purchase', package: pkg.identifier });
       AppAlert.alert('Não foi possível concluir', 'A compra não foi finalizada. Você não foi cobrado. Tente novamente.');
     } finally {
       if (alive.current) setBusy(null);
@@ -115,8 +127,11 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
     setBusy('restore');
     try {
       const customer = await restore();
-      if (isPremium(customer)) await finish(customer, 'Assinatura restaurada');
-      else AppAlert.alert('Nada para restaurar', 'Não encontramos uma assinatura ativa nesta conta da Apple.');
+      if (isPremium(customer)) {
+        track('purchase_restored', { gate });
+        await finish(customer, 'Assinatura restaurada');
+      }
+      else AppAlert.alert('Nada para restaurar', `Não encontramos uma assinatura ativa nesta ${STORE_ACCOUNT}.`);
     } catch {
       AppAlert.alert('Não foi possível restaurar', 'Tente novamente em instantes.');
     } finally {
@@ -224,7 +239,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
           {(!active || gate) && <LinkText title={busy === 'restore' ? 'Restaurando…' : 'Restaurar compras'} onPress={restorePurchases} />}
           {(!active || gate) && <Text variant="caption" style={{ textAlign: 'center' }}>
             {chosenTrial ? `Após o período grátis, a assinatura é cobrada ${chosen ? `(${chosen.product.priceString})` : ''} e renova automaticamente. ` : 'A assinatura renova automaticamente. '}
-            O pagamento é cobrado na sua conta Apple na confirmação da compra. Para evitar a cobrança, cancele em Ajustes › Apple ID › Assinaturas pelo menos 24 horas antes do fim do período.
+            O pagamento é cobrado na sua {STORE_ACCOUNT} na confirmação da compra. Para evitar a cobrança, cancele em {CANCEL_PATH} pelo menos 24 horas antes do fim do período.
           </Text>}
         </View>
       )}
@@ -232,8 +247,12 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
       <View style={{ gap: Spacing.three, alignItems: 'center' }}>
         <Row style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
           <LinkText title="Política de Privacidade" onPress={() => (gate ? Linking.openURL(`${WEB_URL}/privacidade`) : router.push('/privacy'))} />
-          <Text variant="caption">·</Text>
-          <LinkText title="Termos de Uso (Apple)" onPress={() => Linking.openURL(APPLE_EULA)} />
+          {!IS_ANDROID && (
+            <>
+              <Text variant="caption">·</Text>
+              <LinkText title="Termos de Uso (Apple)" onPress={() => Linking.openURL(APPLE_EULA)} />
+            </>
+          )}
         </Row>
         {gate && (
           <>

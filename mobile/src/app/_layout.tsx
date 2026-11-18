@@ -20,11 +20,13 @@ import { usePushRegistration } from '@/hooks/use-push-registration';
 import { AuthProvider, useAuth } from '@/providers/auth';
 import { useHealthAutoSync } from '@/hooks/use-health-sync';
 import { usePurchasesIdentity } from '@/hooks/use-purchases';
+import { useAnalyticsIdentity, useScreenTracking } from '@/hooks/use-analytics';
+import { withMonitoring } from '@/lib/analytics';
 import { PaywallView } from '@/components/paywall-view';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -43,6 +45,8 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default withMonitoring(RootLayout);
 
 function RootNavigator() {
   const { colors: Colors, scheme, ready: themeReady } = useAppTheme();
@@ -64,6 +68,8 @@ function RootNavigator() {
   const profile = useProfile(signedIn);
   useHealthAutoSync(signedIn ? profile.data?.id : undefined);
   usePurchasesIdentity(profile.data?.id, signedIn);
+  useAnalyticsIdentity(profile.data, signedIn);
+  useScreenTracking();
   const needsOnboarding = signedIn && profile.data?.onboarding_completed === false;
   // The server says the trial/subscription is over (or never started): nothing else is reachable.
   const locked = signedIn && profile.data?.has_access === false;

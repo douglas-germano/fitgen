@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { track } from '@/lib/analytics';
 import { api, ApiError } from '@/lib/api';
 import { uploadableFile } from '@/lib/upload';
 import {
@@ -152,6 +153,7 @@ export function useLogMeal() {
       api('/nutrition/log', { method: 'POST', body: meal }),
     onSuccess: (_data, meal) => {
       invalidate();
+      track('meal_logged', { meal_type: meal.meal_type });
       void saveMealToHealth(meal);
     },
   });
@@ -192,6 +194,7 @@ export function useLogWater() {
       api('/hydration/log', { method: 'POST', body: { amount_ml } }),
     onSuccess: (_data, amount_ml) => {
       invalidate();
+      track('water_logged');
       void saveWaterToHealth(amount_ml);
     },
   });

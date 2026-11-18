@@ -6,6 +6,7 @@ import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollVi
 import Animated, { Easing, FadeIn, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type EntryExitAnimationFunction } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { track } from '@/lib/analytics';
 import { Button, Card, IconButton, Input, ProgressBar, Row, Text, PageSkeleton, QueryError } from '@/components/ui';
 import { useProfile } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
@@ -152,6 +153,7 @@ export default function OnboardingScreen() {
       await writes.current.catch(() => {});
       if (profile.data?.id) await clearOnboardingDraft(profile.data.id).catch(() => {});
       setSaved(true);
+      track('onboarding_completed');
       void queryClient.invalidateQueries({ queryKey: ['profile'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     } catch (e) { setError(errorMessage(e, 'Não foi possível salvar seu perfil. Tente novamente.')); }

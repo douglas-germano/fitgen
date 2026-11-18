@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'rea
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { track } from '@/lib/analytics';
 import { BrandLockup } from '@/components/brand';
 import { Button, Input, LinkText, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -30,6 +31,7 @@ export default function LoginScreen() {
     try {
       // On success the auth guard swaps the stack to the tabs automatically.
       await signIn(email, password);
+      track('logged_in');
     } catch (e) {
       setError(errorMessage(e, 'Falha ao realizar login'));
     } finally {

@@ -69,6 +69,8 @@ function load(file) {
     }});
     if(id==='@/hooks/use-health-sync')return {useHealthWeek:()=>query([]),useHealthSync:()=>({connected:false,sync:query(null),account:query(true)})};
     if(id==='@/hooks/queries')return hooks;
+    // Crash reporting / analytics are native SDKs; the web build's no-op twin keeps the same API.
+    if(id==='@/lib/analytics')return load(path.join(root,'lib/analytics.web.ts'));
     if(id==='@/providers/auth')return {useAuth:()=>({signIn:async()=>{},signOut:async()=>{}})};
     if(/\.(png|jpe?g|webp)$/.test(id))return 1;
     if(stubs[id])return stubs[id];

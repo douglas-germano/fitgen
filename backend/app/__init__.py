@@ -8,6 +8,9 @@ from app.shared.utils.logger import setup_logger
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    from app.shared.monitoring import init_monitoring
+    init_monitoring(app)
     
     # Configure ProxyFix for Nginx
     from werkzeug.middleware.proxy_fix import ProxyFix

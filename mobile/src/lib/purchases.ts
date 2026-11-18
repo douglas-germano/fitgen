@@ -1,9 +1,9 @@
 /**
- * In-app subscriptions via RevenueCat (App Store).
+ * In-app subscriptions via RevenueCat (App Store / Google Play).
  *
- * Disabled until `EXPO_PUBLIC_REVENUECAT_IOS_KEY` is set (public SDK key from the
- * RevenueCat dashboard → Project → API keys: `appl_…` for the App Store, or `test_…` for the
- * Test Store while developing). While disabled
+ * Each platform is disabled until its public SDK key is set (RevenueCat dashboard → Project →
+ * API keys): `EXPO_PUBLIC_REVENUECAT_IOS_KEY` (`appl_…`) and `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+ * (`goog_…`), or a shared `test_…` Test Store key while developing. While disabled
  * nothing is imported, configured or shown, so builds without the key behave as before.
  *
  * Identity: we log in with the FitGen user id, so the backend webhook
@@ -12,25 +12,28 @@
 import { Platform } from 'react-native';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
-const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
+const API_KEY = Platform.select({
+  ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
+  android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
+});
 
 /** Entitlement identifier configured in RevenueCat. */
 export const PREMIUM_ENTITLEMENT = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT ?? 'premium';
 
 /**
- * RevenueCat "Test Store" keys (`test_…`) simulate purchases without an Apple account, but the SDK refuses
+ * RevenueCat "Test Store" keys (`test_…`) simulate purchases without a store account, but the SDK refuses
  * them in release builds (it can crash the app). They only count as configured in development builds.
  */
-const isTestStoreKey = !!IOS_KEY?.startsWith('test_');
+const isTestStoreKey = !!API_KEY?.startsWith('test_');
 
-export const purchasesEnabled = Platform.OS === 'ios' && !!IOS_KEY && (!isTestStoreKey || __DEV__);
+export const purchasesEnabled = !!API_KEY && (!isTestStoreKey || __DEV__);
 
 let configured: Promise<typeof import('react-native-purchases').default> | null = null;
 
 function sdk() {
   if (!purchasesEnabled) return Promise.reject(new Error('Compras indisponíveis neste build.'));
   configured ??= import('react-native-purchases').then(({ default: Purchases }) => {
-    Purchases.configure({ apiKey: IOS_KEY! });
+    Purchases.configure({ apiKey: API_KEY! });
     return Purchases;
   });
   return configured;

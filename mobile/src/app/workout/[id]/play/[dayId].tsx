@@ -1,3 +1,4 @@
+import { track } from '@/lib/analytics';
 import { AppAlert, AppActionSheet } from '@/lib/feedback';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -264,6 +265,7 @@ export default function WorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const stats = { duration: res.duration ?? elapsed, calories: Math.round(res.calories ?? (elapsed / 60) * KCAL_PER_MIN) };
       void saveWorkoutToHealth({ durationSeconds: stats.duration, calories: stats.calories, name: workoutTitle(day) });
+      track('workout_completed', { duration_min: Math.round(stats.duration / 60) });
       setSelectedId(null);
       setFinished(stats);
     } catch (e) {

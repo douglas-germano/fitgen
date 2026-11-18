@@ -3,6 +3,7 @@ import { UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { track } from '@/lib/analytics';
 import { BadgeIcon, Button, Input, LinkText, Page, Text, TopBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { api, errorMessage } from '@/lib/api';
@@ -27,6 +28,7 @@ export default function RegisterScreen() {
       if (!created) {
         await api('/auth/register', { public: true, method: 'POST', body: { name: form.name.trim(), email: form.email.trim().toLowerCase(), password: form.password, ...(form.phone ? { phone: form.phone.replace(/\D/g, '') } : {}) } });
         setCreated(true);
+        track('signed_up');
       }
       await signIn(form.email, form.password);
     } catch (error) { setError(errorMessage(error)); }

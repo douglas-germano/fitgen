@@ -1,6 +1,7 @@
 # Local development stack (Colima / Docker): Postgres + Flask API on :5002
 services:
   db:
+    restart: unless-stopped
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: fitgen
@@ -16,6 +17,7 @@ services:
 
   api:
     build: .
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg2://fitgen:fitgen@db:5432/fitgen_dev
