@@ -127,3 +127,13 @@ def seed_official_challenges():
 def community_seed_challenges_command():
     """Create this month's public FitGen challenges (run on the 1st)."""
     print(f'{seed_official_challenges()} desafios públicos criados.')
+
+
+@click.command(name='seed-exercises')
+@click.option('--overwrite', is_flag=True, help='Reset catalog exercises to the official text, discarding admin edits.')
+@with_appcontext
+def seed_exercises_command(overwrite):
+    """Load the official FitGen exercise library (idempotent; runs on every deploy)."""
+    from app.modules.training.application.exercise_library_seed import seed_exercise_library
+    created, updated = seed_exercise_library(overwrite=overwrite)
+    print(f'Biblioteca de exercícios: {created} criados, {updated} atualizados.')

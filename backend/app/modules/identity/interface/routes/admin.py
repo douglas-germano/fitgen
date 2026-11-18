@@ -68,9 +68,10 @@ def create_exercise():
         video_url=data.get('video_url'),
         description=data.get('description'),
         instructions=data.get('instructions'),
-        # Add simpler defaults for complex json fields if needed
-        muscle_groups=[], 
-        equipment_needed=[]
+        tips=data.get('tips'),
+        common_mistakes=data.get('common_mistakes'),
+        muscle_groups=data.get('muscle_groups') or [],
+        equipment_needed=data.get('equipment_needed') or []
     )
     db.session.add(new_ex)
     db.session.commit()
@@ -87,6 +88,8 @@ def update_exercise(id):
     if 'video_url' in data: ex.video_url = data['video_url']
     if 'description' in data: ex.description = data['description']
     if 'instructions' in data: ex.instructions = data['instructions']
+    for key in ('tips', 'common_mistakes', 'muscle_groups', 'equipment_needed', 'thumbnail_url'):
+        if key in data: setattr(ex, key, data[key])
     
     db.session.commit()
     return jsonify({"msg": "Exercise updated"}), 200

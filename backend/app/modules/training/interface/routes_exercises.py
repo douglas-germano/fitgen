@@ -2,10 +2,49 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.modules.training.domain.models import WorkoutSession, ExerciseLog, Exercise, WorkoutDay, WorkoutPlan
+from app.modules.training.domain.exercise_library import ExerciseLibrary
 from datetime import datetime, timedelta
 from app.shared.utils.timezone import now_cuiaba
 
 exercises_bp = Blueprint('exercises', __name__)
+
+
+def _lines(text):
+    return [line.strip() for line in (text or '').splitlines() if line.strip()]
+
+
+def library_item(ex):
+    return {
+        'id': str(ex.id),
+        'name': ex.name,
+        'category': ex.category,
+        'difficulty_level': ex.difficulty_level,
+        'muscle_groups': ex.muscle_groups or [],
+        'equipment_needed': ex.equipment_needed or [],
+        'description': ex.description,
+        'instructions': _lines(ex.instructions),
+        'tips': _lines(ex.tips),
+        'common_mistakes': _lines(ex.common_mistakes),
+        'video_url': ex.video_url,
+        'thumbnail_url': ex.thumbnail_url,
+    }
+
+
+@exercises_bp.route('/library', methods=['GET'])
+@jwt_required()
+def get_library():
+    """The whole active exercise catalog (small; the app searches and filters it locally)."""
+    rows = ExerciseLibrary.query.filter_by(is_active=True).order_by(ExerciseLibrary.name).all()
+    return jsonify([library_item(ex) for ex in rows]), 200
+
+
+@exercises_bp.route('/library/<uuid:exercise_id>', methods=['GET'])
+@jwt_required()
+def get_library_exercise(exercise_id):
+    ex = ExerciseLibrary.query.filter_by(id=exercise_id, is_active=True).first()
+    if not ex:
+        return jsonify({'msg': 'Exercício não encontrado.'}), 404
+    return jsonify(library_item(ex)), 200
 
 
 @exercises_bp.route('/sessions/active', methods=['GET'])

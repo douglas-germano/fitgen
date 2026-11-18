@@ -54,7 +54,11 @@ class WorkoutGeneratorService:
             # Using 1-based index for AI friendliness
             map_idx = idx + 1
             exercise_map[map_idx] = {'id': ex.id, 'name': ex.name, 'obj': ex}
-            exercises_list_parts.append(f"{map_idx}. {ex.name} (Nível: {ex.difficulty_level}, Categoria: {ex.category})")
+            muscles = ', '.join(ex.muscle_groups or [])
+            equipment = ', '.join(ex.equipment_needed or [])
+            exercises_list_parts.append(
+                f"{map_idx}. {ex.name} (Nível: {ex.difficulty_level}, Categoria: {ex.category}, "
+                f"Músculos: {muscles}, Equipamento: {equipment})")
             
         exercises_list_str = "\n".join(exercises_list_parts)
         answers = getattr(profile, 'onboarding_answers', None) or {}

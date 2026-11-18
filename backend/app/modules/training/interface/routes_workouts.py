@@ -19,8 +19,27 @@ def exercise_fields(data):
     reps = str(data.get('reps') or '').strip()
     if not reps:
         raise ValueError('Informe as repetições.')
-    return dict(name=data['name'].strip(), sets=sets, reps=reps,
-                rest_seconds=rest, notes=data.get('notes') or '')
+    fields = dict(name=data['name'].strip(), sets=sets, reps=reps,
+                  rest_seconds=rest, notes=data.get('notes') or '')
+    # Picked from the library (or unlinked with null when the name was typed by hand).
+    if 'exercise_library_id' in data:
+        library_id = data['exercise_library_id']
+        if library_id is not None:
+            from app.modules.training.domain.exercise_library import ExerciseLibrary
+            try:
+                library_id = uuid.UUID(str(library_id))
+            except ValueError:
+                raise ValueError('Exercício da biblioteca inválido.')
+            if not db.session.get(ExerciseLibrary, library_id):
+                raise ValueError('Exercício da biblioteca não encontrado.')
+        fields['exercise_library_id'] = library_id
+    return fields
+
+def primary_muscle_label(library_exercise):
+    from app.modules.training.data.exercise_catalog import MUSCLE_LABELS
+    muscles = (library_exercise.muscle_groups if library_exercise else None) or []
+    return MUSCLE_LABELS.get(muscles[0], muscles[0]) if muscles else None
+
 
 workouts_bp = Blueprint('workouts', __name__)
 
@@ -144,6 +163,8 @@ def get_workout_details(plan_id):
                 "rest_seconds": ex.rest_seconds,
                 "notes": ex.notes,
                 "order": ex.order,
+                "exercise_library_id": str(ex.exercise_library_id) if ex.exercise_library_id else None,
+                "muscle_group": primary_muscle_label(ex.exercise_library),
                 "video_url": ex.exercise_library.video_url if ex.exercise_library else None
             })
             
