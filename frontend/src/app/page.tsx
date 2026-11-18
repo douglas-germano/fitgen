@@ -37,7 +37,7 @@ const questions = [
   ["Serve para quem nunca treinou?", "Sim. Os treinos vão do iniciante ao avançado e os exercícios têm instruções em vídeo."],
   ["A dieta respeita minhas restrições?", "O cardápio é gerado a partir das preferências e restrições que você informa no cadastro."],
   ["Substitui médico ou nutricionista?", "O FitGen oferece orientações gerais. Se você tem alguma condição de saúde, consulte um profissional antes."],
-  ["Posso cancelar quando quiser?", "Pode. O plano é mensal, sem fidelidade."],
+  ["Posso cancelar quando quiser?", "Pode. O plano é mensal, sem fidelidade. Se cancelar durante os 7 dias grátis, você não paga nada."],
 ];
 
 function Logo({ onDark = false }: { onDark?: boolean }) {
@@ -69,10 +69,10 @@ export default function LandingPage() {
             <div>
               <h1>Treino e dieta feitos <em>para o seu corpo,</em> não para o de outra pessoa.</h1>
               <p>O FitGen monta seu plano de treino e alimentação a partir do seu objetivo, nível, rotina e equipamentos. E ajusta tudo conforme você evolui.</p>
-              <a className={styles.button} href="#plano">Quero meu plano por R$ 29,90 <ArrowUpRight size={16} aria-hidden="true" /></a>
+              <a className={styles.button} href="#plano">Testar 7 dias grátis <ArrowUpRight size={16} aria-hidden="true" /></a>
               <ul className={styles.trust}>
                 <li><Check size={14} aria-hidden="true" /> Cancele quando quiser</li>
-                <li><Check size={14} aria-hidden="true" /> Garantia de 7 dias</li>
+                <li><Check size={14} aria-hidden="true" /> 7 dias grátis</li>
               </ul>
             </div>
             <figure className={styles.dashboard}>
@@ -146,11 +146,11 @@ export default function LandingPage() {
               <p className={styles.price}>R$ <strong>29,90</strong><span>/mês</span></p>
               <p>R$ 1 por dia em um mês de 30 dias para ter treino e dieta personalizados.</p>
               <ul>{benefits.map((benefit) => <li key={benefit}><Check size={18} aria-hidden="true" />{benefit}</li>)}</ul>
-              <a className={`${styles.button} ${styles.planButton}`} href={subscriptionUrl}>{checkoutUrl ? "Assinar por R$ 29,90/mês" : "Pedir link de assinatura"}</a>
+              <a className={`${styles.button} ${styles.planButton}`} href={subscriptionUrl}>{checkoutUrl ? "Começar 7 dias grátis" : "Pedir link de assinatura"}</a>
             </div>
             <div className={`${styles.card} ${styles.iconRow} ${styles.guarantee}`}>
               <span className={styles.icon}><ShieldCheck size={20} aria-hidden="true" /></span>
-              <div><h3>Garantia de 7 dias</h3><p>Solicite a devolução integral do valor se o FitGen não for para você.</p></div>
+              <div><h3>7 dias grátis</h3><p>Teste tudo por 7 dias. A primeira cobrança de R$ 29,90 só acontece no 8º dia, e você pode cancelar antes.</p></div>
             </div>
           </div>
         </section>
@@ -168,7 +168,7 @@ export default function LandingPage() {
             <div className={`${styles.dark} ${styles.final}`}>
               <h2>Daqui a 90 dias você vai agradecer por ter começado <em>hoje.</em></h2>
               <p>Assine, responda o questionário e receba seu plano em minutos.</p>
-              <a className={styles.button} href="#plano">Começar por R$ 29,90/mês <ArrowUpRight size={16} aria-hidden="true" /></a>
+              <a className={styles.button} href="#plano">Testar 7 dias grátis <ArrowUpRight size={16} aria-hidden="true" /></a>
             </div>
           </div>
         </section>
