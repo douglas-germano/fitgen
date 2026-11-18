@@ -59,6 +59,21 @@ def _site() -> str:
     return os.getenv("SITE_URL", "https://fitgen.pro").rstrip("/")
 
 
+def _branding() -> dict:
+    """Per-session Checkout branding (Volt Fit identity). Kept per session on purpose: the Stripe
+    account is shared with other businesses, so the account-wide branding stays untouched."""
+    site = _site() if _site().startswith("https://") else "https://fitgen.pro"
+    return {
+        "display_name": "FitGen",
+        "logo": {"type": "url", "url": f"{site}/brand/fitgen-logo.png"},
+        "icon": {"type": "url", "url": f"{site}/brand/fitgen-icon-square.png"},
+        "button_color": "#a9ed00",
+        "background_color": "#f3f4f5",
+        "border_style": "pill",
+        "font_family": "be_vietnam_pro",
+    }
+
+
 def _dt(ts) -> datetime | None:
     return datetime.fromtimestamp(int(ts), tz=timezone.utc).replace(tzinfo=None) if ts else None
 
@@ -129,6 +144,7 @@ def create_checkout_session(user, plan: str = "monthly") -> str:
         "line_items": [{"price": price.id, "quantity": 1}],
         "subscription_data": subscription_data,
         "locale": "pt-BR",
+        "branding_settings": _branding(),
         "allow_promotion_codes": True,
         "success_url": f"{_site()}/assinatura-confirmada",
         "cancel_url": f"{_site()}/assinar?checkout=cancelado",
@@ -182,6 +198,7 @@ def create_pix_checkout_session(user, plan: str = "monthly") -> str:
         "payment_intent_data": {"metadata": metadata, "description": "FitGen Completo · " + ("1 ano" if yearly else f"{days} dias") + " (Pix)"},
         "payment_method_options": {"pix": {"expires_after_seconds": 3600}},
         "locale": "pt-BR",
+        "branding_settings": _branding(),
         "success_url": f"{_site()}/assinatura-confirmada",
         "cancel_url": f"{_site()}/assinar?checkout=cancelado",
     }
