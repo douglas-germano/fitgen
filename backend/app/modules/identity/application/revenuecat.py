@@ -27,7 +27,13 @@ from app.modules.identity.domain.models import User
 
 IGNORED_TYPES = {"TEST", "TRANSFER", "SUBSCRIBER_ALIAS", "SUBSCRIPTION_PAUSED", "INVOICE_ISSUANCE", "TEMPORARY_ENTITLEMENT_GRANT", "EXPERIMENT_ENROLLMENT"}
 PAID_TYPES = {"INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "NON_RENEWING_PURCHASE"}
-STORE_METHOD = {"APP_STORE": "app_store", "MAC_APP_STORE": "app_store", "PLAY_STORE": "play_store"}
+STORE_METHOD = {
+    "APP_STORE": "app_store", "MAC_APP_STORE": "app_store", "PLAY_STORE": "play_store",
+    # Web checkout on fitgen.pro (RevenueCat Web Billing, charged through our Stripe account)
+    "RC_BILLING": "credit_card", "STRIPE": "credit_card",
+}
+# Ledger `gateway` label per store; anything else falls back to the lowercased store name.
+STORE_GATEWAY = {"RC_BILLING": "stripe", "STRIPE": "stripe"}
 
 
 def _dt(ms) -> datetime | None:
@@ -92,7 +98,7 @@ def apply_revenuecat_event(event: dict) -> str:
         amount = abs(amount)
 
     common = dict(
-        gateway=(event.get("store") or "revenuecat").lower(),
+        gateway=STORE_GATEWAY.get(event.get("store")) or (event.get("store") or "revenuecat").lower(),
         method=method,
         external_id=event.get("transaction_id"),
         subscription_external_id=event.get("original_transaction_id"),

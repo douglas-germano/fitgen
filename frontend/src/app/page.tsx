@@ -50,7 +50,8 @@ function Logo({ onDark = false }: { onDark?: boolean }) {
 }
 
 export default function LandingPage() {
-  const checkoutUrl = process.env.NEXT_PUBLIC_FITGEN_CHECKOUT_URL?.trim();
+  // Web checkout (RevenueCat Web Billing + Stripe) lives at /assinar once its key is configured.
+  const checkoutUrl = process.env.NEXT_PUBLIC_REVENUECAT_WEB_KEY?.trim() ? "/assinar" : process.env.NEXT_PUBLIC_FITGEN_CHECKOUT_URL?.trim();
   const supportUrl = "mailto:suporte@fitgen.com";
   const subscriptionUrl = checkoutUrl || `${supportUrl}?subject=Assinatura%20FitGen`;
 

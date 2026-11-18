@@ -151,6 +151,14 @@ class RevenueCatWebhookTests(unittest.TestCase):
         self.send('INITIAL_PURCHASE', app_user_id='$RCAnonymousID:abc', aliases=['$RCAnonymousID:abc', str(self.user.id)])
         self.assertEqual(len(self.payments()), 1)
 
+    def test_web_billing_purchase_on_the_site_unlocks_and_is_recorded_as_stripe_card(self):
+        self.user.subscription_status = 'free'; db.session.commit()
+        self.assertEqual(self.send('INITIAL_PURCHASE', store='RC_BILLING').get_json()['msg'], 'paid')
+        self.assertEqual(self.user.subscription_status, 'active')
+        payment = self.payments()[0]
+        self.assertEqual(payment.payment_method, 'credit_card')
+        self.assertIn('stripe', payment.notes)
+
 
 if __name__ == '__main__':
     unittest.main()

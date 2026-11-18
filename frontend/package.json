@@ -38,6 +38,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
     "@react-oauth/google": "^0.13.4",
+    "@revenuecat/purchases-js": "1.73.2",
     "@tanstack/react-query": "^5.90.12",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
