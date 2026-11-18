@@ -70,6 +70,19 @@ def user_has_access(user, now: datetime | None = None) -> bool:
 is_premium = user_has_access
 
 
+def subscription_source(user) -> str | None:
+    """Where the subscription is billed: 'web' (Stripe at fitgen.pro), 'app_store', 'play_store'."""
+    from app.modules.identity.domain.subscription import Subscription
+    sub = Subscription.query.filter_by(user_id=user.id).first()
+    if not sub:
+        return None
+    if sub.stripe_subscription_id or sub.payment_method in ("credit_card", "pix", "boleto"):
+        return "web"
+    if sub.payment_method in ("app_store", "play_store"):
+        return sub.payment_method
+    return None
+
+
 def access_payload(user) -> dict:
     premium = user_has_access(user)
     freemium = freemium_enabled()
@@ -82,6 +95,7 @@ def access_payload(user) -> dict:
         "premium_features": [] if premium else (PREMIUM_FEATURES if freemium else []),
         "subscription_required": enforcement_enabled(),
         "subscription_status": user.subscription_status,
+        "subscription_source": subscription_source(user) if premium else None,
         "subscription_expires_at": user.subscription_expires_at.isoformat() if user.subscription_expires_at else None,
     }
 

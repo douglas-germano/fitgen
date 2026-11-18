@@ -36,13 +36,14 @@ import { api, errorMessage } from '@/lib/api';
 import { passwordError } from '@/lib/forms';
 import { ChoiceField } from '@/components/choice-field';
 import { useAuth } from '@/providers/auth';
-import { purchasesEnabled } from '@/lib/purchases';
+import { planSummary } from '@/lib/plan';
 
 export default function ProfileScreen() {
   const Colors = useColors();
   const { signOut } = useAuth();
   const { preference, setPreference } = useAppTheme();
   const { data: profile, isLoading, error, refetch, isRefetching } = useProfile();
+  const plan = planSummary(profile);
   const qc = useQueryClient();
   const progress = useGamificationProgress();
   const streaks = useStreaks();
@@ -109,12 +110,13 @@ export default function ProfileScreen() {
           />
           <Text muted>Em Sistema, o FitGen acompanha a aparência do dispositivo.</Text>
         </Card>
+        <SectionHeader title="Assinatura" />
+        <ListItem icon={Sparkles} iconTone={plan.premium ? 'volt' : 'chip'} title={plan.premium ? 'FitGen Premium' : 'Ver assinatura'} caption={plan.premium ? plan.caption : `${plan.title} · ${plan.caption}`} arrow onPress={() => router.push('/paywall')} />
         <SectionHeader title="Configurações da Conta:" />
         <ListItem icon={Target} title="Minha configuração inicial" caption="Revisar a conversa sobre treino e alimentação" arrow onPress={() => router.push('/onboarding')} />
         <ListItem icon={Target} title="Objetivos e dados físicos" caption="Rotina, medidas e preferências de treino" arrow onPress={() => router.push('/profile-edit')} />
         <ListItem icon={User} iconTone="chip" title="Alterar Nome" caption="Seu nome de exibição" arrow onPress={() => setNameOpen(true)} />
         <ListItem icon={Mail} iconTone="chip" title="Email" caption="O email não pode ser alterado" />
-        {purchasesEnabled && <ListItem icon={Sparkles} title="Assinatura" caption="Planos, teste grátis e restaurar compras" arrow onPress={() => router.push('/paywall')} />}
         <ListItem icon={Link2} iconTone="chip" title="Alterar Senha" caption="Altere sua senha de acesso" arrow onPress={() => setPasswordOpen(true)} />
         <ListItem icon={Bell} iconTone="chip" title="Notificações" caption="Lembretes de treino, água e metas" arrow onPress={() => router.push('/notifications')} />
       </View>

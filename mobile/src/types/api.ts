@@ -34,6 +34,8 @@ export interface Profile {
   freemium?: boolean;
   /** AI features locked for this user: coach, diet_plan, meal_estimate, workout_plan. */
   premium_features?: string[];
+  /** Where Premium is billed: the site (Stripe), the App Store or Google Play. */
+  subscription_source?: 'web' | 'app_store' | 'play_store' | null;
   subscription_required?: boolean;
   subscription_expires_at?: string | null;
   onboarding_completed?: boolean;

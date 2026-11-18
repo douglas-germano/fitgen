@@ -19,6 +19,8 @@ import {
   purchasesEnabled,
   restore,
 } from '@/lib/purchases';
+import { useProfile } from '@/hooks/queries';
+import { planSummary } from '@/lib/plan';
 import { useAuth } from '@/providers/auth';
 import { useColors } from '@/providers/theme';
 import type { Profile } from '@/types/api';
@@ -238,6 +240,11 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
   });
   useEffect(() => { track('paywall_viewed', { gate }); }, [gate]);
   const working = flow.busy !== null;
+  const profile = useProfile();
+  // The server knows about every source (site, App Store, Google Play); the store SDK only its own.
+  const plan = planSummary(profile.data);
+  const serverPremium = !gate && plan.premium;
+  const source = profile.data?.subscription_source;
 
   return (
     <Page topBar={<TopBar title={gate ? 'FitGen' : 'Assinatura'} back={!gate} />}>
@@ -260,7 +267,24 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
         ))}
       </Card>
 
-      {!purchasesEnabled ? (
+      {!gate && (
+        <Card>
+          <Text variant="label">Seu plano</Text>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="titleLg">{plan.title}</Text>
+            <Badge label={plan.premium ? 'Ativo' : 'Grátis'} tone={plan.premium ? 'volt' : 'soft'} />
+          </Row>
+          <Text muted>{plan.premium ? plan.caption : plan.detail}</Text>
+          {serverPremium && source === 'web' ? (
+            <Text muted>Assinatura feita pelo site fitgen.pro. Para cancelar ou trocar a forma de pagamento, use o link “Gerenciar assinatura” do recibo enviado para o seu email.</Text>
+          ) : null}
+          {serverPremium && (source === 'app_store' || source === 'play_store') ? (
+            <Button variant="soft" title="Gerenciar assinatura" onPress={() => Linking.openURL(MANAGE_URL)} />
+          ) : null}
+        </Card>
+      )}
+
+      {serverPremium ? null : !purchasesEnabled ? (
         <Card>
           <Text muted>
             {gate
@@ -295,7 +319,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
         </View>
       )}
 
-      <PurchaseFinePrint flow={flow} external={gate} />
+      {serverPremium ? null : <PurchaseFinePrint flow={flow} external={gate} />}
 
       {gate && (
         <View style={{ gap: Spacing.three, alignItems: 'center' }}>
