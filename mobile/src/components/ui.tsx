@@ -48,7 +48,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BottomTabInset, Control, fontFor, Radius, Spacing } from '@/constants/theme';
+import { tabBarClearance, Control, fontFor, Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { Motion } from '@/constants/motion';
 import { MEDIA_URL, errorMessage } from '@/lib/api';
@@ -133,7 +133,7 @@ export function Page({
 }) {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
-  const bottom = (footer ? 0 : tab ? Math.max(insets.bottom, BottomTabInset) : insets.bottom) + Spacing.six;
+  const bottom = (footer ? 0 : tab ? tabBarClearance(insets.bottom) : insets.bottom) + Spacing.six;
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useFocusEffect(useCallback(() => {
     if (!tab) return;

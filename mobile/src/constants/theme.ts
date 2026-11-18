@@ -120,5 +120,14 @@ export const Control = {
   lg: 44,
 } as const;
 
+/** Floating capsule tab bar used on Android (see components/floating-tab-bar). */
+export const FloatingTabBar = { height: 64, padding: 6, side: 24, gap: 12 } as const;
+
 /** Space reserved at the bottom of tab screens so content clears the native tab bar. */
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+export const BottomTabInset = Platform.select({ ios: 50, android: 0 }) ?? 0;
+
+/** Bottom space a tab screen needs so its content and the "+" clear the tab bar. */
+export function tabBarClearance(insetBottom: number) {
+  if (Platform.OS === 'android') return insetBottom + FloatingTabBar.gap + FloatingTabBar.height;
+  return Math.max(insetBottom, BottomTabInset);
+}

@@ -5,7 +5,7 @@ import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dialog, ListItem, type DialogHandle } from '@/components/ui';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { tabBarClearance, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 
 const FAB_SIZE = 58;
@@ -36,7 +36,7 @@ export function FloatingAddButton({ onPress, label, hint, busy }: {
       style={({ pressed }) => ({
         position: 'absolute',
         right: Spacing.five,
-        bottom: Math.max(insets.bottom, BottomTabInset) + Spacing.four,
+        bottom: tabBarClearance(insets.bottom) + Spacing.four,
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,

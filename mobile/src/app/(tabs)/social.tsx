@@ -9,7 +9,7 @@ import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/actio
 import { GroupAvatar } from '@/components/group-photo';
 import { CommunityFeed } from '@/components/community-feed';
 import { BellButton, Button, Card, IconButton, Page, Row, Text, TopBar } from '@/components/ui';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { tabBarClearance, Spacing } from '@/constants/theme';
 import { useGroups, usePublicGroups } from '@/hooks/community';
 import { useUnreadNotifications } from '@/hooks/queries';
 import { errorMessage } from '@/lib/api';
@@ -31,7 +31,7 @@ export default function SocialScreen() {
   const publicGroups = usePublicGroups();
   const unread = useUnreadNotifications();
   const { refreshing, refresh } = useCommunityRefresh();
-  const bottom = Math.max(insets.bottom, BottomTabInset) + Spacing.five;
+  const bottom = tabBarClearance(insets.bottom) + Spacing.five;
   const [actionsOpen, setActionsOpen] = useState(false);
 
   return <View style={{ flex: 1, backgroundColor: Colors.surface }}>
@@ -68,7 +68,7 @@ export default function SocialScreen() {
           {groups.data.map(g => <Card key={g.id} onPress={() => router.push(`/community/group/${g.id}`)}>
             <Row style={{ gap: 12 }}>
               <GroupAvatar group={g} size={48} />
-              <View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">{g.is_public ? 'Público' : 'Privado'} · {g.member_count}/20 pessoas · {g.week_workouts ?? 0} treinos na semana</Text></View>
+              <View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">{g.is_public ? 'Público' : 'Privado'} · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'} · {g.week_workouts ?? 0} treinos na semana</Text></View>
               <ChevronRight size={18} color={Colors.inkMuted} />
             </Row>
             {g.description && <Text muted numberOfLines={2}>{g.description}</Text>}
@@ -122,7 +122,7 @@ function PublicClubs({ query }: { query: ReturnType<typeof usePublicGroups> }) {
     {query.error && <Button title="Tentar carregar clubes" variant="soft" onPress={() => query.refetch()} />}
     {query.data?.length === 0 && <Text muted>Ainda não há clubes públicos. Crie um e reúna sua turma.</Text>}
     {query.data?.map(g => <Card key={g.id} onPress={() => router.push(`/community/group/${g.id}`)}>
-      <Row style={{ gap: 12 }}><GroupAvatar group={g} /><View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">Público · {g.member_count}/20 pessoas{g.my_role ? ' · Você participa' : ''}</Text></View><ChevronRight size={18} /></Row>
+      <Row style={{ gap: 12 }}><GroupAvatar group={g} /><View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">Público · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'}{g.my_role ? ' · Você participa' : ''}</Text></View><ChevronRight size={18} /></Row>
       {g.description && <Text muted numberOfLines={2}>{g.description}</Text>}
     </Card>)}
   </View>;
