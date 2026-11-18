@@ -320,6 +320,37 @@ def revenuecat_webhook():
         return jsonify({"msg": "Error processing webhook"}), 500
 
 
+@webhooks_bp.route('/stripe', methods=['POST'])
+def stripe_webhook():
+    """
+    Stripe webhook (web checkout at fitgen.pro/assinar).
+
+    Stripe Dashboard -> Developers -> Webhooks -> endpoint https://<api>/api/webhooks/stripe
+    Events: checkout.session.completed, customer.subscription.created/updated/deleted,
+    invoice.paid, invoice.payment_failed. Signing secret -> STRIPE_WEBHOOK_SECRET.
+    """
+    import stripe
+    from app.modules.identity.application import stripe_billing
+
+    try:
+        event = stripe_billing.construct_event(request.get_data(), request.headers.get('Stripe-Signature', ''))
+    except stripe_billing.StripeNotConfigured:
+        current_app.logger.error("STRIPE_WEBHOOK_SECRET is not set; refusing Stripe webhook")
+        return jsonify({"msg": "Webhook not configured"}), 503
+    except (ValueError, stripe.SignatureVerificationError):
+        return jsonify({"msg": "Invalid signature"}), 400
+
+    try:
+        outcome = stripe_billing.apply_stripe_event(event)
+        db.session.commit()
+        current_app.logger.info("Stripe %s -> %s", event["type"], outcome)
+        return jsonify({"msg": outcome}), 200
+    except Exception:
+        current_app.logger.exception("Error processing Stripe webhook")
+        db.session.rollback()
+        return jsonify({"msg": "Error processing webhook"}), 500
+
+
 # ---------------------------------------------------------------------------
 # Billing ledger helpers (feed the admin finance panel)
 # ---------------------------------------------------------------------------

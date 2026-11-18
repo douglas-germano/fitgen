@@ -1,32 +1,38 @@
 "use client";
 
 /**
- * fitgen.pro/assinar — web checkout (RevenueCat Web Billing, charged through Stripe).
+ * fitgen.pro/assinar — web checkout through Stripe (card + Pix Automático).
  *
  * 1. The visitor signs in or creates a FitGen account (same API as the app).
- * 2. The RevenueCat SDK is configured with the FitGen user id as `appUserId`, so the web
- *    purchase unlocks the same `premium` entitlement the iPhone app uses.
- * 3. After paying, the RevenueCat webhook updates the backend; we poll `profile/me` until
- *    `has_access` flips and tell the user to open the app.
+ * 2. The backend creates a Stripe Checkout session for that user (`/subscriptions/stripe/checkout`)
+ *    and we redirect to it. The session survives the round trip in sessionStorage.
+ * 3. Stripe sends the visitor back with `?checkout=sucesso`; the Stripe webhook updates the
+ *    backend and we poll `profile/me` until `has_access` flips, then point to the app.
  *
  * The app itself never links here (App Store rule 3.1.1); this page is reached from the site.
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Check, Loader2, ShieldCheck, Smartphone } from "lucide-react";
-import type { Package, Purchases as PurchasesClient } from "@revenuecat/purchases-js";
 import site from "../landing.module.css";
 import styles from "./assinar.module.css";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api").replace(/\/$/, "");
-const RC_WEB_KEY = process.env.NEXT_PUBLIC_REVENUECAT_WEB_KEY?.trim();
+const ENABLED = process.env.NEXT_PUBLIC_WEB_CHECKOUT === "1";
+const PRICE = "R$ 29,90";
+const TRIAL = "7 dias";
 const SUPPORT = "mailto:suporte@fitgen.com?subject=Assinatura%20FitGen";
+const SESSION_KEY = "fitgen.assinar.session";
 
-type Session = { token: string; userId: string; email: string; name: string };
+type Session = { token: string; email: string };
 type Step = "account" | "offer" | "confirming" | "done";
 
-class ApiError extends Error {}
+class ApiError extends Error {
+  constructor(message: string, readonly status = 0) {
+    super(message);
+  }
+}
 
 async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
@@ -40,7 +46,7 @@ async function call<T>(path: string, init: RequestInit & { token?: string } = {}
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const fieldErrors = data?.errors && Object.values(data.errors).flat().filter(Boolean);
-    throw new ApiError(String(fieldErrors?.[0] || data?.msg || data?.message || "Algo deu errado. Tente de novo."));
+    throw new ApiError(String(fieldErrors?.[0] || data?.msg || data?.message || "Algo deu errado. Tente de novo."), res.status);
   }
   return data as T;
 }
@@ -53,14 +59,22 @@ function passwordError(password: string) {
   return "";
 }
 
-/** "P1W" / "P7D" / "P1M" → "7 dias" / "1 mês". */
-function describePeriod(iso?: string | null) {
-  const match = iso?.match(/^P(\d+)([DWMY])$/);
-  if (!match) return null;
-  const n = Number(match[1]);
-  const [unit, plural] = { D: ["dia", "dias"], W: ["semana", "semanas"], M: ["mês", "meses"], Y: ["ano", "anos"] }[match[2] as "D"];
-  if (match[2] === "W") return `${n * 7} dias`;
-  return `${n} ${n === 1 ? unit : plural}`;
+function storeSession(s: Session | null) {
+  try {
+    if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* private mode: the user just signs in again after checkout */
+  }
+}
+
+function readSession(): Session | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -70,32 +84,59 @@ export default function SubscribeFlow() {
   const [mode, setMode] = useState<"register" | "login">("register");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [session, setSession] = useState<Session | null>(null);
-  const [purchases, setPurchases] = useState<PurchasesClient | null>(null);
-  const [pkg, setPkg] = useState<Package | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  const [paid, setPaid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const change = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  async function waitForAccess(s: Session) {
+    setStep("confirming");
+    for (let i = 0; i < 30; i++) {
+      try {
+        const me = await call<{ has_access?: boolean }>("/profile/me", { token: s.token });
+        if (me.has_access) break;
+      } catch {
+        /* keep waiting: the webhook usually lands within seconds */
+      }
+      await sleep(3000);
+    }
+    setPaid(true);
+    setStep("done");
+  }
 
   async function loadOffer(s: Session) {
     const me = await call<{ has_access?: boolean }>("/profile/me", { token: s.token });
     if (me.has_access) {
       setAlreadySubscribed(true);
       setStep("done");
-      return;
+    } else {
+      setStep("offer");
     }
-    if (!RC_WEB_KEY) throw new ApiError("A assinatura pelo site abre em breve. Fale com a gente pelo suporte.");
-    const { Purchases } = await import("@revenuecat/purchases-js");
-    const client = Purchases.configure({ apiKey: RC_WEB_KEY, appUserId: s.userId });
-    const offerings = await client.getOfferings({ currency: "BRL" });
-    const offer = offerings.current?.availablePackages[0];
-    if (!offer) throw new ApiError("Nenhum plano disponível agora. Tente de novo em instantes.");
-    setPurchases(client);
-    setPkg(offer);
-    setStep("offer");
   }
+
+  // Coming back from Stripe Checkout.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("checkout");
+    const saved = readSession();
+    if (!result || !saved) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    setSession(saved);
+    if (result === "sucesso") {
+      void waitForAccess(saved);
+    } else {
+      setNotice("Pagamento não concluído. Você pode tentar de novo quando quiser.");
+      loadOffer(saved).catch(() => {
+        storeSession(null);
+        setSession(null);
+        setStep("account");
+      });
+    }
+  }, []);
 
   async function submitAccount(e: React.FormEvent) {
     e.preventDefault();
@@ -111,12 +152,13 @@ export default function SubscribeFlow() {
       if (mode === "register") {
         await call("/auth/register", { method: "POST", body: JSON.stringify({ name: form.name.trim(), email, password: form.password }) });
       }
-      const login = await call<{ access_token: string; user: { id: string; email: string; name: string } }>("/auth/login", {
+      const login = await call<{ access_token: string; user: { email: string } }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password: form.password }),
       });
-      const s = { token: login.access_token, userId: login.user.id, email: login.user.email, name: login.user.name };
+      const s = { token: login.access_token, email: login.user.email };
       setSession(s);
+      storeSession(s);
       await loadOffer(s);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Algo deu errado. Tente de novo.");
@@ -126,36 +168,45 @@ export default function SubscribeFlow() {
   }
 
   async function subscribe() {
-    if (!purchases || !pkg || !session) return;
+    if (!session) return;
     setError("");
+    setNotice("");
     setBusy(true);
     try {
-      await purchases.purchase({ rcPackage: pkg, customerEmail: session.email, selectedLocale: "pt" });
+      const { checkout_url } = await call<{ checkout_url: string }>("/subscriptions/stripe/checkout", { method: "POST", token: session.token });
+      window.location.assign(checkout_url);
     } catch (err) {
-      const { ErrorCode, PurchasesError } = await import("@revenuecat/purchases-js");
       setBusy(false);
-      if (err instanceof PurchasesError && err.errorCode === ErrorCode.UserCancelledError) return;
-      setError(err instanceof Error ? err.message : "Não foi possível concluir o pagamento.");
-      return;
-    }
-    // Paid. The webhook usually lands within seconds; wait for the backend to agree.
-    setStep("confirming");
-    for (let i = 0; i < 20; i++) {
-      try {
-        const me = await call<{ has_access?: boolean }>("/profile/me", { token: session.token });
-        if (me.has_access) break;
-      } catch {
-        /* keep waiting */
+      if (err instanceof ApiError && err.status === 409) {
+        setAlreadySubscribed(true);
+        setStep("done");
+        return;
       }
-      await sleep(3000);
+      if (err instanceof ApiError && err.status === 401) {
+        storeSession(null);
+        setSession(null);
+        setStep("account");
+        setMode("login");
+        setError("Sua sessão expirou. Entre de novo para continuar.");
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Não foi possível iniciar o pagamento.");
     }
-    setBusy(false);
-    setStep("done");
   }
 
-  const product = pkg?.webBillingProduct;
-  const trial = describePeriod(product?.freeTrialPhase?.periodDuration);
-  const period = describePeriod(product?.normalPeriodDuration);
+  async function manage() {
+    if (!session) return;
+    setBusy(true);
+    try {
+      const { portal_url } = await call<{ portal_url: string }>("/subscriptions/stripe/portal", { method: "POST", token: session.token });
+      window.location.assign(portal_url);
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : "Não foi possível abrir o gerenciamento.");
+    }
+  }
+
+  const current = { account: 0, offer: 1, confirming: 1, done: 2 }[step];
 
   return (
     <div className={`${site.site} ${styles.page}`}>
@@ -171,13 +222,12 @@ export default function SubscribeFlow() {
 
       <main className={`${site.wrap} ${styles.main}`}>
         <ol className={styles.steps} aria-label="Etapas">
-          {["Conta", "Pagamento", "Pronto"].map((label, i) => {
-            const current = { account: 0, offer: 1, confirming: 1, done: 2 }[step];
-            return <li key={label} data-state={i < current ? "done" : i === current ? "current" : "todo"}>{label}</li>;
-          })}
+          {["Conta", "Pagamento", "Pronto"].map((label, i) => (
+            <li key={label} data-state={i < current ? "done" : i === current ? "current" : "todo"}>{label}</li>
+          ))}
         </ol>
 
-        {!RC_WEB_KEY && (
+        {!ENABLED && (
           <section className={styles.card}>
             <h1>Assinatura pelo site em breve</h1>
             <p>Enquanto isso, fale com a gente para assinar o FitGen.</p>
@@ -185,7 +235,7 @@ export default function SubscribeFlow() {
           </section>
         )}
 
-        {RC_WEB_KEY && step === "account" && (
+        {ENABLED && step === "account" && (
           <section className={styles.card}>
             <h1>{mode === "register" ? "Crie sua conta" : "Entre na sua conta"}</h1>
             <p>Use o mesmo email e senha para entrar no app FitGen depois.</p>
@@ -211,24 +261,22 @@ export default function SubscribeFlow() {
           </section>
         )}
 
-        {(step === "offer" || step === "confirming") && product && (
+        {ENABLED && (step === "offer" || step === "confirming") && (
           <section className={`${styles.card} ${styles.offer}`}>
-            <div className={styles.planHead}><h1>FitGen Completo</h1>{period && <span>{period === "1 mês" ? "MENSAL" : period.toUpperCase()}</span>}</div>
-            <p className={styles.price}>
-              {product.currentPrice.formattedPrice}
-              {period && <span>/{period === "1 mês" ? "mês" : period}</span>}
-            </p>
-            {trial && <p className={styles.trial}><strong>{trial} grátis</strong>. A primeira cobrança só acontece depois do teste, e você pode cancelar antes.</p>}
+            <div className={styles.planHead}><h1>FitGen Completo</h1><span>MENSAL</span></div>
+            <p className={styles.price}>{PRICE}<span>/mês</span></p>
+            <p className={styles.trial}><strong>{TRIAL} grátis</strong> para novos assinantes. A primeira cobrança só acontece depois do teste, e você pode cancelar antes.</p>
             <ul className={styles.benefits}>
-              {["Treinos e dieta gerados por IA", "IA Coach 24h", "Medidas, progresso e hidratação", "Sem fidelidade: cancele quando quiser"].map((b) => (
+              {["Treinos e dieta gerados por IA", "IA Coach 24h", "Medidas, progresso e hidratação", "Pague com cartão ou Pix", "Sem fidelidade: cancele quando quiser"].map((b) => (
                 <li key={b}><Check size={18} aria-hidden="true" />{b}</li>
               ))}
             </ul>
             <p className={styles.account}>Conta: <strong>{session?.email}</strong></p>
+            {notice && <p className={styles.notice} role="status">{notice}</p>}
             {error && <p className={styles.error} role="alert">{error}</p>}
-            <button className={site.button} type="button" onClick={subscribe} disabled={busy}>
-              {busy && <Loader2 size={16} className={styles.spin} aria-hidden="true" />}
-              {step === "confirming" ? "Confirmando pagamento…" : trial ? `Começar ${trial} grátis` : "Assinar agora"}
+            <button className={site.button} type="button" onClick={subscribe} disabled={busy || step === "confirming"}>
+              {(busy || step === "confirming") && <Loader2 size={16} className={styles.spin} aria-hidden="true" />}
+              {step === "confirming" ? "Confirmando pagamento…" : `Começar ${TRIAL} grátis`}
             </button>
             <p className={styles.fine}><ShieldCheck size={14} aria-hidden="true" /> Pagamento seguro processado pela Stripe.</p>
           </section>
@@ -241,7 +289,9 @@ export default function SubscribeFlow() {
             <p>
               Abra o app FitGen no iPhone e entre com <strong>{session?.email}</strong>. Tudo já está liberado.
             </p>
-            <p className={styles.fine}>Enviamos o recibo e o link para gerenciar a assinatura para o seu email.</p>
+            {paid && <p className={styles.fine}>A Stripe envia o recibo para o seu email.</p>}
+            {error && <p className={styles.error} role="alert">{error}</p>}
+            <button type="button" className={styles.switch} onClick={manage} disabled={busy}>Gerenciar assinatura</button>
             <a className={styles.switch} href={SUPPORT}>Precisa de ajuda? Fale com o suporte</a>
           </section>
         )}
