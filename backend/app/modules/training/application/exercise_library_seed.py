@@ -1,9 +1,23 @@
+from sqlalchemy import inspect, text
+
 from app.shared.extensions import db
 from app.modules.training.data.exercise_catalog import EXERCISES, validate
 from app.modules.training.domain.exercise_library import ExerciseLibrary
+from app.modules.training.application.exercise_animations import ANIMATIONS
 
 FIELDS = ('category', 'difficulty_level', 'muscle_groups', 'equipment_needed',
           'description', 'instructions', 'tips', 'common_mistakes')
+
+
+def ensure_animation_column():
+    # Production was provisioned from a schema snapshot without Alembic history.
+    with db.engine.begin() as connection:
+        columns = inspect(connection).get_columns('exercise_library')
+        if not any(column['name'] == 'animation_key' for column in columns):
+            guard = ' IF NOT EXISTS' if connection.dialect.name == 'postgresql' else ''
+            connection.execute(text(
+                f'ALTER TABLE exercise_library ADD COLUMN{guard} animation_key VARCHAR(255)'
+            ))
 
 
 def seed_exercise_library(overwrite=False):
@@ -17,13 +31,17 @@ def seed_exercise_library(overwrite=False):
     existing = {row.name: row for row in ExerciseLibrary.query.all()}
     created = updated = 0
     for data in EXERCISES:
-        row = existing.get(data['name'])
+        name = data['name']
+        animation_key = ANIMATIONS.get(name)
+        row = existing.get(name)
         if row is None:
-            db.session.add(ExerciseLibrary(name=data['name'], is_active=True,
+            db.session.add(ExerciseLibrary(name=name, is_active=True, animation_key=animation_key,
                                            **{key: data[key] for key in FIELDS}))
             created += 1
             continue
-        changed = False
+        changed = bool(animation_key and animation_key != row.animation_key)
+        if changed:
+            row.animation_key = animation_key
         for key in FIELDS:
             if (overwrite or not getattr(row, key)) and getattr(row, key) != data[key]:
                 setattr(row, key, data[key])

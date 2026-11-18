@@ -134,6 +134,7 @@ def community_seed_challenges_command():
 @with_appcontext
 def seed_exercises_command(overwrite):
     """Load the official FitGen exercise library (idempotent; runs on every deploy)."""
-    from app.modules.training.application.exercise_library_seed import seed_exercise_library
+    from app.modules.training.application.exercise_library_seed import ensure_animation_column, seed_exercise_library
+    ensure_animation_column()
     created, updated = seed_exercise_library(overwrite=overwrite)
     print(f'Biblioteca de exercícios: {created} criados, {updated} atualizados.')

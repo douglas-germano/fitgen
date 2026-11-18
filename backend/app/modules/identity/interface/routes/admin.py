@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.shared.subscription_access import user_has_access
 from app.modules.identity.domain.models import User
+from app.modules.training.application.exercise_animations import exercise_animation_url
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from app.modules.training.domain.models import Exercise
 import uuid
@@ -43,6 +44,7 @@ def get_exercises():
             "category": ex.category,
             "difficulty_level": ex.difficulty_level,
             "video_url": ex.video_url,
+            "animation_url": exercise_animation_url(ex),
             "description": ex.description
         } for ex in pagination.items],
         "total": pagination.total,

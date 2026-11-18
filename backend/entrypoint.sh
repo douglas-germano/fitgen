@@ -30,9 +30,7 @@ python3 -m flask db upgrade || {
 }
 
 # Load the official exercise library (idempotent; keeps admin edits)
-python3 -m flask seed-exercises || {
-    echo "WARNING: Exercise library seed failed"
-}
+python3 -m flask seed-exercises
 
 echo "Starting Gunicorn..."
 echo "Binding to 0.0.0.0:${PORT:-5000}"

@@ -2,6 +2,7 @@ import uuid
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
+from app.modules.training.application.exercise_animations import exercise_animation_url
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
 from sqlalchemy.orm import joinedload
 from datetime import datetime
@@ -165,6 +166,7 @@ def get_workout_details(plan_id):
                 "order": ex.order,
                 "exercise_library_id": str(ex.exercise_library_id) if ex.exercise_library_id else None,
                 "muscle_group": primary_muscle_label(ex.exercise_library),
+                "animation_url": exercise_animation_url(ex.exercise_library),
                 "video_url": ex.exercise_library.video_url if ex.exercise_library else None
             })
             

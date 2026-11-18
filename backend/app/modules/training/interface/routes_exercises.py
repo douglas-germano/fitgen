@@ -1,6 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.shared import storage
 from app.shared.extensions import db
+from app.modules.training.application.exercise_animations import ANIMATION_STORAGE_KIND, exercise_animation_url
 from app.modules.training.domain.models import WorkoutSession, ExerciseLog, Exercise, WorkoutDay, WorkoutPlan
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from datetime import datetime, timedelta
@@ -27,6 +29,7 @@ def library_item(ex):
         'common_mistakes': _lines(ex.common_mistakes),
         'video_url': ex.video_url,
         'thumbnail_url': ex.thumbnail_url,
+        'animation_url': exercise_animation_url(ex),
     }
 
 
@@ -45,6 +48,19 @@ def get_library_exercise(exercise_id):
     if not ex:
         return jsonify({'msg': 'Exercício não encontrado.'}), 404
     return jsonify(library_item(ex)), 200
+
+
+@exercises_bp.get('/library/animations/<filename>')
+def get_exercise_animation(filename):
+    """Deliver only media linked to an active official catalog entry."""
+    if not ExerciseLibrary.query.filter_by(animation_key=filename, is_active=True).first():
+        return jsonify({'msg': 'Animação não encontrada.'}), 404
+    url = storage.signed_url(f'{storage.SCHEME}{ANIMATION_STORAGE_KIND}/{filename}')
+    if not url:
+        return jsonify({'msg': 'Animação temporariamente indisponível.'}), 503
+    response = redirect(url)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @exercises_bp.route('/sessions/active', methods=['GET'])
