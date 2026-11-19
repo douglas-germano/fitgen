@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowUpRight, ChevronRight, Dumbbell, Flame, Heart, Plus, Timer } from 'lucide-react-native';
+import { ArrowUpRight, ChevronRight, Dumbbell, Flame, Heart, Play, Plus, Timer } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 import {
   Button,
   EmptyState,
+  IconButton,
   ListItem,
   MetricTile,
   MoreButton,
@@ -339,12 +340,13 @@ export default function WorkoutScreen() {
           title={workoutTitle(day)}
           back={!started}
           onBack={started ? confirmLeave : undefined}
-          actionWidth={92}
+          actionWidth={started ? 92 : undefined}
           action={
             started ? (
               <Button size="sm" variant="soft" title="Finalizar" onPress={confirmFinish} disabled={finishing} />
             ) : (
-              <Button size="sm" title="Iniciar" onPress={start} disabled={starting || !!other || !exercises.length} />
+              // The list is only editable before starting: set counts are fixed once a session is open.
+              <IconButton icon={Plus} label="Adicionar exercício" variant="volt" onPress={() => setFormFor('new')} />
             )
           }
         />
@@ -364,7 +366,7 @@ export default function WorkoutScreen() {
         {/* Duration · volume · sets */}
         <View style={{ gap: Spacing.three }}>
           <Row style={{ paddingBottom: Spacing.three, borderBottomWidth: 1, borderBottomColor: Colors.line }}>
-            <Stat label={started ? 'Duração' : 'Estimada'} value={started ? clock(elapsed) : `~${workoutMinutes(day)} min`} />
+            <Stat label={started ? 'Duração' : 'Estimada'} value={started ? clock(elapsed) : `${workoutMinutes(day)} min`} />
             <Stat label="Volume" value={`${formatInt(volume)} kg`} />
             <Stat label="Séries" value={started ? `${doneCount}/${allSets.length}` : String(allSets.length)} />
           </Row>
@@ -419,32 +421,15 @@ export default function WorkoutScreen() {
             );
           })}
 
-          {/* The list is only editable before starting: set counts are fixed once a session is open. */}
-          {!started && (
-            <Pressable
-              onPress={() => setFormFor('new')}
-              accessibilityRole="button"
-              accessibilityLabel="Adicionar exercício"
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: Spacing.three,
-                padding: Spacing.three,
-                borderRadius: Radius.md,
-                borderCurve: 'continuous',
-                backgroundColor: pressed ? Colors.line : Colors.surfaceChip,
-              })}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.volt, alignItems: 'center', justifyContent: 'center' }}>
-                <Plus size={20} strokeWidth={2.6} color={Colors.onVolt} />
-              </View>
-              <Text variant="titleSm" style={{ flex: 1, fontSize: 15 }}>Adicionar Exercício</Text>
-            </Pressable>
-          )}
         </View>
       </ScrollView>
 
-      {(showRest || allDone) && (
+      {(!started || showRest || allDone) && (
         <View style={{ paddingHorizontal: Spacing.five, paddingTop: Spacing.three, paddingBottom: insets.bottom + Spacing.three, gap: Spacing.three }}>
+          {!started && (
+            <Button size="lg" icon={Play} title="Iniciar Treino" onPress={start} loading={starting}
+              disabled={starting || !!other || !exercises.length} />
+          )}
           {showRest && <RestCard restLeft={restLeft} restTotal={restTotal} onAdjust={adjustRest} onSkip={skipRest} />}
           {allDone && <Button size="lg" title="Finalizar Treino" onPress={finish} loading={finishing} />}
         </View>

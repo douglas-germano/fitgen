@@ -2,28 +2,26 @@ import { AppAlert } from '@/lib/feedback';
 import { QueryError ,
   Badge,
   Button,
-  Card,
   Dialog,
   EmptyState,
   ListItem,
   Page,
   PageSkeleton,
   Row,
-  SectionHeader,
   Text,
   TopBar,
   type DialogHandle,
 } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
-import { BarChart3, BookOpen, Check, ClipboardList, Dumbbell, History, Moon, Play, Route, Sparkles, Timer } from 'lucide-react-native';
+import { BookOpen, Check, ClipboardList, Dumbbell, Flame, History, Moon, Play, Route, Sparkles, Timer } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
-import { WeekChart } from '@/components/charts';
+import { OutdoorCard, RecordsCard } from '@/components/workout-cards';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
-import { useActiveSession, useActiveWorkoutPlan, useGenerateWorkout, useWorkoutHistory } from '@/hooks/queries';
+import { useActiveSession, useActiveWorkoutPlan, useGenerateWorkout, useStreaks, useWorkoutHistory } from '@/hooks/queries';
 import { errorMessage, isPremiumRequired } from '@/lib/api';
 import {
   formatLongDate,
@@ -42,14 +40,17 @@ import {
 } from '@/lib/workout';
 import type { WorkoutDay, WorkoutPlan } from '@/types/api';
 import { usePremium } from '@/hooks/use-premium';
-import { muscleLabel } from '@/lib/exercise-library';
 import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 
 export default function WorkoutsScreen() {
   const Colors = useColors();
+  const { width } = useWindowDimensions();
+  // Six thumbnails fill the content width (page gutters are Spacing.five).
+  const thumbSize = Math.min(56, Math.floor((width - Spacing.five * 2 - Spacing.two * 5) / 6));
   const { plan, isLoading, refetch, error } = useActiveWorkoutPlan();
   const history = useWorkoutHistory();
   const active = useActiveSession();
+  const streak = useStreaks().data?.workout_streak ?? 0;
   const generate = useGenerateWorkout();
   const { locked, requirePremium } = usePremium();
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -93,19 +94,9 @@ export default function WorkoutsScreen() {
   };
   const resume = () => activeSession && router.push(`/workout/${activeSession.plan_id}/play/${activeSession.workout_day_id}`);
 
-  // Minutes per training day, last 6 days with sessions.
-  const byDay = new Map<string, { ts: number; minutes: number }>();
-  for (const s of sessions) {
-    const d = new Date(s.started_at);
-    const key = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    const entry = byDay.get(key) ?? { ts: d.getTime(), minutes: 0 };
-    entry.minutes += Math.round(s.duration_seconds / 60);
-    byDay.set(key, entry);
-  }
-  const chart = [...byDay.entries()]
-    .sort((a, b) => a[1].ts - b[1].ts)
-    .slice(-6)
-    .map(([label, { minutes }]) => ({ label, value: minutes }));
+  const lastOutdoor = sessions
+    .filter((s) => s.outdoor_type)
+    .sort((a, b) => b.started_at.localeCompare(a.started_at))[0];
 
   // Elapsed time is known; the API does not define a fixed plan duration.
   const weeks = weeksSince(plan?.created_at);
@@ -155,14 +146,6 @@ export default function WorkoutsScreen() {
         </Pressable>
       )}
 
-      <ListItem
-        icon={Route}
-        title="Corrida ou caminhada ao ar livre"
-        caption="Registre tempo, distância e trajeto por GPS"
-        arrow
-        onPress={() => router.push('/outdoor')}
-      />
-
       {!plan ? (
         <EmptyState
           icon={Dumbbell}
@@ -172,10 +155,10 @@ export default function WorkoutsScreen() {
         />
       ) : (
         <>
-          <Card style={{ gap: Spacing.four }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600' }}>Treino de Hoje</Text>
-              <Text variant="caption">{formatLongDate(new Date(), false)}</Text>
+          <View style={{ gap: Spacing.four }}>
+            <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <Text variant="label" color={Colors.voltInk}>Treino de hoje</Text>
+              <Text variant="label" muted>{formatLongDate(new Date(), false)}</Text>
             </Row>
 
             {today && todaySession ? (
@@ -183,7 +166,7 @@ export default function WorkoutsScreen() {
                 {/* Already trained today. */}
                 <View style={{ gap: Spacing.two }}>
                   <Badge label="Concluído" tone="soft" />
-                  <Text variant="display">{workoutTitle(today)}</Text>
+                  <Text variant="display" accessibilityRole="header">{workoutTitle(today)}</Text>
                   <Text muted>
                     {Math.max(1, Math.round(todaySession.duration_seconds / 60))} min
                     {todaySession.calories ? ` · ${Math.round(todaySession.calories)} kcal` : ''} · bom trabalho!
@@ -194,33 +177,23 @@ export default function WorkoutsScreen() {
             ) : today ? (
               <>
                 <View style={{ gap: 4 }}>
-                  <Text variant="display">{workoutTitle(today)}</Text>
-                  <Text muted>
-                    {today.exercises.length} exercícios · ~{workoutMinutes(today)} min · {today.muscle_groups?.map(muscleLabel).join(', ') || today.focus}
+                  <Text variant="display" accessibilityRole="header">{workoutTitle(today)}</Text>
+                  <Text muted style={{ fontSize: 15, lineHeight: 22 }}>
+                    {today.exercises.length} {today.exercises.length === 1 ? 'exercício' : 'exercícios'} · {workoutMinutes(today)} min
                   </Text>
                 </View>
-                <View style={{ gap: Spacing.two }}>
-                  {today.exercises.slice(0, 3).map((ex) => (
-                    <Row
-                      key={ex.id}
-                      style={{ gap: Spacing.three, paddingVertical: 10, paddingHorizontal: Spacing.three, backgroundColor: Colors.surface, borderRadius: Radius.sm }}>
-                      <ExerciseThumbnail exercise={ex} />
-                      <Text variant="titleSm" style={{ flex: 1 }} numberOfLines={1}>
-                        {ex.name}
-                      </Text>
-                      <Text variant="caption">
-                        {ex.sets} × {ex.reps}
-                      </Text>
-                    </Row>
+                {!activeSession && <Button title="Ver treino" onPress={() => start(today)} />}
+                {/* A strip of exercise images instead of a text list: the full list is one tap away. */}
+                <Row style={{ gap: Spacing.two }}>
+                  {today.exercises.slice(0, today.exercises.length > 6 ? 5 : 6).map((ex) => (
+                    <ExerciseThumbnail key={ex.id} exercise={ex} size={thumbSize} />
                   ))}
-                  {today.exercises.length > 3 && (
-                    <Text variant="caption" style={{ paddingHorizontal: Spacing.three }}>
-                      + {today.exercises.length - 3} exercícios
-                    </Text>
+                  {today.exercises.length > 6 && (
+                    <View style={{ width: thumbSize, height: thumbSize, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text variant="titleSm" muted>+{today.exercises.length - 5}</Text>
+                    </View>
                   )}
-                </View>
-                {/* With a session open, the banner above is the single way in. */}
-                {!activeSession && <Button title={`Ver Treino · ${workoutTitle(today)}`} onPress={() => start(today)} />}
+                </Row>
               </>
             ) : (
               <>
@@ -237,30 +210,24 @@ export default function WorkoutsScreen() {
                     icon={Dumbbell}
                     iconTone="chip"
                     title={`${relativeDayLabel(next.date)} · ${workoutTitle(next.day)}`}
-                    caption={`${next.day.exercises.length} exercícios · ~${workoutMinutes(next.day)} min`}
+                    caption={`${next.day.exercises.length} exercícios · ${workoutMinutes(next.day)} min`}
                   />
                 )}
                 <Button variant="soft" title="Treinar mesmo assim" onPress={() => setPickerOpen(true)} />
               </>
             )}
-          </Card>
+          </View>
 
-          <WeekStrip cells={cells} />
+          <WeekStrip cells={cells} streak={streak} />
         </>
       )}
 
-      {/* Duration chart */}
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Duração dos Treinos:" />
-        {chart.length ? (
-          <WeekChart data={chart} formatTick={(v) => `${Math.round(v)}m`} accessibilityLabel="Minutos por treino nos últimos dias" />
-        ) : (
-          <EmptyState icon={BarChart3} message="Nenhum treino registrado ainda." />
-        )}
-      </View>
+      <OutdoorCard last={lastOutdoor} />
+      <RecordsCard />
 
     </Page>
     <FloatingAddButton
+      tone="neutral"
       label="Ações de treino"
       hint="Abre as opções de treino"
       busy={generate.isPending}
@@ -268,7 +235,8 @@ export default function WorkoutsScreen() {
     />
     <ActionMenu
       visible={actionsOpen}
-      title="O que você quer fazer?"
+      title="Ações de treino"
+      compact
       onClose={() => setActionsOpen(false)}
       items={[
         ...(activeSession ? [{
@@ -282,6 +250,12 @@ export default function WorkoutsScreen() {
           caption: `${workoutTitle(today)} · ${today.exercises.length} exercícios`,
           onPress: () => start(today),
         }] : []),
+        {
+          key: 'outdoor', icon: Route,
+          title: 'Corrida ou caminhada ao ar livre',
+          caption: 'Registre tempo, distância e trajeto por GPS',
+          onPress: () => router.push('/outdoor'),
+        },
         ...(plan ? [{
           key: 'plan', icon: ClipboardList,
           title: 'Ver plano de treino',
@@ -306,17 +280,27 @@ export default function WorkoutsScreen() {
 }
 
 /** Monday → Sunday: trained (volt check), planned (dumbbell), rest (dash). Today is outlined. */
-function WeekStrip({ cells }: { cells: WeekCell[] }) {
+function WeekStrip({ cells, streak }: { cells: WeekCell[]; streak: number }) {
   const Colors = useColors();
+  const { width, fontScale } = useWindowDimensions();
+  const wrap = width / Math.max(1, fontScale) < 266;
   const planned = cells.filter((c) => c.day).length;
   const trained = cells.filter((c) => c.done).length;
   return (
-    <Card style={{ gap: Spacing.four }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600' }}>Esta Semana</Text>
-        <Text variant="caption">{trained} de {planned} treinos</Text>
+    <View style={{ gap: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth, borderColor: Colors.line, paddingTop: Spacing.four }}>
+      <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: Spacing.one }}>
+        <Text variant="titleMd" accessibilityRole="header">Esta semana</Text>
+        <Row style={{ gap: Spacing.three }}>
+          {streak > 1 && (
+            <Row style={{ gap: 4 }} accessible accessibilityLabel={`Sequência de ${streak} dias de treino`}>
+              <Flame size={15} color={Colors.voltInk} fill={Colors.voltInk} />
+              <Text variant="label" color={Colors.voltInk} style={{ fontWeight: '700' }}>{streak} dias</Text>
+            </Row>
+          )}
+          <Text variant="label" muted>{trained} de {planned} {planned === 1 ? 'treino' : 'treinos'}</Text>
+        </Row>
       </Row>
-      <Row style={{ gap: Spacing.one }}>
+      <Row style={{ gap: Spacing.one, flexWrap: wrap ? 'wrap' : 'nowrap' }}>
         {cells.map((c) => {
           const state = c.done ? 'concluído' : c.day ? 'treino planejado' : 'descanso';
           return (
@@ -324,37 +308,37 @@ function WeekStrip({ cells }: { cells: WeekCell[] }) {
               key={c.date.toISOString()}
               accessible
               accessibilityLabel={`${WEEKDAY_LONG[c.date.getDay()]}${c.today ? ', hoje' : ''}: ${state}${c.day ? `, ${workoutTitle(c.day)}` : ''}`}
-              style={{ flex: 1, alignItems: 'center', gap: Spacing.two }}>
+              style={{ flex: wrap ? undefined : 1, flexBasis: wrap ? '23%' : undefined, alignItems: 'center', gap: Spacing.two }}>
               <Text variant="caption" color={c.today ? Colors.ink : Colors.inkMuted} style={c.today && { fontWeight: '700' }}>
                 {c.weekday}
               </Text>
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: c.done ? Colors.volt : c.day ? Colors.surface : 'transparent',
+                  backgroundColor: c.done ? Colors.voltSoft : c.day ? Colors.surfaceSunken : 'transparent',
                   borderWidth: c.today ? 2 : 0,
                   borderColor: Colors.ink,
                 }}>
                 {c.done ? (
-                  <Check size={18} strokeWidth={3} color={Colors.onVolt} />
+                  <Check size={16} strokeWidth={2.5} color={Colors.voltInk} />
                 ) : c.day ? (
                   <Dumbbell size={16} color={c.today ? Colors.ink : Colors.inkMuted} />
                 ) : (
                   <Text variant="caption">–</Text>
                 )}
               </View>
-              <Text variant="caption" numberOfLines={1} style={{ fontSize: 10, lineHeight: 13 }}>
+              <Text variant="caption">
                 {c.date.getDate()}
               </Text>
             </View>
           );
         })}
       </Row>
-    </Card>
+    </View>
   );
 }
 
@@ -381,7 +365,7 @@ function WorkoutPicker({ plan, disabled, onClose, onPick }: {
           icon={Dumbbell}
           iconTone="chip"
           title={`${DAY_LABELS[d.day_of_week] ?? d.day_of_week} · ${workoutTitle(d)}`}
-          caption={`${d.exercises.length} exercícios · ~${workoutMinutes(d)} min`}
+          caption={`${d.exercises.length} exercícios · ${workoutMinutes(d)} min`}
           onPress={disabled ? undefined : () => { sheet.current?.dismiss(); onPick(d); }}
         />
       ))}

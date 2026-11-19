@@ -41,7 +41,7 @@ const hooks = new Proxy({}, { get: (_, key) => {
       historyEnabled = enabled;
       return query({ pages: [{ sessions: [{ id: 'session', started_at: now, sets: [{ id: 'set', set_number: 1, weight_kg: 15, reps: 12 }] }] }] });
     }
-    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useWorkoutHistory: [{ id:'session', started_at: now, duration_seconds: 900, workout_name:'Treino A', calories:70 }, outdoor], useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useChatHistory:[{role:'model',content:'Vamos treinar!',created_at:now}]}[key]));
+    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useWorkoutHistory: [{ id:'session', started_at: now, duration_seconds: 900, workout_name:'Treino A', calories:70 }, outdoor], useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useRecentRecords:[{ exercise_library_id: libraryExercise.id, name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }],useChatHistory:[{role:'model',content:'Vamos treinar!',created_at:now}]}[key]));
   };
 } });
 const chain = new Proxy({}, { get: () => () => chain });
@@ -52,6 +52,7 @@ let bellsChecked = 0;
 const scrollViews = [];
 const notificationButtons = [];
 const exerciseThumbnails = [];
+let workoutActions;
 const stubs = {
   'react-native': { ...RN, ScrollView: (props) => { scrollViews.push(props); return React.createElement(RN.ScrollView, props); }, useColorScheme: () => theme, Pressable: (props) => {
     if (props.accessibilityHint === 'Abre a tela de notificações') notificationButtons.push(props);
@@ -69,9 +70,10 @@ const stubs = {
   'expo-crypto': {},
   'expo-location': { Accuracy: { High: 4 } },
   'expo-task-manager': { defineTask() {} },
+  'expo-maps': { AppleMaps: { View: () => null, MapColorScheme: { LIGHT: 'LIGHT', DARK: 'DARK' } } },
   'expo-sqlite/kv-store': { SQLiteStorage: class {} }, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0'}}},
-  '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>query(options?.queryKey?.[0] === 'outdoor-detail' ? { record: outdoor, pending: false } : options?.queryKey?.[0] === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}})},
+  '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>query(options?.queryKey?.[0] === 'outdoor-detail' ? { record: outdoor, pending: false } : options?.queryKey?.[0] === 'outdoor-route' ? outdoor.route : options?.queryKey?.[0] === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : options?.queryKey?.[0] === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}})},
 };
 let cache;
 let onboardingStates = null;
@@ -80,6 +82,16 @@ function load(file) {
   const mod = {exports:{}};cache.set(file,mod);
   const code = ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
   const req=(id)=>{
+    if (id === '@/components/action-menu' && file.endsWith('/app/(tabs)/workouts.tsx')) {
+      const actionMenu = load(path.join(root, 'components/action-menu.tsx'));
+      return {
+        ...actionMenu,
+        ActionMenu: (props) => {
+          workoutActions = props;
+          return React.createElement(actionMenu.ActionMenu, props);
+        },
+      };
+    }
     if (id === 'expo-router' && file.endsWith('/app/exercises/[id].tsx')) return {
       ...stubs[id], useLocalSearchParams: () => ({ id: libraryExercise.id }),
     };
@@ -126,10 +138,18 @@ try {
         notificationButtons.length = 0;
         exerciseThumbnails.length = 0;
         scrollViews.length = 0;
+        workoutActions = undefined;
         const result=renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
         assert.ok(result.length>0);
         if (['empty', 'content'].includes(mode) && file.endsWith('/app/(tabs)/workouts.tsx')) {
-          assert.ok(result.includes('Corrida ou caminhada ao ar livre'));
+          const title = 'Corrida ou caminhada ao ar livre';
+          assert.ok(result.includes('Ações de treino'));
+          assert.ok(!result.includes(title));
+          assert.equal(workoutActions.visible, false);
+          const outdoorAction = workoutActions.items.find((item) => item.key === 'outdoor');
+          assert.equal(outdoorAction?.title, title);
+          outdoorAction.onPress();
+          assert.equal(pushedRoutes.pop(), '/outdoor');
         }
         if (mode === 'content' && file.endsWith('/app/workout/history.tsx')) {
           for (const text of ['Treino A', 'Corrida ao ar livre', '1,20 km']) assert.ok(result.includes(text));

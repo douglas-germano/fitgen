@@ -5,8 +5,6 @@ import { QueryError ,
   Dialog,
   EmptyState,
   Input,
-  ListItem,
-  MetricTile,
   Page,
   PageSkeleton,
   Row,
@@ -16,21 +14,22 @@ import { QueryError ,
   type DialogHandle,
 } from '@/components/ui';
 import * as Haptics from 'expo-haptics';
-import { Droplets, Flame, Heart, LayoutGrid, Ruler, Scale, User, Utensils } from 'lucide-react-native';
+import { Droplets, Ruler, Scale, Utensils } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
-import { WeekChart } from '@/components/charts';
-import { DashboardBottom, DashboardTop, useDayDashboard, type LogKind } from '@/components/dashboard-sections';
+import { TrendChart } from '@/components/charts';
+import { DashboardBottom, DashboardOverview, useDayDashboard, type LogKind } from '@/components/dashboard-sections';
 import { HydrationLogger } from '@/components/hydration-logger';
 import { MealLogger } from '@/components/meal-logger';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useLogMetrics, useMetricHistory } from '@/hooks/queries';
 import { errorMessage } from '@/lib/api';
 import { decimal } from '@/lib/forms';
 import { formatDayMonth, formatDecimal, formatInt } from '@/lib/workout';
 import type { HistoryPoint } from '@/types/api';
+import { useColors } from '@/providers/theme';
 
 type Metric = 'weight' | 'fat' | 'muscle';
 const METRICS: Record<Metric, { title: string; unit: string }> = {
@@ -39,23 +38,19 @@ const METRICS: Record<Metric, { title: string; unit: string }> = {
   muscle: { title: 'Músculo', unit: 'kg' },
 };
 
-const last = (h?: HistoryPoint[]) => (h?.length ? h[h.length - 1].value : undefined);
-
-/** Change over the last 30 days, formatted with sign ("−1,6 kg em 30 dias"). */
-function delta30(h: HistoryPoint[] | undefined, unit: string) {
-  if (!h || h.length < 2) return undefined;
-  const since = Date.now() - 30 * 864e5;
-  const base = h.find((p) => new Date(p.date).getTime() >= since) ?? h[0];
-  const d = h[h.length - 1].value - base.value;
-  if (base === h[h.length - 1]) return undefined;
-  const sign = d > 0 ? '+' : d < 0 ? '−' : '';
-  return `${sign}${formatDecimal(Math.abs(d))} ${unit} em 30 dias`;
+function orderedHistory(history: HistoryPoint[] = []) {
+  return history
+    .filter(({ date, value }) => Number.isFinite(value) && Number.isFinite(new Date(date).getTime()))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 const sameDay = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10);
 
 /** Day summary + body measurements in one screen (the former home dashboard lives here). */
 export default function MetricsScreen() {
+  const Colors = useColors();
+  const { width, fontScale } = useWindowDimensions();
+  const stackTabs = width / Math.max(1, fontScale) < 266;
   const day = useDayDashboard();
   const { profile, dashboard } = day;
   const weight = useMetricHistory('weight');
@@ -73,25 +68,37 @@ export default function MetricsScreen() {
   if (error) return <QueryError title="Medidas" tab error={error} onRetry={() => { day.refetch(); weight.refetch(); fat.refetch(); muscle.refetch(); }} />;
 
   const user = profile.data;
-  const currentWeight = last(weight.data) ?? user?.current_weight_kg ?? undefined;
-  const currentFat = last(fat.data);
-  const currentMuscle = last(muscle.data);
+  const histories = {
+    weight: orderedHistory(weight.data),
+    fat: orderedHistory(fat.data),
+    muscle: orderedHistory(muscle.data),
+  };
+  const series = histories[metric];
+  const { title, unit } = METRICS[metric];
+  const currentWeight = histories.weight.at(-1)?.value ?? user?.current_weight_kg ?? undefined;
+  const current = metric === 'weight' ? currentWeight : series.at(-1)?.value;
+  const chart = series.slice(-6).map(({ date, value }) => ({
+    label: formatDayMonth(date, false),
+    timestamp: new Date(date).getTime(),
+    value,
+  }));
+  const formatValue = (value: number) => `${formatDecimal(value)}${unit === '%' ? '%' : ` ${unit}`}`;
+  const latest = chart.at(-1);
+  const change = latest && chart.length > 1
+    ? Math.round((latest.value - chart[0].value) * 10) / 10
+    : undefined;
+  const variation = change === undefined ? undefined : change === 0
+    ? 'Sem variação no período'
+    : `${change > 0 ? '+' : '−'}${formatDecimal(Math.abs(change))} ${unit === '%' ? 'pp' : unit} no período`;
 
-  // IMC + TMB (Mifflin-St Jeor), matching backend calculations.
-  let bmi: string | undefined;
-  let bmr: number | undefined;
-  if (user?.height_cm && currentWeight !== undefined) {
-    const h = user.height_cm / 100;
-    bmi = formatDecimal(currentWeight / (h * h));
-    if (user.age && user.gender) {
-      bmr = 10 * currentWeight + 6.25 * user.height_cm - 5 * user.age + (user.gender === 'male' ? 5 : -161);
-    }
-  }
-
-  const series = { weight: weight.data, fat: fat.data, muscle: muscle.data }[metric] ?? [];
-  const chart = series.slice(-6).map((p) => ({ label: formatDayMonth(p.date, false), value: p.value }));
+  // Mifflin-St Jeor, matching the backend calculation.
+  const height = user?.height_cm ? user.height_cm / 100 : undefined;
+  const bmi = height && currentWeight !== undefined ? formatDecimal(currentWeight / (height * height)) : undefined;
+  const bmr = user?.height_cm && user.age && user.gender && currentWeight !== undefined
+    ? 10 * currentWeight + 6.25 * user.height_cm - 5 * user.age + (user.gender === 'male' ? 5 : -161)
+    : undefined;
   const volume = dashboard.data?.workout_volume;
-  const records = [...(weight.data ?? [])].reverse();
+  const records = [...histories.weight].reverse();
 
   return (
     <View style={{ flex: 1 }}>
@@ -107,94 +114,97 @@ export default function MetricsScreen() {
         muscle.refetch();
         day.refetch();
       }}>
-      <DashboardTop d={day} onLog={setLogger} />
-
       <View style={{ gap: Spacing.four }}>
-        <Row style={{ gap: Spacing.four, alignItems: 'stretch' }}>
-          <MetricTile
-            icon={User}
-            label="Peso"
-            value={currentWeight !== undefined ? formatDecimal(currentWeight) : '--'}
-            unit="kg"
-            caption={delta30(weight.data, 'kg') ?? 'Sem variação'}
-            onOpen={() => setMetric('weight')}
-          />
-          <MetricTile
-            icon={Heart}
-            label="Gordura"
-            value={currentFat !== undefined ? formatDecimal(currentFat) : '--'}
-            unit="%"
-            caption={delta30(fat.data, 'pp') ?? 'Sem variação'}
-            onOpen={() => setMetric('fat')}
-          />
-        </Row>
-        <Row style={{ gap: Spacing.four, alignItems: 'stretch' }}>
-          <MetricTile
-            icon={LayoutGrid}
-            label="Músculo"
-            value={currentMuscle !== undefined ? formatDecimal(currentMuscle) : '--'}
-            unit="kg"
-            caption={delta30(muscle.data, 'kg') ?? 'Sem variação'}
-            onOpen={() => setMetric('muscle')}
-          />
-          <MetricTile
-            icon={Flame}
-            label="TMB"
-            value={bmr ? formatInt(bmr) : '--'}
-            unit="kcal"
-            caption={bmi ? `IMC ${bmi}` : 'Complete seu perfil'}
-          />
-        </Row>
-      </View>
+        <View accessibilityRole="tablist" style={{
+          flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one,
+          borderRadius: Radius.md, borderCurve: 'continuous',
+          backgroundColor: Colors.surfaceSunken, padding: Spacing.one,
+        }}>
+          {(Object.keys(METRICS) as Metric[]).map((key) => {
+            const selected = metric === key;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                aria-selected={selected}
+                onPress={() => setMetric(key)}
+                style={({ pressed }) => ({
+                  flexGrow: 1, flexBasis: stackTabs ? '100%' : '30%', minWidth: 78, minHeight: 44,
+                  alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: Spacing.two, paddingVertical: Spacing.two,
+                  borderRadius: Radius.sm, borderCurve: 'continuous',
+                  backgroundColor: selected ? Colors.surface : pressed ? Colors.surfaceChip : 'transparent',
+                })}>
+                <Text variant={selected ? 'titleSm' : 'label'} color={selected ? Colors.voltInk : Colors.inkMuted} style={{ textAlign: 'center' }}>
+                  {METRICS[key].title}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title={`${METRICS[metric].title}:`} note="últimos registros" />
-        {chart.length ? (
-          <WeekChart
-            data={chart}
-            formatTick={(v) => `${formatDecimal(v, v % 1 ? 1 : 0)}${metric === 'fat' ? '%' : ''}`}
-            accessibilityLabel={`Evolução de ${METRICS[metric].title.toLowerCase()}`}
-          />
-        ) : (
-          <EmptyState icon={Scale} message="Nenhum registro ainda." />
-        )}
-        {volume && (
-          <ListItem
-            icon={LayoutGrid}
-            title={`Volume de Treino: ${formatInt(volume.volume_kg)} kg`}
-            caption={`${volume.change_percentage >= 0 ? '+' : ''}${formatDecimal(volume.change_percentage, 0)}% vs semana anterior`}
-          />
-        )}
+        <Card style={{ gap: Spacing.three }}>
+          <Text variant="label" muted>{title} atual</Text>
+          <Text
+            variant="display"
+            accessibilityRole="header"
+            style={{ fontSize: 34, lineHeight: 42, fontVariant: ['tabular-nums'] }}>
+            {current !== undefined ? formatValue(current) : 'Sem registro'}
+          </Text>
+          {variation && <Text variant="label" muted>{variation}</Text>}
+          {chart.length > 0 ? (
+            <TrendChart data={chart} formatValue={formatValue} title={`Evolução de ${title.toLowerCase()}`} />
+          ) : (
+            <Text variant="label" muted>Use o botão + para registrar suas medidas.</Text>
+          )}
+        </Card>
       </View>
 
       <View style={{ gap: Spacing.three }}>
         <SectionHeader
-          title="Registros:"
-          action={records.length > 2 ? (showAll ? 'Ver Menos' : 'Ver Todos') : undefined}
+          title="Registros de peso"
+          action={records.length > 2 ? (showAll ? 'Ver menos' : 'Ver todos') : undefined}
           onAction={() => setShowAll((v) => !v)}
         />
         {records.length === 0 ? (
           <EmptyState icon={Scale} message="Registre suas medidas para acompanhar a evolução." />
         ) : (
-          (showAll ? records : records.slice(0, 2)).map((r) => {
-            const f = fat.data?.find((p) => sameDay(p.date, r.date));
-            const m = muscle.data?.find((p) => sameDay(p.date, r.date));
+          (showAll ? records : records.slice(0, 2)).map((r, index) => {
+            const f = histories.fat.find((p) => sameDay(p.date, r.date));
+            const m = histories.muscle.find((p) => sameDay(p.date, r.date));
             const details = [f && `Gordura ${formatDecimal(f.value)}%`, m && `Músculo ${formatDecimal(m.value)} kg`].filter(Boolean).join(' · ');
             return (
-              <Card key={r.date} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.four + 2, paddingHorizontal: Spacing.five }}>
-                <View style={{ flex: 1, gap: 2 }}>
+              <Row key={`${r.date}-${index}`} style={{
+                justifyContent: 'space-between', flexWrap: 'wrap', minHeight: 44,
+                borderTopWidth: StyleSheet.hairlineWidth, borderColor: Colors.line, paddingVertical: Spacing.two,
+              }}>
+                <View style={{ flexGrow: 1, flexShrink: 1, gap: 2 }}>
                   <Text variant="titleMd">{formatDayMonth(r.date)}</Text>
                   {details ? <Text variant="caption" style={{ fontSize: 12 }}>{details}</Text> : null}
                 </View>
                 <Text variant="titleSm" style={{ fontSize: 15 }}>
                   {formatDecimal(r.value)} kg
                 </Text>
-              </Card>
+              </Row>
             );
           })
         )}
       </View>
 
+      {(bmr !== undefined || bmi || volume) && (
+        <View style={{ gap: Spacing.two }}>
+          <SectionHeader title="Indicadores" />
+          {bmr !== undefined && <Text variant="body" muted>Metabolismo basal · {formatInt(bmr)} kcal</Text>}
+          {bmi && <Text variant="body" muted>IMC · {bmi}</Text>}
+          {volume && (
+            <Text variant="body" muted>
+              Volume de treino · {formatInt(volume.volume_kg)} kg · {volume.change_percentage >= 0 ? '+' : ''}{formatDecimal(volume.change_percentage, 0)}% vs. semana anterior
+            </Text>
+          )}
+        </View>
+      )}
+
+      <DashboardOverview d={day} />
       <DashboardBottom d={day} />
 
       {formOpen && <MetricsSheet onClose={() => setFormOpen(false)} />}
@@ -204,7 +214,8 @@ export default function MetricsScreen() {
     <FloatingAddButton label="Adicionar" hint="Abre as opções de medidas" onPress={() => setActionsOpen(true)} />
     <ActionMenu
       visible={actionsOpen}
-      title="O que você quer fazer?"
+      title="Registrar"
+      compact
       onClose={() => setActionsOpen(false)}
       items={[
         {
