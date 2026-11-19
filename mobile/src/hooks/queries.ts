@@ -31,6 +31,7 @@ import type {
   HydrationDaily,
   LibraryExercise,
   LibraryExerciseHistory,
+  PersonalRecord,
   MealEstimate,
   MealType,
   Profile,
@@ -102,6 +103,10 @@ export function useWorkoutHistory() {
     enabled: !!owner,
   });
 }
+
+/** Heaviest-set records from the last two weeks. Optional: the card hides on any error (e.g. older API). */
+export const useRecentRecords = () =>
+  useQuery({ queryKey: ['recent-records'], queryFn: () => api<PersonalRecord[]>('/exercises/records/recent'), retry: false });
 
 /** The workout session in progress, or `null` (the API answers 404 when there is none). */
 export const useActiveSession = () =>

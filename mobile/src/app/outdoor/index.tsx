@@ -1,13 +1,15 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Footprints, MapPin, Route } from 'lucide-react-native';
+import { Check, Footprints, LocateFixed, Pause, Play, Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Platform, View } from 'react-native';
+import { AppState, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { OutdoorStats, OutdoorTrace } from '@/components/outdoor-summary';
-import { Button, Card, Chips, Page, Text, TopBar } from '@/components/ui';
-import { Spacing } from '@/constants/theme';
+import { OutdoorMap } from '@/components/outdoor-map';
+import { OutdoorStats } from '@/components/outdoor-summary';
+import { Button, Page, Row, Text, TopBar } from '@/components/ui';
+import { Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/queries';
+import { useColors } from '@/providers/theme';
 import { AppAlert } from '@/lib/feedback';
 import { estimatedCalories, outdoorName, type OutdoorType } from '@/lib/outdoor';
 import { enableOutdoorBackground, requestOutdoorLocation, startOutdoorLocation, stopOutdoorLocation } from '@/lib/outdoor-location';
@@ -23,6 +25,9 @@ function KeepScreenAwake() {
 const announceError = (error: unknown) => AppAlert.alert('Atividade ao ar livre', error instanceof Error ? error.message : 'Tente novamente.');
 
 export default function OutdoorScreen() {
+  const colors = useColors();
+  const { width, fontScale } = useWindowDimensions();
+  const stackActions = width / Math.max(1, fontScale) < 300;
   const profile = useProfile().data;
   const owner = profile?.id;
   const query = useQueryClient();
@@ -176,57 +181,99 @@ export default function OutdoorScreen() {
   const gpsReady = running && draft.lastFix !== null && draft.lastFix >= draft.runningSince!
     && now - draft.lastFix <= 45_000;
 
+  const gpsStatus = running ? (gpsReady ? 'GPS ativo' : 'Buscando sinal GPS…') : 'Atividade pausada';
+
+  const controls = draft ? (
+    <View style={{ flexDirection: stackActions ? 'column' : 'row', gap: Spacing.two }}>
+      <Button title={running ? 'Pausar' : 'Retomar'} icon={running ? Pause : Play} size="lg"
+        style={stackActions ? undefined : { flex: 1 }} onPress={running ? () => pause() : () => void start()}
+        loading={busy} disabled={seconds >= 86400} />
+      <Button title="Finalizar" accessibilityLabel="Finalizar atividade" variant="soft" size="lg"
+        style={stackActions ? undefined : { flex: 1 }} disabled={!seconds || busy} onPress={finish} />
+    </View>
+  ) : (
+    <Button title={type === 'run' ? 'Iniciar corrida' : 'Iniciar caminhada'} icon={Play} size="lg"
+      onPress={() => void start()} loading={busy} disabled={!owner} />
+  );
+
   return (
-    <Page tab={false} topBar={<TopBar title="Ao ar livre" back />}>
+    <Page topBar={<TopBar title="Ao ar livre" back />} footer={controls}>
       {!draft ? (
         <>
-          <Card style={{ gap: Spacing.three }}>
-            <Text variant="titleLg">Corrida ou caminhada</Text>
-            <Text muted>Escolha sua atividade para acompanhar tempo, distância e trajeto por GPS.</Text>
-            <Chips value={type} onChange={setType} options={[
-              { value: 'run', label: 'Corrida' },
-              { value: 'walk', label: 'Caminhada' },
-            ]} />
-            <Button title={type === 'run' ? 'Iniciar corrida' : 'Iniciar caminhada'} icon={Footprints}
-              onPress={() => void start()} loading={busy} disabled={!owner} />
-          </Card>
+          <View style={{ gap: Spacing.two }}>
+            <Text variant="display" accessibilityRole="header">Corrida e caminhada</Text>
+            <Text muted style={{ fontSize: 16, lineHeight: 23 }}>
+              Registre o tempo, a distância e o trajeto pelo GPS.
+            </Text>
+          </View>
+
+          <View accessibilityRole="radiogroup" accessibilityLabel="Tipo de atividade" style={{ gap: Spacing.two }}>
+            {([
+              { value: 'run', title: 'Corrida', Icon: Zap },
+              { value: 'walk', title: 'Caminhada', Icon: Footprints },
+            ] as const).map(({ value, title, Icon }) => {
+              const selected = type === value;
+              return (
+                <Pressable key={value} accessibilityRole="radio" aria-checked={selected}
+                  onPress={() => setType(value)} disabled={busy}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+                    minHeight: 60, padding: Spacing.four, borderRadius: Radius.md, borderCurve: 'continuous',
+                    borderWidth: StyleSheet.hairlineWidth, borderColor: selected ? colors.voltInk : colors.line,
+                    backgroundColor: selected ? colors.voltSoft : pressed ? colors.surfaceChip : colors.surfaceSunken,
+                  })}>
+                  <Icon size={22} color={selected ? colors.voltInk : colors.inkMuted} />
+                  <Text variant="titleMd" style={{ flex: 1 }}>{title}</Text>
+                  {selected && <Check size={20} color={colors.voltInk} />}
+                </Pressable>
+              );
+            })}
+          </View>
+
           {Platform.OS === 'ios' && !backgroundAllowed && (
-            <Card style={{ gap: Spacing.two }}>
-              <Text variant="titleSm">GPS com a tela bloqueada</Text>
-              <Text muted>Permita o acesso à localização em segundo plano para guardar o trajeto com o iPhone bloqueado.</Text>
-              <Button variant="soft" title="Permitir GPS em segundo plano" disabled={busy} onPress={() => {
+            <View style={{ gap: Spacing.two, paddingTop: Spacing.four, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line }}>
+              <Row>
+                <LocateFixed size={18} color={colors.inkMuted} />
+                <Text variant="titleMd" style={{ flex: 1 }}>GPS com o iPhone bloqueado</Text>
+              </Row>
+              <Text muted>Para continuar registrando o trajeto com a tela bloqueada, permita a localização em segundo plano.</Text>
+              <Pressable accessibilityRole="button" disabled={busy} style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => {
                 void enableOutdoorBackground().then((allowed) => {
                   setBackgroundAllowed(allowed);
                   if (!allowed) setGpsMessage('Para registrar com a tela bloqueada, selecione Sempre nos ajustes de localização do FitGen.');
                 }).catch(announceError);
-              }} />
-            </Card>
+              }}>
+                <Text variant="titleSm" color={colors.voltInk}>Permitir GPS em segundo plano</Text>
+              </Pressable>
+            </View>
           )}
-          {Platform.OS === 'web' && <Text muted>Mantenha esta aba visível durante a atividade para registrar o GPS.</Text>}
+          {Platform.OS === 'web' && <Text variant="label" muted>Mantenha esta aba visível para registrar o trajeto.</Text>}
         </>
       ) : (
         <>
           {running && !draft.background && <KeepScreenAwake />}
-          <View style={{ gap: Spacing.one }}>
-            <Text variant="titleLg">{outdoorName(draft.type)}</Text>
-            <Text variant="caption" accessibilityLiveRegion="polite">
-              {running ? (gpsReady ? 'GPS ativo' : 'Procurando sinal GPS…') : 'Atividade pausada'}
-            </Text>
-            {running && !draft.background && <Text muted>Mantenha esta tela aberta durante o percurso.</Text>}
+          <View style={{ gap: Spacing.two }}>
+            <Text variant="display" accessibilityRole="header">{outdoorName(draft.type)}</Text>
+            <Row>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: gpsReady ? colors.voltInk : colors.lineStrong }} />
+              <Text variant="label" color={gpsReady ? colors.voltInk : colors.inkMuted} accessibilityLiveRegion="polite">
+                {gpsStatus}
+              </Text>
+            </Row>
+            {running && !draft.background && <Text variant="label" muted>Mantenha esta tela aberta durante o percurso.</Text>}
           </View>
+
           <OutdoorStats seconds={seconds} meters={draft.meters} calories={estimatedCalories(draft.type, draft.meters, draft.weight)} />
-          <Button title={running ? 'Pausar' : 'Retomar'} onPress={running ? () => pause() : () => void start()}
-            loading={busy} disabled={seconds >= 86400} />
-          <Button title="Finalizar atividade" icon={Route} variant="soft" disabled={!seconds || busy} onPress={finish} />
-          {!running && <Button title="Descartar atividade" variant="soft" disabled={busy} onPress={discard} />}
-          <OutdoorTrace route={draft.route} />
-          {!draft.route.length && <Card style={{ gap: Spacing.two }}>
-            <MapPin size={20} />
-            <Text muted>Assim que o GPS encontrar sua posição, o trajeto aparece aqui.</Text>
-          </Card>}
+          <OutdoorMap live={running} route={draft.route} emptyMessage="O trajeto aparece após o primeiro ponto de GPS." />
+          {!running && (
+            <Pressable accessibilityRole="button" onPress={discard} disabled={busy}
+              style={{ minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' }}>
+              <Text variant="titleSm" color={colors.danger}>Descartar atividade</Text>
+            </Pressable>
+          )}
         </>
       )}
-      {gpsMessage && <Text muted accessibilityLiveRegion="polite">{gpsMessage}</Text>}
+      {gpsMessage && <Text variant="label" muted accessibilityLiveRegion="polite">{gpsMessage}</Text>}
     </Page>
   );
 }

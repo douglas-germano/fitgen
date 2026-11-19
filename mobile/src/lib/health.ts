@@ -1,7 +1,8 @@
 /**
- * Apple Health (HealthKit) integration — iOS development/production builds only.
+ * Health integration: Apple Health (HealthKit) on iOS, Health Connect on Android (see health-connect.ts).
+ * Development/production builds only.
  *
- * The native module is loaded lazily: Expo Go, Android and web don't ship it, and importing it there would crash.
+ * The native modules are loaded lazily: Expo Go and web don't ship them, and importing them there would crash.
  * Every write is best-effort: a Health failure never breaks the FitGen action that triggered it.
  */
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -69,12 +70,33 @@ function healthKit(): HealthKit | null {
   return cached;
 }
 
-/** Whether this build/device can talk to Apple Health at all. */
-export const isHealthAvailable = () => healthKit() !== null;
+type HealthConnect = typeof import('./health-connect');
+
+let cachedAndroid: HealthConnect | null | undefined;
+
+/** Health Connect (Android). Whether Health Connect itself is installed is checked when connecting. */
+function healthConnect(): HealthConnect | null {
+  if (cachedAndroid !== undefined) return cachedAndroid;
+  cachedAndroid = null;
+  if (Platform.OS !== 'android' || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    cachedAndroid = require('./health-connect');
+  } catch {
+    // Native module missing (build without it) — Health stays unavailable.
+  }
+  return cachedAndroid ?? null;
+}
+
+/** Name of the platform's health app, for UI copy. */
+export const healthProviderName = () => (Platform.OS === 'android' ? 'Health Connect' : 'Apple Saúde');
+
+/** Whether this build/device can talk to Apple Health / Health Connect at all. */
+export const isHealthAvailable = () => healthKit() !== null || healthConnect() !== null;
 
 /** Why Health is unavailable, for the settings row. */
 export function healthUnavailableReason(): string {
-  if (Platform.OS !== 'ios') return 'Disponível apenas no iPhone';
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'Disponível apenas no iPhone e no Android';
   if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return 'Requer o app instalado (não funciona no Expo Go)';
   return 'O app Saúde não está disponível neste aparelho';
 }
@@ -104,8 +126,14 @@ async function setEnabled(value: boolean) {
   }
 }
 
-/** Shows the iOS permission sheet and turns syncing on. Returns false when Health is unavailable. */
+/** Shows the permission sheet and turns syncing on. Returns false when Health is unavailable or nothing was granted. */
 export async function connectHealth(): Promise<boolean> {
+  const hc = healthConnect();
+  if (hc) {
+    if (!(await hc.connect())) return false;
+    await setEnabled(true);
+    return true;
+  }
   const hk = healthKit();
   if (!hk) return false;
   await hk.requestAuthorization({ toRead: READ, toShare: SHARE });
@@ -117,11 +145,13 @@ export async function connectHealth(): Promise<boolean> {
 export const disconnectHealth = () => setEnabled(false);
 
 /** Runs `fn` only when Health is connected; swallows errors so FitGen flows never fail because of Health. */
-async function whenEnabled<T>(fn: (hk: HealthKit) => Promise<T>): Promise<T | undefined> {
+async function whenEnabled<T>(fn: (hk: HealthKit) => Promise<T>, android?: (hc: HealthConnect) => Promise<T>): Promise<T | undefined> {
   const hk = healthKit();
-  if (!hk || !(await isHealthEnabled())) return undefined;
+  const hc = healthConnect();
+  if ((!hk && !hc) || !(await isHealthEnabled())) return undefined;
   try {
-    return await fn(hk);
+    if (hc) return android ? await android(hc) : undefined;
+    return await fn(hk!);
   } catch (error) {
     if (__DEV__) console.warn('[health]', error);
     return undefined;
@@ -136,7 +166,7 @@ export function saveWaterToHealth(ml: number) {
   return whenEnabled(async (hk) => {
     const now = new Date();
     await hk.saveQuantitySample('HKQuantityTypeIdentifierDietaryWater', 'mL', ml, now, now, SOURCE);
-  });
+  }, (hc) => hc.saveWater(ml));
 }
 
 export type HealthMeal = { name?: string; calories: number; protein: number; carbs: number; fats: number };
@@ -155,7 +185,7 @@ export function saveMealToHealth(meal: HealthMeal) {
     if (!samples.length) return;
     await hk.saveCorrelationSample('HKCorrelationTypeIdentifierFood', samples, now, now,
       meal.name ? { HKFoodType: meal.name } : undefined);
-  });
+  }, (hc) => (meal.calories > 0 ? hc.saveMeal(meal) : Promise.resolve()));
 }
 
 export type HealthBody = {
@@ -175,7 +205,7 @@ export function saveBodyToHealth(entry: HealthBody) {
     if (entry.muscle_mass_kg) writes.push(hk.saveQuantitySample('HKQuantityTypeIdentifierLeanBodyMass', 'kg', entry.muscle_mass_kg, now, now));
     if (entry.waist_cm) writes.push(hk.saveQuantitySample('HKQuantityTypeIdentifierWaistCircumference', 'cm', entry.waist_cm, now, now));
     await Promise.all(writes);
-  });
+  }, (hc) => hc.saveBody(entry));
 }
 
 /** Saves a finished FitGen session as a strength-training workout. */
@@ -191,7 +221,7 @@ export function saveWorkoutToHealth({ durationSeconds, calories, name }: { durat
       calories > 0 ? { energyBurned: calories } : undefined,
       name ? { HKWorkoutBrandName: 'FitGen', FitGenWorkout: name } : { HKWorkoutBrandName: 'FitGen' },
     );
-  });
+  }, (hc) => hc.saveWorkout({ durationSeconds, calories, name }));
 }
 
 // ---------- Reads ----------
@@ -214,7 +244,7 @@ export function readTodayActivity() {
       activeKcal: Math.round(energy.sumQuantity?.quantity ?? 0),
       distanceKm: distance.sumQuantity?.quantity ?? 0,
     };
-  });
+  }, (hc) => hc.readToday());
 }
 
 export type HealthBodyReading = HealthBody & { date?: Date };
@@ -236,7 +266,7 @@ export function readLatestBody() {
       waist_cm: round(waist?.quantity),
       date: weight?.endDate,
     };
-  });
+  }, (hc) => hc.readLatestBodyReading());
 }
 
 export type HealthImportSample = {
@@ -246,6 +276,8 @@ export type HealthImportSample = {
 
 /** Errors propagate to the sync status; a failed read is never reported as a successful sync. */
 export async function readHealthImports(): Promise<HealthImportSample[]> {
+  const hc = healthConnect();
+  if (hc) return (await isHealthEnabled()) ? hc.readImports() : [];
   const hk = healthKit();
   if (!hk || !(await isHealthEnabled())) return [];
   const startDate = new Date();
@@ -277,6 +309,8 @@ export async function readHealthImports(): Promise<HealthImportSample[]> {
 }
 
 export async function readHealthFortnight(): Promise<ActivityDay[]> {
+  const hc = healthConnect();
+  if (hc) return (await isHealthEnabled()) ? hc.readFortnight() : [];
   const hk = healthKit();
   if (!hk || !(await isHealthEnabled())) return [];
   const { previous, end } = healthWindows();

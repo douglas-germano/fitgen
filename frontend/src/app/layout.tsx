@@ -16,26 +16,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// The same code is published twice (see scripts/prune-export.mjs): the sales page (lp.fitgen.pro)
-// and the admin panel (admin.fitgen.pro, an installable PWA).
-const isLanding = process.env.NEXT_PUBLIC_SITE === "lp";
-
-export const metadata: Metadata = isLanding
-  ? {
-      title: "FitGen — Treino e dieta personalizados com IA",
-      description: "O FitGen cria um plano de treino adequado ao seu nível, objetivos e tempo disponível e ajusta a progressão conforme você evolui.",
-    }
-  : {
-      title: "FitGen Admin",
-      description: "Painel administrativo do FitGen.",
-      manifest: "/manifest.json",
-      robots: { index: false, follow: false },
-      appleWebApp: {
-        capable: true,
-        statusBarStyle: "default",
-        title: "FitGen",
-      },
-    };
+export const metadata: Metadata = {
+  title: "FitGen — Treino e dieta personalizados com IA",
+  description: "O FitGen cria um plano de treino adequado ao seu nível, objetivos e tempo disponível e ajusta a progressão conforme você evolui.",
+};
 
 import { Toaster } from "@/components/ui/sonner";
 import QueryProvider from "@/providers/QueryProvider";

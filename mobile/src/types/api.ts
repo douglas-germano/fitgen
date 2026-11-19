@@ -101,6 +101,15 @@ export interface LibraryExerciseHistory {
   has_more: boolean;
 }
 
+/** GET /exercises/records/recent: a new heaviest set, compared with every earlier session. */
+export interface PersonalRecord {
+  exercise_library_id: string;
+  name: string;
+  weight_kg: number;
+  previous_kg: number;
+  achieved_at: string;
+}
+
 export interface WorkoutDay {
   id: string;
   name?: string;

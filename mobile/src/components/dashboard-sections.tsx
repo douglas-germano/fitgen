@@ -1,12 +1,10 @@
 import { router } from 'expo-router';
-import { ArrowUpRight, Droplets, Flame, Footprints, Heart, MessagesSquare, Trophy, Utensils, type LucideIcon } from 'lucide-react-native';
-import { AppActionSheet, AppAlert } from '@/lib/feedback';
+import { Droplets, Flame, Footprints, Heart, MessagesSquare, Trophy, Utensils } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 
 import { HealthWeekCard } from '@/components/health-week';
 import {
-  BadgeIcon,
   Button,
   Card,
   DayPicker,
@@ -29,7 +27,6 @@ import {
   useProfile,
   useStreaks,
 } from '@/hooks/queries';
-import { useColors } from '@/providers/theme';
 import {
   currentWeek,
   formatInt,
@@ -85,8 +82,8 @@ export function useDayDashboard() {
 }
 export type DayDashboard = ReturnType<typeof useDayDashboard>;
 
-/** Day summary, quick logging, this week's schedule and activity/streak tiles. */
-export function DashboardTop({ d, onLog }: { d: DayDashboard; onLog: (kind: LogKind) => void }) {
+/** Day summary, coach, this week's schedule and activity. */
+export function DashboardOverview({ d }: { d: DayDashboard }) {
   const stats = d.dashboard.data;
   const plan = d.plan;
   const today = new Date();
@@ -100,23 +97,6 @@ export function DashboardTop({ d, onLog }: { d: DayDashboard; onLog: (kind: LogK
   const proteinGoal = d.diet.data?.macro_targets?.protein;
   const planDays = plan?.days?.length ?? 0;
   const streak = stats?.consistency?.current_streak ?? d.streaks.data?.workout_streak ?? 0;
-
-  const openMenu = () => {
-    const options = ['Registrar Refeição', 'Hidratação', 'Cancelar'];
-    const go = (i: number) => {
-      if (i === 0) onLog('meal');
-      if (i === 1) onLog('water');
-    };
-    if (Platform.OS === 'ios') {
-      AppActionSheet.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, go);
-    } else {
-      AppAlert.alert('Resumo do Dia', undefined, [
-        { text: options[0], onPress: () => go(0) },
-        { text: options[1], onPress: () => go(1) },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
-  };
 
   const startToday = () => {
     if (plan && todayWorkout) router.push(`/workout/${plan.id}/play/${todayWorkout.id}`);
@@ -136,7 +116,6 @@ export function DashboardTop({ d, onLog }: { d: DayDashboard; onLog: (kind: LogK
         icon={Flame}
         title="Resumo do Dia"
         subtitle={plan ? plan.name : 'Sem plano de treino ativo'}
-        onMore={openMenu}
         stats={[
           {
             value: `${formatInt(kcal)} kcal`,
@@ -159,12 +138,14 @@ export function DashboardTop({ d, onLog }: { d: DayDashboard; onLog: (kind: LogK
         ]}
       />
 
-      <OttoCard />
-
-      <Row style={{ gap: Spacing.three, alignItems: 'stretch' }}>
-        <RegisterCard icon={Utensils} title="Registrar refeição" caption="Descreva ou tire uma foto" onPress={() => onLog('meal')} />
-        <RegisterCard icon={Droplets} title="Registrar hidratação" caption="Adicione a água que bebeu" onPress={() => onLog('water')} />
-      </Row>
+      <ListItem
+        icon={MessagesSquare}
+        iconTone="chip"
+        title="Converse com o Otto"
+        caption="Tire dúvidas sobre seu treino e sua dieta"
+        onPress={() => router.push('/coach')}
+        arrow
+      />
 
       {/* This week */}
       <View style={{ gap: Spacing.three }}>
@@ -269,38 +250,5 @@ export function DashboardBottom({ d }: { d: DayDashboard }) {
       </View>
       <HealthWeekCard />
     </>
-  );
-}
-
-/** Entry point to the Otto chat. */
-function OttoCard() {
-  const Colors = useColors();
-  return (
-    <Card onPress={() => router.push('/coach')} accessibilityLabel="Conversar com o Otto" accessibilityHint="Abre o chat com seu coach de IA">
-      <Row style={{ gap: Spacing.three }}>
-        <BadgeIcon icon={MessagesSquare} size={44} />
-        <View style={{ flex: 1, gap: Spacing.one }}>
-          <Text variant="titleSm">Converse com o Otto</Text>
-          <Text variant="caption">Tire dúvidas sobre seu treino e sua dieta</Text>
-        </View>
-        <ArrowUpRight size={18} color={Colors.ink} />
-      </Row>
-    </Card>
-  );
-}
-
-function RegisterCard({ icon, title, caption, onPress }: { icon: LucideIcon; title: string; caption: string; onPress: () => void }) {
-  const Colors = useColors();
-  return (
-    <Card onPress={onPress} accessibilityLabel={title} style={{ flex: 1, gap: Spacing.three }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <BadgeIcon icon={icon} size={36} />
-        <ArrowUpRight size={18} color={Colors.ink} />
-      </Row>
-      <View style={{ gap: Spacing.one }}>
-        <Text variant="titleSm">{title}</Text>
-        <Text variant="caption">{caption}</Text>
-      </View>
-    </Card>
   );
 }

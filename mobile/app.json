@@ -2,7 +2,7 @@
   "expo": {
     "name": "FitGen",
     "slug": "fitgen",
-    "version": "1.0.0",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fitgen",
@@ -66,6 +66,23 @@
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.READ_LEAN_BODY_MASS",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_HEALTH_DATA_HISTORY",
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.WRITE_HYDRATION",
+        "android.permission.health.WRITE_NUTRITION",
+        "android.permission.health.WRITE_WEIGHT",
+        "android.permission.health.WRITE_BODY_FAT",
+        "android.permission.health.WRITE_LEAN_BODY_MASS"
       ]
     },
     "web": {
@@ -113,6 +130,15 @@
           "NSHealthShareUsageDescription": "O FitGen lê seus passos, energia ativa e medidas corporais do app Saúde para acompanhar sua evolução.",
           "NSHealthUpdateUsageDescription": "O FitGen salva no app Saúde seus treinos, refeições, água e medidas registrados no app.",
           "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ],
       [

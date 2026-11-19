@@ -20,7 +20,11 @@ export async function startOutdoorLocation(owner: string, id: string, onError: (
         heading: coords.heading, speed: coords.speed,
       },
     }], owner);
-  }, onError, { enableHighAccuracy: true, maximumAge: 0 });
+  }, (error) => {
+    // POSITION_UNAVAILABLE / TIMEOUT are transient: the watch keeps running and the screen
+    // falls back to "Buscando sinal GPS…" once the last fix goes stale.
+    if (error.code === error.PERMISSION_DENIED) onError();
+  }, { enableHighAccuracy: true, maximumAge: 0 });
   return false;
 }
 

@@ -34,6 +34,8 @@ const activeKey = 'outdoor.active';
 const draftKey = (owner: string) => `outdoor.draft.${owner}`;
 const pendingKey = (owner: string) => `outdoor.pending.${owner}`;
 
+const FIX_GRACE_MS = 10_000;
+
 let cachedDraft: { key: string; raw: string | null; value: OutdoorDraft | null } | undefined;
 
 export function readDraft(owner: string): OutdoorDraft | null {
@@ -118,11 +120,14 @@ export function recordLocations(locations: LocationObject[], expectedOwner?: str
 
   const route = draft.route.slice();
   let { lastPointAt, lastFix, meters } = draft;
-  for (const { coords, timestamp } of locations) {
+  for (const { coords, timestamp: fixedAt } of locations) {
     const { accuracy, latitude, longitude } = coords;
+    // The first fix after starting is often a cached one a few seconds older than the watcher;
+    // accept it as the starting point instead of waiting for the next one.
+    if (!Number.isFinite(fixedAt) || fixedAt < draft.runningSince - FIX_GRACE_MS) continue;
+    const timestamp = Math.max(fixedAt, draft.runningSince);
     if (durationSeconds(draft, timestamp) >= 86400) continue;
-    if (timestamp < draft.runningSince || timestamp <= (lastFix ?? 0) ||
-        !Number.isFinite(timestamp) || accuracy === null || !Number.isFinite(accuracy) || accuracy > 30 || accuracy < 0 ||
+    if (timestamp <= (lastFix ?? 0) || accuracy === null || !Number.isFinite(accuracy) || accuracy > 30 || accuracy < 0 ||
         !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
         !Number.isFinite(longitude) || Math.abs(longitude) > 180) continue;
 

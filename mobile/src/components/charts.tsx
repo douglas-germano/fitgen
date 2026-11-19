@@ -4,14 +4,15 @@
  * `surface-sunken` card.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
-import Svg, { Line, Rect } from 'react-native-svg';
+import { useWindowDimensions, View } from 'react-native';
+import Svg, { Circle, Line, Polyline, Rect } from 'react-native-svg';
 
 import { Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 
 export type ChartPoint = { label: string; value: number };
+export type TrendPoint = ChartPoint & { timestamp: number };
 
 const TICK_W = 46;
 
@@ -22,6 +23,62 @@ function niceScale(max: number) {
   const norm = raw / mag;
   const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
   return { top: step * 4, ticks: [1, 2, 3, 4].map((i) => step * i) };
+}
+
+/** A time series with a labeled axis that fits the observations. */
+export function TrendChart({ data, formatValue, title }: {
+  data: TrendPoint[];
+  formatValue: (value: number) => string;
+  title: string;
+}) {
+  const Colors = useColors();
+  const { fontScale } = useWindowDimensions();
+  const [width, setWidth] = useState(0);
+  const first = data[0];
+  const latest = data.at(-1);
+  if (!first || !latest) return null;
+
+  const low = Math.min(...data.map(({ value }) => value));
+  const high = Math.max(...data.map(({ value }) => value));
+  const step = Math.max(1, niceScale(high - low).ticks[0] * 2);
+  const bottom = Math.max(0, Math.floor((low - step / 4) / step) * step);
+  const top = Math.ceil((high + step / 4) / step) * step;
+  const ticks = [top, (top + bottom) / 2, bottom];
+  const height = Math.max(108, 82 * fontScale);
+  const axisWidth = Math.min(width * 0.42, 68 * fontScale);
+  const plotWidth = Math.max(0, width - axisWidth - Spacing.two);
+  const inset = 5;
+  const y = (value: number) => inset + (top - value) / (top - bottom) * (height - inset * 2);
+  const duration = latest.timestamp - first.timestamp;
+  const points = data.map((point) => ({
+    x: duration > 0 ? inset + (point.timestamp - first.timestamp) / duration * Math.max(0, plotWidth - inset * 2) : plotWidth / 2,
+    y: y(point.value),
+  }));
+
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={`${title}. ${data.map((point) => `${point.label}: ${formatValue(point.value)}`).join('; ')}`}>
+      <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: Spacing.two, minHeight: height }}>
+        {width > 0 && <>
+          <Svg width={plotWidth} height={height}>
+            {ticks.map((tick) => <Line key={tick} x1={0} x2={plotWidth} y1={y(tick)} y2={y(tick)} stroke={Colors.line} />)}
+            {points.length > 1 && (
+              <Polyline points={points.map(({ x, y: py }) => `${x},${py}`).join(' ')} fill="none" stroke={Colors.voltInk} strokeWidth={2.5} strokeLinejoin="round" />
+            )}
+            {points.map(({ x, y: py }, index) => (
+              <Circle key={index} cx={x} cy={py} r={index === points.length - 1 ? 4 : 2.5} fill={Colors.voltInk} />
+            ))}
+          </Svg>
+          <View style={{ width: axisWidth, justifyContent: 'space-between' }}>
+            {ticks.map((tick) => <Text key={tick} variant="caption" style={{ textAlign: 'right', fontVariant: ['tabular-nums'] }}>{formatValue(tick)}</Text>)}
+          </View>
+        </>}
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two, marginRight: axisWidth, marginTop: Spacing.one }}>
+        <Text variant="caption" style={{ flexShrink: 1 }}>{first.label}</Text>
+        {first.label !== latest.label && <Text variant="caption" style={{ flexShrink: 1, textAlign: 'right' }}>{latest.label}</Text>}
+      </View>
+    </View>
+  );
 }
 
 export function WeekChart({

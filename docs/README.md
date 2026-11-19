@@ -14,17 +14,16 @@ Plataforma completa de fitness e nutrição impulsionada por IA (LLMs via OpenRo
 - **Python 3.13**
 
 ### Frontend
-- **Next.js 16** com React 19
-- **TypeScript**
-- **Tailwind CSS 4** + shadcn/ui (Radix UI)
-- **React Query** (@tanstack/react-query)
-- **Recharts** para gráficos
-- **Framer Motion** para animações
-- **PWA** habilitado
+
+- **Admin** em TanStack Start e Vite
+- **Landing e checkout** em Next.js
+- **React 19**, TypeScript, Tailwind CSS 4 e Radix UI
+- **TanStack Query** e **Recharts** no painel
 
 ### Mobile
-- **Capacitor 8** (iOS + Android)
-- **App ID**: `com.douglas.fitgen`
+
+- **React Native e Expo** para iOS, Android e PWA
+- Identificador do app `com.douglas.fitgen`
 
 ## Estrutura do Projeto
 
@@ -45,19 +44,11 @@ fitgen/
 │   ├── migrations/           # Alembic migrations
 │   ├── requirements.txt
 │   └── wsgi.py
-├── frontend/                 # Pasta raiz do Next.js (src/)
-│   ├── src/
-│   │   ├── app/              # App Router (páginas)
-│   │   ├── components/       # Componentes React
-│   │   ├── lib/              # Utilitários (API client, etc.)
-│   │   ├── services/         # Chamadas à API
-│   │   ├── contexts/         # React Contexts
-│   │   ├── hooks/            # Custom Hooks
-│   │   ├── types/            # TypeScript types
-│   │   └── providers/        # Context Providers
-│   ├── ios/                  # Capacitor iOS
-│   ├── android/              # Capacitor Android
-│   └── capacitor.config.ts
+├── frontend/                 # Aplicações web
+│   ├── admin/                # Painel administrativo (TanStack Start)
+│   ├── src/app/              # Landing, checkout e páginas legais (Next.js)
+│   └── src/components/       # Componentes de interface
+├── mobile/                   # App Expo para iOS, Android e PWA
 ├── docs/                     # Documentação
 └── ecosystem.config.js       # PM2 config (dev local)
 ```
@@ -76,11 +67,11 @@ python -m flask run --port 5001
 
 ### Frontend
 ```bash
+cd frontend
 npm install
-npm run dev
+npm run dev          # landing em http://localhost:3000
+npm run dev:admin    # painel em http://localhost:3001
 ```
-
-Acesse [http://localhost:3000](http://localhost:3000).
 
 ### Variáveis de Ambiente
 
@@ -89,8 +80,8 @@ Consulte [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md) para a lista completa de variáv
 ## Deploy
 
 - **Backend**: Railway (ver [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md))
-- **Frontend**: Cloudflare Pages (`npm run pages:build` → output `out/`)
-- **Mobile**: Capacitor → App Store / Play Store
+- **Admin e landing** no [Cloudflare Pages](CLOUDFLARE.md), com `npm run build:pages` e `npm run build:lp`
+- **App iOS e Android** com EAS Build. O [PWA Expo](PWA.md) é publicado no Cloudflare Workers.
 
 ## Documentação
 
