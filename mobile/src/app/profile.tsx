@@ -30,7 +30,6 @@ import { uploadableFile } from '@/lib/upload';
 import type { Profile } from '@/types/api';
 import { useConnectHealth, useGamificationProgress, useHealthEnabled, useProfile, useStreaks } from '@/hooks/queries';
 import { healthUnavailableReason, isHealthAvailable } from '@/lib/health';
-import { HealthSyncStatus } from '@/components/health-week';
 import { useHealthSync } from '@/hooks/use-health-sync';
 import { api, errorMessage } from '@/lib/api';
 import { passwordError } from '@/lib/forms';
@@ -130,7 +129,6 @@ export default function ProfileScreen() {
       {Platform.OS === 'ios' && <View style={{ gap: Spacing.three }}>
         <SectionHeader title="Integrações:" />
         <AppleHealthItem />
-        <HealthSyncStatus />
       </View>}
 
       <View style={{ gap: Spacing.three }}>
