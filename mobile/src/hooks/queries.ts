@@ -14,6 +14,7 @@ import {
   saveMealToHealth,
   saveWaterToHealth,
 } from '@/lib/health';
+import { outdoorHistory } from '@/lib/outdoor-api';
 import { normalizeNutrition, normalizeSessions, normalizeWorkout } from '@/lib/normalize';
 import type {
   Achievement,
@@ -86,17 +87,21 @@ export function useActiveWorkoutPlan() {
   };
 }
 
-export const useWorkoutHistory = () =>
-  useQuery({
+export function useWorkoutHistory() {
+  const owner = useProfile().data?.id;
+  return useQuery({
     queryKey: ['workout-history'],
     queryFn: async () => {
-      const [native, imported] = await Promise.all([
+      const [native, imported, outdoor] = await Promise.all([
         api<ExerciseSessionSummary[]>('/exercises/history?days=90&limit=500'),
         api<ExerciseSessionSummary[]>('/health/workouts'),
+        owner ? outdoorHistory(owner) : [],
       ]);
-      return normalizeSessions([...native, ...imported]);
+      return normalizeSessions([...native, ...imported, ...outdoor]);
     },
+    enabled: !!owner,
   });
+}
 
 /** The workout session in progress, or `null` (the API answers 404 when there is none). */
 export const useActiveSession = () =>

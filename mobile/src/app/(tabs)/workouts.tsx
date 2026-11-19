@@ -15,7 +15,7 @@ import { QueryError ,
   type DialogHandle,
 } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
-import { BarChart3, BookOpen, Check, ClipboardList, Dumbbell, History, Moon, Play, Sparkles, Timer } from 'lucide-react-native';
+import { BarChart3, BookOpen, Check, ClipboardList, Dumbbell, History, Moon, Play, Route, Sparkles, Timer } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -84,7 +84,7 @@ export default function WorkoutsScreen() {
   const today = todaysWorkout(plan);
   const sessions = history.data ?? [];
   const todaySession = sessions
-    .filter((s) => !s.from_health && isSameDay(new Date(s.started_at), new Date()))
+    .filter((s) => !s.from_health && !s.outdoor_type && isSameDay(new Date(s.started_at), new Date()))
     .sort((a, b) => b.started_at.localeCompare(a.started_at))[0];
   const activeSession = active.data ?? null;
   const next = nextWorkout(plan);
@@ -109,7 +109,7 @@ export default function WorkoutsScreen() {
 
   // Elapsed time is known; the API does not define a fixed plan duration.
   const weeks = weeksSince(plan?.created_at);
-  const cells = weekCells(plan, sessions);
+  const cells = weekCells(plan, sessions.filter((session) => !session.outdoor_type));
 
   // The session is re-fetched whenever the tab regains focus, so the snapshot is fresh enough.
   const activeMinutes = activeSession ? Math.floor(activeSession.elapsed_seconds / 60) : 0;
@@ -154,6 +154,14 @@ export default function WorkoutsScreen() {
           <Play size={20} color={Colors.onVolt} fill={Colors.onVolt} />
         </Pressable>
       )}
+
+      <ListItem
+        icon={Route}
+        title="Corrida ou caminhada ao ar livre"
+        caption="Registre tempo, distância e trajeto por GPS"
+        arrow
+        onPress={() => router.push('/outdoor')}
+      />
 
       {!plan ? (
         <EmptyState
