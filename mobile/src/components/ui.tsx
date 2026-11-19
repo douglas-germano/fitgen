@@ -195,7 +195,9 @@ export function TopBar({
   leading?: ReactNode;
 }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three }}>
+    // Fixed minimum height: without it the bar is as tall as its tallest child
+    // (22 with no actions, 40 with a back button, 44 with the bell/avatar), so headers jumped between pages.
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: Control.lg }}>
       <View style={{ width: actionWidth }}>
         {leading ?? (back || onBack ? (
           <IconButton icon={ChevronLeft} label="Voltar" onPress={onBack ?? (() => router.back())} />
