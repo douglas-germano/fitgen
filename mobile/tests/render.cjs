@@ -59,6 +59,7 @@ const stubs = {
   'react-native-svg': svg,
   'lucide-react-native':icons,
   'expo-router':{router:{push:(href)=>pushedRoutes.push(href)},useFocusEffect:()=>{},useLocalSearchParams:()=>({id:'plan',dayId:'day'}),Link:({children})=>children},
+  'expo-blur':{BlurView:({children})=>React.createElement('div',null,children)},
   'expo-image':{Image:({accessibilityLabel,source})=>React.createElement('img',{alt:accessibilityLabel,src:typeof source === 'string' ? source : undefined})},
   'expo-keep-awake':{useKeepAwake(){}}, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0'}}},
