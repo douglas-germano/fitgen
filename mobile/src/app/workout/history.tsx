@@ -1,11 +1,13 @@
-import { QueryError , Chips, EmptyState, OverviewCard, Page, PageSkeleton, Row, SectionHeader, Text, TopBar } from '@/components/ui';
-import { CalendarDays, Dumbbell } from 'lucide-react-native';
+import { QueryError , Chips, EmptyState, ListItem, OverviewCard, Page, PageSkeleton, Row, SectionHeader, Text, TopBar } from '@/components/ui';
+import { router } from 'expo-router';
+import { CalendarDays, Dumbbell, Route } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useWorkoutHistory } from '@/hooks/queries';
+import { distanceLabel, elapsedLabel } from '@/lib/outdoor';
 import { formatDayMonth, formatInt, WEEKDAY_SHORT } from '@/lib/workout';
 
 type Range = '7' | '30' | '90';
@@ -25,7 +27,7 @@ export default function WorkoutHistoryScreen() {
   from.setHours(0, 0, 0, 0);
   const sessions = data
     .filter((s) => new Date(s.started_at) >= from)
-    .sort((a, b) => b.started_at.localeCompare(a.started_at));
+    .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
 
   const totalSec = sessions.reduce((s, x) => s + x.duration_seconds, 0);
   const totalKcal = sessions.reduce((s, x) => s + (x.calories ?? 0), 0);
@@ -61,6 +63,14 @@ export default function WorkoutHistoryScreen() {
         ) : (
           sessions.map((s) => {
             const d = new Date(s.started_at);
+            if (s.outdoor_type) {
+              const date = formatDayMonth(d);
+              return (
+                <ListItem key={s.id} icon={Route} title={s.workout_name}
+                  caption={`${date} · ${elapsedLabel(s.duration_seconds)} · ${distanceLabel(s.distance_meters ?? 0)}`}
+                  arrow onPress={() => router.push({ pathname: '/outdoor/[id]', params: { id: s.id } })} />
+              );
+            }
             return (
               <Row
                 key={s.id}

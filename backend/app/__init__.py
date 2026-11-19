@@ -113,17 +113,19 @@ def create_app(config_name='default'):
     from app.shared import model_registry
     
     # Register commands
-    from app.commands import seed_command, promote_user_command, community_nudge_command, community_seed_challenges_command, seed_exercises_command
+    from app.commands import seed_command, promote_user_command, community_nudge_command, community_seed_challenges_command, seed_exercises_command, ensure_outdoor_schema_command
     app.cli.add_command(seed_command)
     app.cli.add_command(promote_user_command)
     app.cli.add_command(community_nudge_command)
     app.cli.add_command(community_seed_challenges_command)
     app.cli.add_command(seed_exercises_command)
+    app.cli.add_command(ensure_outdoor_schema_command)
 
     from app.modules.identity.interface.routes.auth import auth_bp
     from app.modules.identity.interface.routes.onboarding import onboarding_bp
     from app.modules.training.interface.routes_workouts import workouts_bp
     from app.modules.training.interface.routes_exercises import exercises_bp
+    from app.modules.training.interface.routes_outdoor import outdoor_bp
     from app.modules.nutrition.interface.routes_nutrition import nutrition_bp
     from app.modules.nutrition.interface.routes_history import nutrition_history_bp
     from app.modules.nutrition.interface.routes_diet import diet_bp
@@ -148,6 +150,7 @@ def create_app(config_name='default'):
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
     app.register_blueprint(workouts_bp, url_prefix='/api/workouts')
     app.register_blueprint(exercises_bp, url_prefix='/api/exercises')
+    app.register_blueprint(outdoor_bp, url_prefix='/api/exercises/outdoor')
     app.register_blueprint(nutrition_bp, url_prefix='/api/nutrition')
     app.register_blueprint(nutrition_history_bp, url_prefix='/api/nutrition')
     app.register_blueprint(diet_bp, url_prefix='/api/diet')

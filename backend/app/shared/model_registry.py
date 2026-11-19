@@ -6,7 +6,7 @@ from app.modules.identity.domain.models import User, UserProfile
 from app.modules.identity.domain.subscription import Subscription
 
 # Training
-from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise, WorkoutSession, ExerciseLog
+from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise, WorkoutSession, ExerciseLog, OutdoorSession
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 
 # Nutrition
