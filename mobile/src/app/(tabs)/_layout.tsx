@@ -17,8 +17,8 @@ export default function TabsLayout() {
       iconColor={{ default: Colors.inkMuted, selected: selectedColor }}
       labelVisibilityMode="unlabeled"
       tintColor={Colors.ink}>
-      <NativeTabs.Trigger disableAutomaticContentInsets name="index" accessibilityLabel="Painel">
-        <NativeTabs.Trigger.Label hidden>Painel</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger disableAutomaticContentInsets name="index" accessibilityLabel="Início">
+        <NativeTabs.Trigger.Label hidden>Início</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
 
