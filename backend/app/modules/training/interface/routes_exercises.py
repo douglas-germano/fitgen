@@ -1,11 +1,116 @@
-from flask import Blueprint, request, jsonify
+import uuid
+
+from flask import Blueprint, request, jsonify, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.shared import storage
 from app.shared.extensions import db
+from app.shared.subscription_access import EXERCISE_HISTORY_FEATURE, access_payload, user_has_access
+from app.modules.identity.domain.models import User
+from app.modules.training.application.exercise_animations import ANIMATION_STORAGE_KIND, exercise_animation_url
 from app.modules.training.domain.models import WorkoutSession, ExerciseLog, Exercise, WorkoutDay, WorkoutPlan
+from app.modules.training.domain.exercise_library import ExerciseLibrary
 from datetime import datetime, timedelta
 from app.shared.utils.timezone import now_cuiaba
 
 exercises_bp = Blueprint('exercises', __name__)
+
+
+def _lines(text):
+    return [line.strip() for line in (text or '').splitlines() if line.strip()]
+
+
+def library_item(ex):
+    return {
+        'id': str(ex.id),
+        'name': ex.name,
+        'category': ex.category,
+        'difficulty_level': ex.difficulty_level,
+        'muscle_groups': ex.muscle_groups or [],
+        'equipment_needed': ex.equipment_needed or [],
+        'description': ex.description,
+        'instructions': _lines(ex.instructions),
+        'tips': _lines(ex.tips),
+        'common_mistakes': _lines(ex.common_mistakes),
+        'video_url': ex.video_url,
+        'thumbnail_url': ex.thumbnail_url,
+        'animation_url': exercise_animation_url(ex),
+    }
+
+
+@exercises_bp.route('/library', methods=['GET'])
+@jwt_required()
+def get_library():
+    """The whole active exercise catalog (small; the app searches and filters it locally)."""
+    rows = ExerciseLibrary.query.filter_by(is_active=True).order_by(ExerciseLibrary.name).all()
+    return jsonify([library_item(ex) for ex in rows]), 200
+
+
+@exercises_bp.route('/library/<uuid:exercise_id>', methods=['GET'])
+@jwt_required()
+def get_library_exercise(exercise_id):
+    ex = ExerciseLibrary.query.filter_by(id=exercise_id, is_active=True).first()
+    if not ex:
+        return jsonify({'msg': 'Exercício não encontrado.'}), 404
+    return jsonify(library_item(ex)), 200
+
+
+@exercises_bp.get('/library/<uuid:exercise_id>/history')
+@jwt_required()
+def get_library_exercise_history(exercise_id):
+    user_id = uuid.UUID(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'msg': 'Conta não encontrada.'}), 401
+    if not user_has_access(user):
+        return jsonify({
+            'code': 'premium_required',
+            'feature': EXERCISE_HISTORY_FEATURE,
+            'msg': 'O histórico por exercício faz parte do FitGen Premium.',
+            **access_payload(user),
+        }), 402
+    if not db.session.get(ExerciseLibrary, exercise_id):
+        return jsonify({'msg': 'Exercício não encontrado.'}), 404
+
+    page = max(1, request.args.get('page', default=1, type=int))
+    page_size = 20
+    logged_sets = ExerciseLog.query.filter_by(
+        user_id=user_id, exercise_library_id=exercise_id, completed=True,
+    )
+    session_ids = logged_sets.with_entities(ExerciseLog.workout_session_id)
+    sessions = (WorkoutSession.query.filter_by(user_id=user_id, status='completed')
+                .filter(WorkoutSession.id.in_(session_ids.statement))
+                .order_by(WorkoutSession.started_at.desc(), WorkoutSession.id.desc())
+                .offset((page - 1) * page_size).limit(page_size + 1).all())
+    visible_sessions = sessions[:page_size]
+    history = {session.id: {
+        'id': str(session.id),
+        'started_at': session.started_at.isoformat(),
+        'sets': [],
+    } for session in visible_sessions}
+    if history:
+        logs = (logged_sets.filter(ExerciseLog.workout_session_id.in_(history))
+                .order_by(ExerciseLog.created_at, ExerciseLog.id).all())
+        for log in logs:
+            history[log.workout_session_id]['sets'].append({
+                'id': str(log.id),
+                'set_number': log.set_number,
+                'reps': log.reps_done,
+                'weight_kg': log.weight_used_kg,
+            })
+    return jsonify({'sessions': list(history.values()), 'has_more': len(sessions) > page_size})
+
+
+@exercises_bp.get('/library/animations/<filename>')
+def get_exercise_animation(filename):
+    """Deliver only media linked to an active official catalog entry."""
+    if not ExerciseLibrary.query.filter_by(animation_key=filename, is_active=True).first():
+        return jsonify({'msg': 'Animação não encontrada.'}), 404
+    url = storage.signed_url(f'{storage.SCHEME}{ANIMATION_STORAGE_KIND}/{filename}')
+    if not url:
+        return jsonify({'msg': 'Animação temporariamente indisponível.'}), 503
+    response = redirect(url)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @exercises_bp.route('/sessions/active', methods=['GET'])
@@ -53,15 +158,16 @@ def start_session():
       404:
         description: Workout day not found
     """
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     data = request.get_json()
     
-    workout_day_id = data.get('workout_day_id')
-    if not workout_day_id:
+    try:
+        workout_day_id = uuid.UUID(str(data.get('workout_day_id')))
+    except ValueError:
         return jsonify({"msg": "workout_day_id is required"}), 400
         
     # Verify ownership
-    day = WorkoutDay.query.filter_by(id=workout_day_id, user_id=user_id).first()
+    day = WorkoutDay.query.filter_by(id=workout_day_id, user_id=user_id).with_for_update().first()
     if not day:
         return jsonify({"msg": "Workout day not found"}), 404
         
@@ -124,14 +230,17 @@ def log_set(session_id):
       404:
         description: Active session not found
     """
-    user_id = get_jwt_identity()
+    user_id = uuid.UUID(get_jwt_identity())
     data = request.get_json()
     
     session = WorkoutSession.query.filter_by(id=session_id, user_id=user_id).first()
     if not session or session.status != 'in_progress':
         return jsonify({"msg": "Active session not found"}), 404
         
-    exercise_id = data.get('exercise_id')
+    try:
+        exercise_id = uuid.UUID(str(data.get('exercise_id')))
+    except ValueError:
+        return jsonify({'msg': 'Exercício não encontrado neste treino.'}), 404
     exercise = Exercise.query.filter_by(id=exercise_id, user_id=user_id, workout_day_id=session.workout_day_id).first()
     if not exercise:
         return jsonify({'msg': 'Exercício não encontrado neste treino.'}), 404
@@ -155,6 +264,7 @@ def log_set(session_id):
     log = ExerciseLog(
         workout_session_id=session.id,
         exercise_id=exercise_id,
+        exercise_library_id=exercise.exercise_library_id,
         user_id=user_id,
         set_number=data.get('set_number', 1),
         reps_done=data.get('reps_done'),

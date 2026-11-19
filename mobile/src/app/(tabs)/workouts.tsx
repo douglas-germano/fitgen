@@ -15,7 +15,7 @@ import { QueryError ,
   type DialogHandle,
 } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
-import { BarChart3, Check, ClipboardList, Dumbbell, History, Moon, Play, Sparkles, Timer } from 'lucide-react-native';
+import { BarChart3, BookOpen, Check, ClipboardList, Dumbbell, History, Moon, Play, Sparkles, Timer } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -42,6 +42,8 @@ import {
 } from '@/lib/workout';
 import type { WorkoutDay, WorkoutPlan } from '@/types/api';
 import { usePremium } from '@/hooks/use-premium';
+import { muscleLabel } from '@/lib/exercise-library';
+import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 
 export default function WorkoutsScreen() {
   const Colors = useColors();
@@ -186,17 +188,15 @@ export default function WorkoutsScreen() {
                 <View style={{ gap: 4 }}>
                   <Text variant="display">{workoutTitle(today)}</Text>
                   <Text muted>
-                    {today.exercises.length} exercícios · ~{workoutMinutes(today)} min · {today.muscle_groups?.join(', ') || today.focus}
+                    {today.exercises.length} exercícios · ~{workoutMinutes(today)} min · {today.muscle_groups?.map(muscleLabel).join(', ') || today.focus}
                   </Text>
                 </View>
                 <View style={{ gap: Spacing.two }}>
-                  {today.exercises.slice(0, 3).map((ex, i) => (
+                  {today.exercises.slice(0, 3).map((ex) => (
                     <Row
                       key={ex.id}
                       style={{ gap: Spacing.three, paddingVertical: 10, paddingHorizontal: Spacing.three, backgroundColor: Colors.surface, borderRadius: Radius.sm }}>
-                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700' }}>{i + 1}</Text>
-                      </View>
+                      <ExerciseThumbnail exercise={ex} />
                       <Text variant="titleSm" style={{ flex: 1 }} numberOfLines={1}>
                         {ex.name}
                       </Text>
@@ -286,6 +286,7 @@ export default function WorkoutsScreen() {
           caption: plan ? (locked('workout_plan') ? 'Premium · substitui o plano atual' : 'Substitui o plano atual') : 'Um plano personalizado para você',
           onPress: confirmGenerate,
         },
+        { key: 'library', icon: BookOpen, title: 'Biblioteca de exercícios', caption: 'Como fazer, dicas e erros comuns', onPress: () => router.push('/exercises') },
         { key: 'history', icon: History, title: 'Histórico de treinos', caption: 'Sessões e tempo de treino', onPress: () => router.push('/workout/history') },
       ]}
     />

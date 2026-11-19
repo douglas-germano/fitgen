@@ -27,6 +27,7 @@ class ExerciseLibrary(db.Model):
     equipment_needed: Mapped[Optional[dict]] = mapped_column(JSON)
     video_url: Mapped[Optional[str]] = mapped_column(String(512))
     thumbnail_url: Mapped[Optional[str]] = mapped_column(String(512))
+    animation_key: Mapped[Optional[str]] = mapped_column(String(255))
     instructions: Mapped[Optional[str]] = mapped_column(Text)
     tips: Mapped[Optional[str]] = mapped_column(Text)
     common_mistakes: Mapped[Optional[str]] = mapped_column(Text)

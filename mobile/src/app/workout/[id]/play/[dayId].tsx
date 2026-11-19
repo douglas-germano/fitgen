@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowUpRight, Check, ChevronRight, Dumbbell, Flame, Heart, Plus, Timer } from 'lucide-react-native';
+import { ArrowUpRight, ChevronRight, Dumbbell, Flame, Heart, Plus, Timer } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Confetti } from '@/components/confetti';
 import { ExerciseFormSheet } from '@/components/exercise-form-sheet';
+import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 import {
   Button,
   EmptyState,
@@ -257,6 +258,7 @@ export default function WorkoutScreen() {
         body: { notes: 'Treino finalizado via App' },
       });
       queryClient.invalidateQueries({ queryKey: ['workout-history'] });
+      queryClient.invalidateQueries({ queryKey: ['exercise-history'] });
       queryClient.invalidateQueries({ queryKey: ['workout-active-session'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['streaks'] });
@@ -372,18 +374,14 @@ export default function WorkoutScreen() {
         {exercises.length === 0 && <EmptyState icon={Dumbbell} message="Nenhum exercício neste treino." />}
 
         <View style={{ gap: Spacing.two }}>
-          {exercises.map((ex, i) => {
+          {exercises.map((ex) => {
             const sets = setsFor(ex);
             const done = sets.filter((s) => s.done).length;
             const complete = started && done === sets.length;
             return (
-              <Pressable
+              <View
                 key={ex.id}
-                onPress={() => { setEditing(null); setSelectedId(ex.id); }}
-                accessibilityRole="button"
-                accessibilityLabel={`${ex.name}, ${exerciseLine(ex)}${started ? `, ${done} de ${sets.length} séries feitas` : ''}`}
-                accessibilityHint="Abre as séries do exercício"
-                style={({ pressed }) => ({
+                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: Spacing.three,
@@ -391,26 +389,33 @@ export default function WorkoutScreen() {
                   paddingRight: Spacing.four,
                   borderRadius: Radius.md,
                   borderCurve: 'continuous',
-                  backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken,
-                })}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: complete ? Colors.volt : Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
-                  {complete ? <Check size={20} strokeWidth={3} color={Colors.onVolt} /> : <Text style={{ fontSize: 14, fontWeight: '700' }}>{i + 1}</Text>}
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="titleSm" style={{ fontSize: 15 }} numberOfLines={2}>{ex.name}</Text>
-                  <Text variant="caption" style={{ fontSize: 12 }} numberOfLines={1}>
-                    {exerciseLine(ex)}{ex.muscle_group ? ` · ${ex.muscle_group}` : ''}
-                  </Text>
-                </View>
-                {started ? (
-                  <Text variant="label" color={complete ? Colors.voltInk : Colors.inkMuted} style={{ fontVariant: ['tabular-nums'], fontWeight: '700' }}>
-                    {done}/{sets.length}
-                  </Text>
-                ) : (
-                  <MoreButton size="sm" onPress={() => exerciseMenu(ex)} />
-                )}
-                <ChevronRight size={18} color={Colors.inkMuted} />
-              </Pressable>
+                  backgroundColor: Colors.surfaceSunken,
+                }}>
+                <ExerciseThumbnail exercise={ex} />
+                <Pressable
+                  onPress={() => { setEditing(null); setSelectedId(ex.id); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ex.name}, ${exerciseLine(ex)}${started ? `, ${done} de ${sets.length} séries feitas` : ''}`}
+                  accessibilityHint="Abre as séries do exercício"
+                  style={({ pressed }) => ({
+                    flex: 1, minHeight: 52, flexDirection: 'row', alignItems: 'center',
+                    gap: Spacing.two, opacity: pressed ? 0.65 : 1,
+                  })}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="titleSm" style={{ fontSize: 15 }} numberOfLines={2}>{ex.name}</Text>
+                    <Text variant="caption" style={{ fontSize: 12 }} numberOfLines={1}>
+                      {exerciseLine(ex)}{ex.muscle_group ? ` · ${ex.muscle_group}` : ''}
+                    </Text>
+                  </View>
+                  {started && (
+                    <Text variant="label" color={complete ? Colors.voltInk : Colors.inkMuted} style={{ fontVariant: ['tabular-nums'], fontWeight: '700' }}>
+                      {done}/{sets.length}
+                    </Text>
+                  )}
+                  <ChevronRight size={18} color={Colors.inkMuted} />
+                </Pressable>
+                {!started && <MoreButton size="sm" onPress={() => exerciseMenu(ex)} />}
+              </View>
             );
           })}
 

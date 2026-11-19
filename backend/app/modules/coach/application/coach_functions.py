@@ -311,6 +311,7 @@ class CoachFunctions:
             log = ExerciseLog(
                 workout_session_id=session.id,
                 exercise_id=exercise.id,
+                exercise_library_id=exercise.exercise_library_id,
                 user_id=uuid.UUID(user_id),
                 set_number=set_number,
                 reps_done=reps,

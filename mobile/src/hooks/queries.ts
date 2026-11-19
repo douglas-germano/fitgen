@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { track } from '@/lib/analytics';
 import { api, ApiError } from '@/lib/api';
@@ -28,6 +28,8 @@ import type {
   ExerciseSessionSummary,
   HistoryPoint,
   HydrationDaily,
+  LibraryExercise,
+  LibraryExerciseHistory,
   MealEstimate,
   MealType,
   Profile,
@@ -43,6 +45,24 @@ export const useDashboard = () =>
   useQuery({ queryKey: ['dashboard'], queryFn: () => api<DashboardMetrics>('/metrics/dashboard') });
 
 // ---------- Workouts ----------
+
+/** The whole exercise library; it changes rarely, so it stays cached for a day. */
+export const useExerciseLibrary = () =>
+  useQuery({
+    queryKey: ['exercise-library'],
+    queryFn: () => api<LibraryExercise[]>('/exercises/library'),
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+  });
+
+export const useLibraryExerciseHistory = (id: string | undefined, enabled: boolean) =>
+  useInfiniteQuery({
+    queryKey: ['exercise-history', id],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => api<LibraryExerciseHistory>(`/exercises/library/${id}/history?page=${pageParam}`),
+    getNextPageParam: (lastPage, _pages, lastPageParam) => lastPage.has_more ? lastPageParam + 1 : undefined,
+    enabled: !!id && enabled,
+  });
 
 export const useWorkoutPlans = () =>
   useQuery({ queryKey: ['workouts'], queryFn: () => api<WorkoutPlan[]>('/workouts') });

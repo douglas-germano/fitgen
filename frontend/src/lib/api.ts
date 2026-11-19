@@ -1,7 +1,7 @@
 import { getStorageItem, setStorageItem, removeStorageItem, getStorageItemSync } from './storage';
 import type { APIError } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
 
 /**
  * Get token synchronously (for immediate use in requests)

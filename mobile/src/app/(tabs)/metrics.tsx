@@ -16,15 +16,18 @@ import { QueryError ,
   type DialogHandle,
 } from '@/components/ui';
 import * as Haptics from 'expo-haptics';
-import { Flame, Heart, LayoutGrid, Ruler, Scale, User } from 'lucide-react-native';
+import { Droplets, Flame, Heart, LayoutGrid, Ruler, Scale, User, Utensils } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { WeekChart } from '@/components/charts';
+import { DashboardBottom, DashboardTop, useDayDashboard, type LogKind } from '@/components/dashboard-sections';
 import { HealthSyncStatus } from '@/components/health-week';
+import { HydrationLogger } from '@/components/hydration-logger';
+import { MealLogger } from '@/components/meal-logger';
 import { Spacing } from '@/constants/theme';
-import { useDashboard, useLogMetrics, useMetricHistory, useProfile } from '@/hooks/queries';
+import { useLogMetrics, useMetricHistory } from '@/hooks/queries';
 import { errorMessage } from '@/lib/api';
 import { decimal } from '@/lib/forms';
 import { formatDayMonth, formatDecimal, formatInt } from '@/lib/workout';
@@ -52,9 +55,10 @@ function delta30(h: HistoryPoint[] | undefined, unit: string) {
 
 const sameDay = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10);
 
+/** Day summary + body measurements in one screen (the former home dashboard lives here). */
 export default function MetricsScreen() {
-  const profile = useProfile();
-  const dashboard = useDashboard();
+  const day = useDayDashboard();
+  const { profile, dashboard } = day;
   const weight = useMetricHistory('weight');
   const fat = useMetricHistory('fat');
   const muscle = useMetricHistory('muscle');
@@ -62,11 +66,12 @@ export default function MetricsScreen() {
   const [showAll, setShowAll] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [logger, setLogger] = useState<LogKind | null>(null);
 
-  if (weight.isLoading || fat.isLoading || muscle.isLoading || profile.isLoading) return <PageSkeleton title="Medidas" />;
+  if (weight.isLoading || fat.isLoading || muscle.isLoading || profile.isLoading || day.isLoading) return <PageSkeleton title="Medidas" />;
 
-  const error = profile.error ?? weight.error ?? fat.error ?? muscle.error;
-  if (error) return <QueryError title="Medidas" tab error={error} onRetry={() => { profile.refetch(); weight.refetch(); fat.refetch(); muscle.refetch(); }} />;
+  const error = profile.error ?? day.error ?? weight.error ?? fat.error ?? muscle.error;
+  if (error) return <QueryError title="Medidas" tab error={error} onRetry={() => { day.refetch(); weight.refetch(); fat.refetch(); muscle.refetch(); }} />;
 
   const user = profile.data;
   const currentWeight = last(weight.data) ?? user?.current_weight_kg ?? undefined;
@@ -96,13 +101,15 @@ export default function MetricsScreen() {
       topBar={<TopBar title="Medidas" />}
       // Room for the floating "+" so it never covers the last record.
       contentStyle={{ paddingBottom: FAB_CLEARANCE }}
-      refreshing={weight.isRefetching}
+      refreshing={weight.isRefetching || day.isRefetching}
       onRefresh={() => {
         weight.refetch();
         fat.refetch();
         muscle.refetch();
-        dashboard.refetch();
+        day.refetch();
       }}>
+      <DashboardTop d={day} onLog={setLogger} />
+
       <View style={{ gap: Spacing.four }}>
         <Row style={{ gap: Spacing.four, alignItems: 'stretch' }}>
           <MetricTile
@@ -189,7 +196,11 @@ export default function MetricsScreen() {
         )}
       </View>
 
+      <DashboardBottom d={day} />
+
       {formOpen && <MetricsSheet onClose={() => setFormOpen(false)} />}
+      {logger === 'meal' && <MealLogger visible onClose={() => setLogger(null)} />}
+      {logger === 'water' && <HydrationLogger onClose={() => setLogger(null)} />}
     </Page>
     <HealthSyncStatus />
     <FloatingAddButton label="Adicionar" hint="Abre as opções de medidas" onPress={() => setActionsOpen(true)} />
@@ -204,7 +215,8 @@ export default function MetricsScreen() {
           caption: 'Peso, gordura, músculo e cintura',
           onPress: () => setFormOpen(true),
         },
-
+        { key: 'meal', icon: Utensils, title: 'Registrar refeição', caption: 'Descreva ou tire uma foto', onPress: () => setLogger('meal') },
+        { key: 'water', icon: Droplets, title: 'Registrar hidratação', caption: 'Adicione a água que bebeu', onPress: () => setLogger('water') },
       ]}
     />
     </View>

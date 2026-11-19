@@ -5,7 +5,7 @@ import { FloatingTabBar, type FloatingTab } from '@/components/floating-tab-bar'
 import { useColors } from '@/providers/theme';
 
 const tabs: FloatingTab[] = [
-  { name: 'index', title: 'Painel', Icon: House },
+  { name: 'index', title: 'Início', Icon: House },
   { name: 'workouts', title: 'Treino', Icon: Dumbbell },
   { name: 'social', title: 'Comunidade', Icon: UsersRound },
   { name: 'diet', title: 'Dieta', Icon: Utensils },

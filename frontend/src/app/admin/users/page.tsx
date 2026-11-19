@@ -33,7 +33,7 @@ interface User {
     last_login: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);

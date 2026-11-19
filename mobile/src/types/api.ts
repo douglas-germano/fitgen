@@ -69,6 +69,36 @@ export interface Exercise {
   notes?: string;
   muscle_group?: string;
   video_url?: string;
+  animation_url?: string | null;
+  /** Set when the exercise comes from the FitGen library. */
+  exercise_library_id?: string | null;
+}
+
+/** An entry of the FitGen exercise library (GET /exercises/library). */
+export interface LibraryExercise {
+  id: string;
+  name: string;
+  category: 'strength' | 'cardio' | 'flexibility' | 'balance' | 'plyometric';
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced';
+  /** Keys; the first one is the primary muscle. */
+  muscle_groups: string[];
+  equipment_needed: string[];
+  description?: string | null;
+  instructions: string[];
+  tips: string[];
+  common_mistakes: string[];
+  video_url?: string | null;
+  thumbnail_url?: string | null;
+  animation_url?: string | null;
+}
+
+export interface LibraryExerciseHistory {
+  sessions: {
+    id: string;
+    started_at: string;
+    sets: { id: string; set_number: number; reps: number; weight_kg: number | null }[];
+  }[];
+  has_more: boolean;
 }
 
 export interface WorkoutDay {
@@ -341,6 +371,10 @@ export interface FriendsList {
 export interface CommunityProfile extends CommunityUser {
   stats: { month_workouts?: number; month_minutes?: number; workout_streak?: number };
   friend_count: number;
+  /** Added later: older servers omit these. */
+  follower_count?: number;
+  follows_me?: boolean;
+  shared_group_list?: { id: string; name: string }[];
   following: boolean;
   follow_state: 'none' | 'pending' | 'accepted' | 'self';
   follow_request_id: string | null;

@@ -40,19 +40,20 @@ function FeedbackSurface({ request }: { request: FeedbackRequest }) {
       </Animated.View>
       <KeyboardAvoidingView pointerEvents="box-none" style={{ flex: 1, justifyContent: 'center', padding: Spacing.five }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Animated.View style={{ width: '100%', maxWidth: 420, maxHeight: '90%', alignSelf: 'center', padding: Spacing.five, borderRadius: Radius.lg, backgroundColor: Colors.surface, gap: Spacing.four, opacity: progress, transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: reducedMotion ? [1, 1] : [0.98, 1] }) }] }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three }}>
-            <Text accessibilityRole="header" style={{ flex: 1, fontFamily: Fonts.bold, color: Colors.ink, fontSize: 20, lineHeight: 27 }}>{request.title}</Text>
-            {request.cancelable && <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso" disabled={closing} onPress={() => dismiss(null)} hitSlop={8} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}><X size={18} color={Colors.ink} /></Pressable>}
+          <View>
+            {/* Symmetric side padding keeps the title centered whether or not the close button is shown. */}
+            <Text accessibilityRole="header" style={{ textAlign: 'center', fontFamily: Fonts.bold, color: Colors.ink, fontSize: 20, lineHeight: 27, paddingHorizontal: request.cancelable ? 40 : 0 }}>{request.title}</Text>
+            {request.cancelable && <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso" disabled={closing} onPress={() => dismiss(null)} hitSlop={8} style={{ position: 'absolute', top: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}><X size={18} color={Colors.ink} /></Pressable>}
           </View>
-          {!!request.message && <Text style={{ color: Colors.inkMuted, fontFamily: Fonts.regular, fontSize: 14, lineHeight: 21 }}>{request.message}</Text>}
+          {!!request.message && <Text style={{ textAlign: 'center', color: Colors.inkMuted, fontFamily: Fonts.regular, fontSize: 14, lineHeight: 21 }}>{request.message}</Text>}
           <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: Spacing.two }}>
             {request.actions.map((action, index) => {
               const cancel = action.style === 'cancel';
               const destructive = action.style === 'destructive';
               const primary = request.kind === 'alert' && !cancel && !destructive;
               return <Pressable key={index} disabled={closing || action.disabled} accessibilityRole="button" accessibilityLabel={action.label} accessibilityState={{ disabled: closing || !!action.disabled }} onPress={() => dismiss(index)}
-                style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, borderRadius: Radius.md, alignItems: request.kind === 'menu' && !cancel ? 'flex-start' : 'center', justifyContent: 'center', backgroundColor: destructive ? Colors.dangerSoft : primary ? (pressed ? Colors.voltStrong : Colors.volt) : pressed ? Colors.line : Colors.surfaceChip, opacity: action.disabled ? 0.45 : 1 })}>
-                <Text style={{ color: destructive ? Colors.danger : primary ? Colors.onVolt : Colors.ink, fontFamily: Fonts.semibold, fontSize: 14, lineHeight: 20 }}>{action.label}</Text>
+                style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: destructive ? Colors.dangerSoft : primary ? (pressed ? Colors.voltStrong : Colors.volt) : pressed ? Colors.line : Colors.surfaceChip, opacity: action.disabled ? 0.45 : 1 })}>
+                <Text style={{ textAlign: 'center', color: destructive ? Colors.danger : primary ? Colors.onVolt : Colors.ink, fontFamily: Fonts.semibold, fontSize: 14, lineHeight: 20 }}>{action.label}</Text>
               </Pressable>;
             })}
           </ScrollView>

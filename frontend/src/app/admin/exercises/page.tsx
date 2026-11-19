@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Dumbbell, Pencil, Plus, Trash2, Video } from "lucide-react";
+import { Dumbbell, Film, Pencil, Plus, Trash2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,8 +28,11 @@ interface Exercise {
     category: string;
     difficulty_level: string;
     video_url?: string;
+    animation_url?: string | null;
     description?: string;
 }
+
+type ExerciseMedia = { name: string; url: string; kind: "animation" | "video" };
 
 const CATEGORY: Record<string, string> = { strength: "Força", cardio: "Cardio", flexibility: "Flexibilidade" };
 const LEVEL: Record<string, string> = { beginner: "Iniciante", intermediate: "Intermediário", advanced: "Avançado" };
@@ -51,7 +54,8 @@ export default function AdminExercisesPage() {
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<Partial<Exercise>>(EMPTY);
     const [saving, setSaving] = useState(false);
-    const [video, setVideo] = useState<{ name: string; url?: string } | null>(null);
+    const [media, setMedia] = useState<ExerciseMedia | null>(null);
+    const [animationError, setAnimationError] = useState(false);
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
@@ -75,9 +79,22 @@ export default function AdminExercisesPage() {
 
     useEffect(() => setPage(1), [search]);
 
+    const openMedia = (exercise: Exercise, kind: ExerciseMedia["kind"]) => {
+        const url = kind === "animation" ? exercise.animation_url : exercise.video_url;
+        if (!url) return;
+        setAnimationError(false);
+        setMedia({ name: exercise.name, url, kind });
+    };
+
     const openForm = (ex: Exercise | null) => {
         setEditing(ex);
-        setForm(ex ? { ...ex } : EMPTY);
+        setForm(ex ? {
+            name: ex.name,
+            category: ex.category,
+            difficulty_level: ex.difficulty_level,
+            video_url: ex.video_url,
+            description: ex.description,
+        } : EMPTY);
         setFormOpen(true);
     };
 
@@ -146,7 +163,7 @@ export default function AdminExercisesPage() {
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Categoria</TableHead>
                                 <TableHead>Dificuldade</TableHead>
-                                <TableHead>Vídeo</TableHead>
+                                <TableHead>Mídia</TableHead>
                                 <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -157,12 +174,21 @@ export default function AdminExercisesPage() {
                                     <TableCell><Pill tone="volt">{CATEGORY[ex.category] ?? ex.category}</Pill></TableCell>
                                     <TableCell><Pill>{LEVEL[ex.difficulty_level] ?? ex.difficulty_level}</Pill></TableCell>
                                     <TableCell>
-                                        {ex.video_url ? (
-                                            <Button variant="secondary" size="sm" onClick={() => setVideo({ name: ex.name, url: ex.video_url })}>
-                                                <Video /> Assistir
-                                            </Button>
+                                        {ex.animation_url || ex.video_url ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {ex.animation_url ? (
+                                                    <Button variant="secondary" size="sm" onClick={() => openMedia(ex, "animation")}>
+                                                        <Film /> Ver animação
+                                                    </Button>
+                                                ) : null}
+                                                {ex.video_url ? (
+                                                    <Button variant="secondary" size="sm" onClick={() => openMedia(ex, "video")}>
+                                                        <Video /> Assistir
+                                                    </Button>
+                                                ) : null}
+                                            </div>
                                         ) : (
-                                            <span className="text-xs text-muted-foreground">Sem vídeo</span>
+                                            <span className="text-xs text-muted-foreground">Sem mídia</span>
                                         )}
                                     </TableCell>
                                     <TableCell>
@@ -230,29 +256,49 @@ export default function AdminExercisesPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={!!video} onOpenChange={(o) => !o && setVideo(null)}>
-                <DialogContent className="sm:max-w-3xl">
+            <Dialog open={!!media} onOpenChange={(o) => !o && setMedia(null)}>
+                <DialogContent className={media?.kind === "animation" ? "sm:max-w-lg" : "sm:max-w-3xl"}>
                     <DialogHeader>
-                        <DialogTitle className="pr-10 text-xl font-bold tracking-tight">{video?.name}</DialogTitle>
+                        <DialogTitle className="pr-10 text-xl font-bold tracking-tight">{media?.name}</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            {media?.kind === "animation" ? "Animação do exercício" : "Vídeo do exercício"}
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="aspect-video overflow-hidden rounded-[var(--radius-md)] bg-sunken">
-                        {video?.url && /youtube\.com|youtu\.be/.test(video.url) ? (
-                            <iframe
-                                className="size-full"
-                                src={embedUrl(video.url)}
-                                title={video.name}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        ) : (
-                            <div className="grid size-full place-items-center p-6 text-center">
-                                <div className="space-y-3">
-                                    <p className="text-sm text-muted-foreground">Este vídeo não pode ser incorporado.</p>
-                                    {video?.url ? <Button onClick={() => window.open(video.url, "_blank")}>Abrir em nova aba</Button> : null}
+                    {media?.kind === "animation" ? (
+                        <div className="grid aspect-square max-h-[65dvh] place-items-center overflow-hidden rounded-[var(--radius-md)] bg-white">
+                            {animationError ? (
+                                <p role="status" className="p-6 text-center text-sm text-black">Não foi possível carregar a animação.</p>
+                            ) : (
+                                // The original GIF streams from the backend, preserving animation on a static export.
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={media.url}
+                                    alt={`Demonstração de ${media.name}`}
+                                    className="max-h-[65dvh] w-full object-contain"
+                                    onError={() => setAnimationError(true)}
+                                />
+                            )}
+                        </div>
+                    ) : (
+                        <div className="aspect-video overflow-hidden rounded-[var(--radius-md)] bg-sunken">
+                            {media && /youtube\.com|youtu\.be/.test(media.url) ? (
+                                <iframe
+                                    className="size-full"
+                                    src={embedUrl(media.url)}
+                                    title={media.name}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <div className="grid size-full place-items-center p-6 text-center">
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-muted-foreground">Este vídeo não pode ser incorporado.</p>
+                                        {media ? <Button onClick={() => window.open(media.url, "_blank")}>Abrir em nova aba</Button> : null}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 

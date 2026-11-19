@@ -30,7 +30,7 @@ interface Payment {
     method: string | null; date: string | null; external_id: string | null; notes: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://fitgen.suacozinha.site/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const monthLabel = (ym: string) =>
     new Date(`${ym}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");

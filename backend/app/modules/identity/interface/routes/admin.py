@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
 from app.shared.subscription_access import user_has_access
 from app.modules.identity.domain.models import User
+from app.modules.training.application.exercise_animations import exercise_animation_url
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from app.modules.training.domain.models import Exercise
 import uuid
@@ -43,6 +44,7 @@ def get_exercises():
             "category": ex.category,
             "difficulty_level": ex.difficulty_level,
             "video_url": ex.video_url,
+            "animation_url": exercise_animation_url(ex),
             "description": ex.description
         } for ex in pagination.items],
         "total": pagination.total,
@@ -68,9 +70,10 @@ def create_exercise():
         video_url=data.get('video_url'),
         description=data.get('description'),
         instructions=data.get('instructions'),
-        # Add simpler defaults for complex json fields if needed
-        muscle_groups=[], 
-        equipment_needed=[]
+        tips=data.get('tips'),
+        common_mistakes=data.get('common_mistakes'),
+        muscle_groups=data.get('muscle_groups') or [],
+        equipment_needed=data.get('equipment_needed') or []
     )
     db.session.add(new_ex)
     db.session.commit()
@@ -87,6 +90,8 @@ def update_exercise(id):
     if 'video_url' in data: ex.video_url = data['video_url']
     if 'description' in data: ex.description = data['description']
     if 'instructions' in data: ex.instructions = data['instructions']
+    for key in ('tips', 'common_mistakes', 'muscle_groups', 'equipment_needed', 'thumbnail_url'):
+        if key in data: setattr(ex, key, data[key])
     
     db.session.commit()
     return jsonify({"msg": "Exercise updated"}), 200

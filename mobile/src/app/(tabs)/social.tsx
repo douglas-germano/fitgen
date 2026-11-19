@@ -1,6 +1,6 @@
 import { useCommunityRefresh } from '@/hooks/use-community-refresh';
 import { router } from 'expo-router';
-import { ChevronRight, Crown, Settings, SquarePen, Trophy, UserPlus, UserRound, Users } from 'lucide-react-native';
+import { ChevronRight, Crown, Search, Settings, SquarePen, Trophy, UserPlus, UserRound, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,17 +8,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { GroupAvatar } from '@/components/group-photo';
 import { CommunityFeed } from '@/components/community-feed';
-import { BellButton, Button, Card, IconButton, Page, Row, Text, TopBar } from '@/components/ui';
+import { ChallengeCard } from '@/components/community';
+import { BellButton, Button, Card, Page, Row, Text, TopBar } from '@/components/ui';
 import { tabBarClearance, Spacing } from '@/constants/theme';
-import { useGroups, usePublicGroups } from '@/hooks/community';
+import { useChallenges, useGroups, usePublicGroups } from '@/hooks/community';
 import { useUnreadNotifications } from '@/hooks/queries';
 import { errorMessage } from '@/lib/api';
 import { useColors } from '@/providers/theme';
 
-type FeedTab = 'clubs' | 'explore' | 'following';
+type FeedTab = 'clubs' | 'challenges' | 'following';
 const TABS: { value: FeedTab; label: string }[] = [
   { value: 'clubs', label: 'Clubes' },
-  { value: 'explore', label: 'Explorar' },
+  { value: 'challenges', label: 'Desafios' },
   { value: 'following', label: 'Seguindo' },
 ];
 
@@ -35,8 +36,7 @@ export default function SocialScreen() {
   const [actionsOpen, setActionsOpen] = useState(false);
 
   return <View style={{ flex: 1, backgroundColor: Colors.surface }}>
-    <Page tab topBar={<TopBar title="Feed"
-      leading={<IconButton icon={Trophy} label="Desafios" onPress={() => router.push('/community/challenges')} />}
+    <Page tab topBar={<TopBar title="Comunidade"
       action={<BellButton unread={unread.data?.length ?? 0} />} />}
       refreshing={refreshing} onRefresh={refresh}
       contentStyle={{ gap: 0, paddingBottom: FAB_CLEARANCE }}>
@@ -77,14 +77,13 @@ export default function SocialScreen() {
         </View>}
       {(!!groups.data?.length || !!publicGroups.data?.length || publicGroups.isLoading || publicGroups.error) && <View style={{ paddingTop: 24 }}><PublicClubs query={publicGroups} /></View>}
       </>}
-      {tab === 'explore' && <View style={{ paddingTop: 24, gap: 24 }}>
-        <CommunityFeed scope={{ scope: 'public' }} />
-      </View>}
+      {tab === 'challenges' && <View style={{ paddingTop: 24, gap: 24 }}><ChallengesList /></View>}
       {tab === 'following' && <View style={{ paddingTop: 24 }}><CommunityFeed scope={{ scope: 'home' }} /></View>}
     </Page>
     <FloatingAddButton label="Adicionar à comunidade" hint="Abre as ações da comunidade" onPress={() => setActionsOpen(true)} />
     <ActionMenu visible={actionsOpen} title="O que você quer fazer?" onClose={() => setActionsOpen(false)} items={[
-      { key: 'post', icon: SquarePen, tone: 'volt', title: 'Nova publicação', caption: 'Compartilhe um momento com sua turma', onPress: () => router.push('/community/post') },
+      { key: 'post', icon: SquarePen, tone: 'chip', title: 'Nova publicação', caption: 'Compartilhe um momento com sua turma', onPress: () => router.push('/community/post') },
+      { key: 'search', icon: Search, tone: 'volt', title: 'Buscar pessoas', caption: 'Encontre amigos pelo nome e siga', onPress: () => router.push('/community/people') },
       { key: 'create', icon: Users, title: 'Criar clube', caption: 'Reúna sua turma para treinar', onPress: () => router.push('/community/create-group') },
       { key: 'join', icon: UserPlus, title: 'Entrar com código', caption: 'Use o convite de um clube', onPress: () => router.push('/community/join') },
       { key: 'challenge', icon: Trophy, title: 'Novo desafio', caption: 'Defina uma meta para seu clube', onPress: () => router.push('/community/create-challenge') },
@@ -125,5 +124,26 @@ function PublicClubs({ query }: { query: ReturnType<typeof usePublicGroups> }) {
       <Row style={{ gap: 12 }}><GroupAvatar group={g} /><View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">Público · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'}{g.my_role ? ' · Você participa' : ''}</Text></View><ChevronRight size={18} /></Row>
       {g.description && <Text muted numberOfLines={2}>{g.description}</Text>}
     </Card>)}
+  </View>;
+}
+
+function ChallengesList() {
+  const mine = useChallenges('mine');
+  const available = useChallenges('available');
+  return <View style={{ gap: 24 }}>
+    <View style={{ gap: 16 }}>
+      <Text variant="titleSm">Seus desafios</Text>
+      {mine.isLoading && <Text muted>Carregando desafios…</Text>}
+      {mine.error && <Button title="Tentar carregar seus desafios" variant="soft" onPress={() => mine.refetch()} />}
+      {mine.data?.length === 0 && <Text muted>Participe de um desafio abaixo para começar.</Text>}
+      {mine.data?.map(c => <ChallengeCard key={c.id} challenge={c} />)}
+    </View>
+    <View style={{ gap: 16 }}>
+      <Text variant="titleSm">Para participar</Text>
+      {available.isLoading && <Text muted>Carregando…</Text>}
+      {available.error && <Button title="Tentar carregar desafios disponíveis" variant="soft" onPress={() => available.refetch()} />}
+      {available.data?.length === 0 && <Text muted>Novos desafios aparecerão por aqui. Você também pode criar um para seu clube.</Text>}
+      {available.data?.map(c => <ChallengeCard key={c.id} challenge={c} />)}
+    </View>
   </View>;
 }

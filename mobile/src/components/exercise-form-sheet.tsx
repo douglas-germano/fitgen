@@ -1,8 +1,13 @@
 import { AppAlert } from '@/lib/feedback';
-import { useRef, useState } from 'react';
+import { ArrowLeftRight, BookOpen } from 'lucide-react-native';
+import { useMemo, useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import { KeyboardDoneBar, Stepper } from '@/components/stepper';
-import { Button, Dialog, Input, Row, type DialogHandle } from '@/components/ui';
+import { Button, Dialog, Input, ListItem, Row, Text, type DialogHandle } from '@/components/ui';
+import { Spacing } from '@/constants/theme';
+import { useExerciseLibrary } from '@/hooks/queries';
+import { exerciseCaption, filterLibrary } from '@/lib/exercise-library';
 import { api, errorMessage } from '@/lib/api';
 import { decimal } from '@/lib/forms';
 import type { Exercise } from '@/types/api';
@@ -28,6 +33,17 @@ export function ExerciseFormSheet({
     notes: exercise?.notes ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [libraryId, setLibraryId] = useState<string | null>(exercise?.exercise_library_id ?? null);
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState('');
+  const library = useExerciseLibrary();
+  const suggestions = useMemo(
+    () => {
+      if (exercise) return picking ? filterLibrary(library.data ?? [], { query }).slice(0, 8) : [];
+      return libraryId || form.name.trim().length < 2 ? [] : filterLibrary(library.data ?? [], { query: form.name }).slice(0, 4);
+    },
+    [exercise, picking, query, library.data, form.name, libraryId],
+  );
 
   const save = async () => {
     if (!form.name.trim() || saving) return;
@@ -41,6 +57,7 @@ export function ExerciseFormSheet({
       reps: form.reps,
       rest_seconds: rest,
       notes: form.notes,
+      ...(libraryId && libraryId !== exercise?.exercise_library_id ? { exercise_library_id: libraryId } : {}),
     };
     setSaving(true);
     try {
@@ -66,8 +83,37 @@ export function ExerciseFormSheet({
       visible
       onClose={onClose}
       title={exercise ? 'Editar Exercício' : 'Adicionar Exercício'}
-      footer={<Button size="lg" title={exercise ? 'Salvar Alterações' : 'Adicionar Exercício'} onPress={save} loading={saving} disabled={!form.name.trim()} />}>
-      <Input label="Nome do Exercício" placeholder="Ex: Supino reto" value={form.name} onChangeText={(name) => setForm({ ...form, name })} autoCapitalize="sentences" />
+      footer={picking ? undefined : <Button size="lg" title={exercise ? 'Salvar Alterações' : 'Adicionar Exercício'} onPress={save} loading={saving} disabled={!form.name.trim()} />}>
+      <View style={{ gap: Spacing.two }}>
+        {exercise ? (
+          <>
+            <Text variant="titleSm">{form.name}</Text>
+            {picking ? (
+              <>
+                <Input label="Buscar na biblioteca" placeholder="Nome, músculo ou equipamento" value={query} onChangeText={setQuery} />
+                {library.isLoading ? <Text muted>Carregando exercícios…</Text> : null}
+                {library.error && !library.data ? <Button variant="soft" title="Tentar novamente" onPress={() => library.refetch()} /> : null}
+                {!library.isLoading && !library.error && suggestions.length === 0 ? <Text muted>Nenhum exercício encontrado.</Text> : null}
+              </>
+            ) : <Button variant="soft" icon={ArrowLeftRight} title="Trocar exercício" onPress={() => { setQuery(''); setPicking(true); }} />}
+          </>
+        ) : (
+          <Input label="Nome do Exercício" placeholder="Ex: Supino reto" value={form.name}
+            onChangeText={(name) => { setForm({ ...form, name }); setLibraryId(null); }} autoCapitalize="sentences" />
+        )}
+        {suggestions.map((ex) => (
+          <ListItem
+            key={ex.id}
+            icon={BookOpen}
+            iconTone="chip"
+            title={ex.name}
+            caption={exerciseCaption(ex)}
+            onPress={() => { setForm({ ...form, name: ex.name }); setLibraryId(ex.id); setPicking(false); }}
+          />
+        ))}
+      </View>
+      {picking ? <Button variant="soft" title="Voltar para edição" onPress={() => setPicking(false)} /> : (
+      <>
       <Row style={{ alignItems: 'flex-start' }}>
         <Stepper label="Séries" value={form.sets} min={1} max={50} onChange={(sets) => setForm({ ...form, sets })} />
       </Row>
@@ -76,6 +122,8 @@ export function ExerciseFormSheet({
         <Stepper label="Descanso" value={form.rest} min={0} max={3600} step={15} suffix="s" onChange={(rest) => setForm({ ...form, rest })} />
       </Row>
       <Input label="Observações" placeholder="Opcional" value={form.notes} onChangeText={(notes) => setForm({ ...form, notes })} />
+      </>
+      )}
       <KeyboardDoneBar />
     </Dialog>
   );

@@ -47,7 +47,8 @@ PREMIUM_ROUTES = {
     ("POST", "/api/nutrition/estimate"): "meal_estimate",
     ("POST", "/api/onboarding/generate-workout"): "workout_plan",
 }
-PREMIUM_FEATURES = sorted(set(PREMIUM_ROUTES.values()))
+EXERCISE_HISTORY_FEATURE = "exercise_history"
+PREMIUM_FEATURES = sorted({*PREMIUM_ROUTES.values(), EXERCISE_HISTORY_FEATURE})
 
 
 def enforcement_enabled() -> bool:
