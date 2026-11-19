@@ -92,6 +92,15 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O FitGen usa sua localização para medir a distância e desenhar o trajeto das corridas e caminhadas.",
+          "locationAlwaysAndWhenInUsePermission": "O FitGen usa sua localização durante a corrida ou caminhada que você iniciou, inclusive com a tela bloqueada.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",
@@ -104,6 +113,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-sqlite",
       "expo-notifications",
       "expo-web-browser",
       [

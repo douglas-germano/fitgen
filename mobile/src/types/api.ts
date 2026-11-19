@@ -124,11 +124,13 @@ export interface WorkoutPlan {
 export interface ExerciseSessionSummary {
   source?: string;
   from_health?: boolean;
+  outdoor_type?: 'run' | 'walk';
+  distance_meters?: number;
   id: string;
   started_at: string;
   duration_seconds: number;
   workout_name: string;
-  calories?: number;
+  calories?: number | null;
 }
 
 /** In-progress workout session, as returned by `GET /exercises/sessions/active`. */

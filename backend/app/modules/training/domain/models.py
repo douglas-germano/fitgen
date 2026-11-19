@@ -90,3 +90,18 @@ class ExerciseLog(db.Model):
     completed = db.Column(db.Boolean, default=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class OutdoorSession(db.Model):
+    __tablename__ = 'outdoor_sessions'
+    __table_args__ = (db.Index('ix_outdoor_sessions_user_started', 'user_id', 'started_at'),)
+
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    activity_type = db.Column(db.String(4), nullable=False)
+    started_at = db.Column(db.DateTime, nullable=False)  # UTC
+    completed_at = db.Column(db.DateTime, nullable=False)  # UTC
+    duration_seconds = db.Column(db.Integer, nullable=False)
+    distance_meters = db.Column(db.Float, nullable=False)
+    calories = db.Column(db.Integer)
+    route = db.Column(JSON, nullable=False)

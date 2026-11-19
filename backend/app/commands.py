@@ -141,3 +141,12 @@ def seed_exercises_command(overwrite):
     created, updated = seed_exercise_library(overwrite=overwrite)
     ensure_exercise_history_schema()
     print(f'Biblioteca de exercícios: {created} criados, {updated} atualizados.')
+
+
+@click.command(name='ensure-outdoor-schema')
+@with_appcontext
+def ensure_outdoor_schema_command():
+    """Create the outdoor activity table on database snapshots and existing installs."""
+    from app.modules.training.domain.models import OutdoorSession
+
+    OutdoorSession.__table__.create(db.engine, checkfirst=True)

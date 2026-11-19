@@ -24,6 +24,8 @@ import { useAnalyticsIdentity, useScreenTracking } from '@/hooks/use-analytics';
 import { withMonitoring } from '@/lib/analytics';
 import { PaywallView } from '@/components/paywall-view';
 import { PremiumSheetHost } from '@/components/premium-sheet';
+import { stopOutdoorLocation } from '@/lib/outdoor-location';
+import { recoverOutdoorDraft } from '@/lib/outdoor-recording';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +36,15 @@ function RootLayout() {
         defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } },
       }),
   );
+
+  useEffect(() => {
+    try {
+      if (!recoverOutdoorDraft()) return;
+    } catch {
+      // A blocked storage API must not prevent access to the rest of FitGen.
+    }
+    void stopOutdoorLocation().catch(() => {});
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -115,6 +126,8 @@ function RootNavigator() {
           <Stack.Screen name="coach" />
           <Stack.Screen name="workout/[id]/index" />
           <Stack.Screen name="workout/history" />
+          <Stack.Screen name="outdoor/index" />
+          <Stack.Screen name="outdoor/[id]" />
           <Stack.Screen name="exercises/index" />
           <Stack.Screen name="exercises/[id]" />
           <Stack.Screen name="workout/[id]/play/[dayId]" options={{ gestureEnabled: false }} />
