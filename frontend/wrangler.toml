@@ -1,7 +1,7 @@
 # Cloudflare Pages: painel admin do FitGen (site estático gerado por `npm run build:pages`).
-name = "fitgen-admin"
+name = "fitgen"
 compatibility_date = "2024-09-23"
 pages_build_output_dir = "out"
 
 # A URL da API é fixada no build (NEXT_PUBLIC_API_URL), não aqui:
-#   NEXT_PUBLIC_API_URL=https://dev-api.fitgen.pro/api npm run deploy:pages
+#   NEXT_PUBLIC_API_URL=https://dev-api.fitgen.pro/api npm run deploy:admin

@@ -4,7 +4,7 @@
 |---|---|---|
 | Domínio | `fitgen.pro` (Cloudflare Registrar) | Zona ativa; certificado da zona pode demorar a ser emitido em domínios novos. |
 | Túnel do backend | `fitgen-api` → `https://dev-api.fitgen.pro` | Aponta para `http://localhost:5003` (Docker). Config em `~/.cloudflared/fitgen-api.yml`. |
-| Painel admin | Cloudflare Pages, projeto **`fitgen`** (`fitgen.pages.dev`) | Site 100% estático (`next build` com `NEXT_OUTPUT=export`). |
+| Painel admin | Cloudflare Pages, projeto **`fitgen`** (`fitgen.pages.dev`) | Site estático gerado por TanStack Start e Vite. |
 | Imagens | R2 (ver `docs/STORAGE.md`) | |
 
 ## Túnel
@@ -18,19 +18,26 @@ cloudflared tunnel --origincert ~/.cloudflared/cert-fitgen.pem list
 
 ## Painel admin (Pages)
 
-Build estático: `cd frontend && npm run build:pages` (gera `out/`). A URL da API é fixada no build
-(`NEXT_PUBLIC_API_URL`). Publicar sem passar pelo GitHub:
+O painel usa TanStack Start em modo SPA. O Pages serve o HTML estático e os assets, e o navegador
+consulta a API Flask. Use Node.js 22.12 ou superior. A variável `NEXT_PUBLIC_API_URL` continua definindo
+a URL da API no build.
 
 ```bash
 cd frontend
-NEXT_PUBLIC_API_URL=https://dev-api.fitgen.pro/api npm run deploy:pages   # exige `npx wrangler login`
+npm run dev:admin          # Vite
+npm run build:pages        # exporta o painel para out/
+npm run check:admin        # repete o typecheck do painel
+npm run preview:admin      # serve o out/ em http://localhost:3001
 ```
 
-O projeto `fitgen` também está ligado ao GitHub (`douglas-germano/fitgen`, branch `main`). Configuração no Pages:
-build `npm run build:pages`, saída `out`, raiz `frontend`, variáveis `NEXT_PUBLIC_API_URL` e `NODE_VERSION=22`.
-**Só dê push depois de commitar as mudanças do `frontend/`**: o repositório remoto ainda tem o script antigo
-`pages:build`, e o build disparado pelo push falharia (o site no ar não é afetado).
+No projeto Pages `fitgen`, configure a raiz como `frontend`, o build como `npm run build:pages` e a
+saída como `out`. Use `NODE_VERSION=22` ou uma versão específica igual ou superior a 22.12.
+Para publicação manual autenticada, o comando é `npm run deploy:admin`.
 
-A rota de detalhe do usuário é `/admin/users/detail?id=<id>` (site estático não tem rota dinâmica com servidor).
-O CORS do backend (`backend/app/__init__.py`) já libera `fitgen-admin.pages.dev`, `admin.fitgen.pro` e `fitgen.pro`;
-**inclua `https://fitgen.pages.dev`** (já está na lista) se o admin ficar nesse endereço.
+O detalhe do usuário continua em `/admin/users/detail?id=<id>` e a recuperação de senha em
+`/reset-password?token=<token>`. Os redirecionamentos e os headers do painel ficam em
+`frontend/admin/pages/`. A landing usa `npm run build:lp` e o projeto Pages `fitgen-lp`.
+Os dois comandos de build escrevem em `out/`; sirva ou publique o resultado correspondente ao último build.
+
+A API deve liberar os domínios do painel em
+`backend/app/__init__.py`, incluindo `https://admin.fitgen.pro` e `https://fitgen.pages.dev`.

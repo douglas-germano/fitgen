@@ -1,0 +1,14 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "paths": {
+            "@/*": ["../src/*"],
+            "@admin/*": ["./*"]
+        },
+        "types": ["node", "vite/client"],
+        "incremental": false,
+        "plugins": []
+    },
+    "include": ["./**/*.ts", "./**/*.tsx", "../vite.admin.config.mts"],
+    "exclude": ["./dist"]
+}

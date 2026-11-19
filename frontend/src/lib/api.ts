@@ -1,40 +1,11 @@
-import { getStorageItem, setStorageItem, removeStorageItem, getStorageItemSync } from './storage';
+import { getStorageItem, setStorageItem, removeStorageItem } from './storage';
 import type { APIError } from '@/types/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
 
-/**
- * Get token synchronously (for immediate use in requests)
- * Note: This uses sync storage which works on web but may not be
- * up-to-date on Capacitor. For critical checks, use getTokenAsync()
- */
-export const getToken = (): string | null => {
-    if (typeof window !== "undefined") {
-        return getStorageItemSync("token");
-    }
-    return null;
-};
-
-/**
- * Get token asynchronously (recommended for Capacitor)
- */
-export const getTokenAsync = async (): Promise<string | null> => {
-    return await getStorageItem("token");
-};
-
-/**
- * Set token (async to support Capacitor)
- */
-export const setToken = async (token: string): Promise<void> => {
-    await setStorageItem("token", token);
-};
-
-/**
- * Remove token (async to support Capacitor)
- */
-export const removeToken = async (): Promise<void> => {
-    await removeStorageItem("token");
-}
+export const getToken = () => getStorageItem("token");
+export const setToken = (token: string) => setStorageItem("token", token);
+export const removeToken = () => removeStorageItem("token");
 
 interface FetchOptions extends RequestInit {
     headers?: Record<string, string>;

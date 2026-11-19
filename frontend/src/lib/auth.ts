@@ -1,4 +1,4 @@
-import { getTokenAsync, setToken, removeToken } from './api';
+import { getToken, setToken, removeToken } from './api';
 import { getStorageItem, removeStorageItem } from './storage';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dev-api.fitgen.pro/api";
@@ -47,7 +47,7 @@ export async function refreshAccessToken(retryCount = 0): Promise<boolean> {
     const maxRetries = 3;
 
     try {
-        const refreshToken = await getStorageItem('refresh_token');
+        const refreshToken = getStorageItem('refresh_token');
 
         if (!refreshToken) {
             console.warn('No refresh token available');
@@ -70,8 +70,8 @@ export async function refreshAccessToken(retryCount = 0): Promise<boolean> {
             // If refresh token expired (401), logout user
             if (response.status === 401 || response.status === 422) {
                 console.warn('Refresh token expired, logging out');
-                await removeToken();
-                await removeStorageItem('refresh_token');
+                removeToken();
+                removeStorageItem('refresh_token');
                 window.location.href = '/login';
                 return false;
             }
@@ -89,7 +89,7 @@ export async function refreshAccessToken(retryCount = 0): Promise<boolean> {
         const data = await response.json();
 
         if (data.access_token) {
-            await setToken(data.access_token);
+            setToken(data.access_token);
             console.log('✅ Access token refreshed successfully');
             return true;
         }
@@ -119,7 +119,7 @@ export function setupTokenRefresh(): () => void {
 
     // Check and refresh if needed
     const checkAndRefresh = async () => {
-        const token = await getTokenAsync();
+        const token = getToken();
 
         if (token && shouldRefreshToken(token)) {
             console.log('🔄 Token expiring soon, refreshing...');
@@ -158,21 +158,3 @@ export function setupTokenRefresh(): () => void {
         window.removeEventListener('online', handleOnline);
     };
 }
-
-/**
- * Get time until token expiration (in minutes)
- */
-export async function getTokenExpiryTime(): Promise<number | null> {
-    const token = await getTokenAsync();
-    if (!token) return null;
-
-    const decoded = decodeToken(token);
-    if (!decoded || !decoded.exp) return null;
-
-    const expirationTime = decoded.exp * 1000;
-    const currentTime = Date.now();
-    const timeUntilExpiry = expirationTime - currentTime;
-
-    return Math.floor(timeUntilExpiry / 1000 / 60); // Return in minutes
-}
-

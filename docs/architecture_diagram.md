@@ -233,10 +233,12 @@ flowchart LR
     API --> Redis[(Redis Cache)]
 
     subgraph Frontend
-        Next[Next.js 16 + React 19]
-        Capacitor[Capacitor Mobile]
+        Next[Landing e checkout em Next.js]
+        Admin[Painel TanStack Start]
+        Expo[App e PWA em Expo]
     end
 
     Next --> API
-    Capacitor --> Next
+    Admin --> API
+    Expo --> API
 ```

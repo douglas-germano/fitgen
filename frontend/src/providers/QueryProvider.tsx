@@ -1,8 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { initializeStorage } from "@/lib/storage";
+import { useState } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function QueryProvider({ children }: { children: React.ReactNode }) {
@@ -16,11 +15,6 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
             },
         },
     }));
-
-    // Initialize storage on app start (syncs Capacitor to memory cache)
-    useEffect(() => {
-        initializeStorage();
-    }, []);
 
     return (
         <QueryClientProvider client={queryClient}>
