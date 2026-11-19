@@ -23,7 +23,6 @@ import { View } from 'react-native';
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { WeekChart } from '@/components/charts';
 import { DashboardBottom, DashboardTop, useDayDashboard, type LogKind } from '@/components/dashboard-sections';
-import { HealthSyncStatus } from '@/components/health-week';
 import { HydrationLogger } from '@/components/hydration-logger';
 import { MealLogger } from '@/components/meal-logger';
 import { Spacing } from '@/constants/theme';
@@ -202,7 +201,6 @@ export default function MetricsScreen() {
       {logger === 'meal' && <MealLogger visible onClose={() => setLogger(null)} />}
       {logger === 'water' && <HydrationLogger onClose={() => setLogger(null)} />}
     </Page>
-    <HealthSyncStatus />
     <FloatingAddButton label="Adicionar" hint="Abre as opções de medidas" onPress={() => setActionsOpen(true)} />
     <ActionMenu
       visible={actionsOpen}

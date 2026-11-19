@@ -5,6 +5,7 @@
  * "Componentes" board (Input, Badge, EmptyState, Skeleton, Dialog, Sheet).
  */
 import { router, useFocusEffect } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import {
   ArrowDownRight,
@@ -49,7 +50,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tabBarClearance, Control, fontFor, Radius, Spacing } from '@/constants/theme';
-import { useColors } from '@/providers/theme';
+import { useAppTheme, useColors } from '@/providers/theme';
 import { Motion } from '@/constants/motion';
 import { MEDIA_URL, errorMessage } from '@/lib/api';
 import { FeedbackLayer } from '@/components/feedback';
@@ -121,7 +122,7 @@ export function Page({
   footer,
 }: {
   children: ReactNode;
-  /** Rendered above the scroll view (usually a <TopBar />). */
+  /** Floats over the scroll view with a blur so content passes behind it (usually a <TopBar />). */
   topBar?: ReactNode;
   /** Pad for the native tab bar. */
   tab?: boolean;
@@ -132,26 +133,35 @@ export function Page({
   footer?: ReactNode;
 }) {
   const Colors = useColors();
+  const { scheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const bottom = (footer ? 0 : tab ? tabBarClearance(insets.bottom) : insets.bottom) + Spacing.six;
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const ios = Platform.OS === 'ios';
+  // The top bar floats over the content (blurred), so the list scrolls "behind" it. Its height is the
+  // scroll inset: safe area + 12 + 44 (TopBar min height) + 12, replaced by the measured value.
+  const [barHeight, setBarHeight] = useState(insets.top + Spacing.three + Control.lg + Spacing.three);
+  const inset = topBar ? barHeight : 0;
+  const [scrolled, setScrolled] = useState(false);
   useFocusEffect(useCallback(() => {
     if (!tab) return;
-    scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [tab]));
+    scroll.current?.scrollTo({ y: ios ? -inset : 0, animated: false });
+  }, [tab, ios, inset]));
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ paddingTop: insets.top + Spacing.three }}>
-        {topBar ? <View style={{ paddingHorizontal: Spacing.five, paddingBottom: Spacing.three }}>{topBar}</View> : null}
-      </View>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.surface }} behavior={ios ? 'padding' : undefined}>
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
         alwaysBounceVertical={onRefresh ? true : undefined}
         contentInsetAdjustmentBehavior="never"
+        contentInset={ios ? { top: inset } : undefined}
+        contentOffset={ios ? { x: 0, y: -inset } : undefined}
+        scrollIndicatorInsets={ios ? { top: inset } : undefined}
+        scrollEventThrottle={16}
+        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > (ios ? -inset : 0) + 2)}
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingHorizontal: Spacing.five, paddingTop: topBar ? Spacing.three : 0, paddingBottom: bottom }}
+        contentContainerStyle={{ paddingHorizontal: Spacing.five, paddingTop: (topBar ? Spacing.three : 0) + (ios ? 0 : inset), paddingBottom: bottom }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
@@ -162,6 +172,15 @@ export function Page({
           {children}
         </View>
       </ScrollView>
+      {topBar ? (
+        <View
+          onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, paddingTop: insets.top + Spacing.three, paddingHorizontal: Spacing.five, paddingBottom: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: scrolled ? Colors.line : 'transparent' }}>
+          <BlurView pointerEvents="none" intensity={5} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface + (ios ? '14' : 'f0') }]} />
+          {topBar}
+        </View>
+      ) : null}
       {footer ? (
         <View style={{ paddingHorizontal: Spacing.five, paddingTop: Spacing.three, paddingBottom: insets.bottom + Spacing.three, gap: Spacing.three }}>
           {footer}
@@ -195,7 +214,9 @@ export function TopBar({
   leading?: ReactNode;
 }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three }}>
+    // Fixed minimum height: without it the bar is as tall as its tallest child
+    // (22 with no actions, 40 with a back button, 44 with the bell/avatar), so headers jumped between pages.
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: Control.lg }}>
       <View style={{ width: actionWidth }}>
         {leading ?? (back || onBack ? (
           <IconButton icon={ChevronLeft} label="Voltar" onPress={onBack ?? (() => router.back())} />
