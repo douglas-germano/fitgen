@@ -100,6 +100,52 @@ def get_library_exercise_history(exercise_id):
     return jsonify({'sessions': list(history.values()), 'has_more': len(sessions) > page_size})
 
 
+RECORD_WINDOW_DAYS = 14
+
+
+def recent_records(rows, since, limit=3):
+    """Exercises whose heaviest set since `since` beats every earlier session.
+
+    `rows` are (library_id, name, started_at, weight_kg) for completed, weighted sets. The first
+    time an exercise is logged is not a record: there is nothing to beat yet.
+    """
+    best = {}
+    for library_id, name, started_at, weight in rows:
+        entry = best.setdefault(library_id, {'name': name, 'before': 0.0, 'recent': 0.0, 'at': None})
+        if started_at < since:
+            entry['before'] = max(entry['before'], weight)
+        elif weight > entry['recent'] or (weight == entry['recent'] and started_at < entry['at']):
+            entry['recent'], entry['at'] = weight, started_at
+    records = [{
+        'exercise_library_id': str(library_id),
+        'name': entry['name'],
+        'weight_kg': entry['recent'],
+        'previous_kg': entry['before'],
+        'achieved_at': entry['at'].isoformat(),
+    } for library_id, entry in best.items() if entry['before'] > 0 and entry['recent'] > entry['before']]
+    return sorted(records, key=lambda record: record['achieved_at'], reverse=True)[:limit]
+
+
+@exercises_bp.get('/records/recent')
+@jwt_required()
+def get_recent_records():
+    """Personal records (heaviest completed set) set in the last two weeks."""
+    user_id = uuid.UUID(get_jwt_identity())
+    since = datetime.utcnow() - timedelta(days=RECORD_WINDOW_DAYS)
+    weighted = (db.session.query(ExerciseLog.exercise_library_id)
+                .join(WorkoutSession, WorkoutSession.id == ExerciseLog.workout_session_id)
+                .filter(ExerciseLog.user_id == user_id, ExerciseLog.completed.is_(True),
+                        ExerciseLog.exercise_library_id.isnot(None), ExerciseLog.weight_used_kg > 0,
+                        WorkoutSession.status == 'completed'))
+    touched = weighted.filter(WorkoutSession.started_at >= since).distinct()
+    rows = (weighted.join(ExerciseLibrary, ExerciseLibrary.id == ExerciseLog.exercise_library_id)
+            .filter(ExerciseLog.exercise_library_id.in_(touched.subquery().select()))
+            .with_entities(ExerciseLog.exercise_library_id, ExerciseLibrary.name,
+                           WorkoutSession.started_at, ExerciseLog.weight_used_kg)
+            .all())
+    return jsonify(recent_records(rows, since)), 200
+
+
 @exercises_bp.get('/library/animations/<filename>')
 def get_exercise_animation(filename):
     """Deliver only media linked to an active official catalog entry."""

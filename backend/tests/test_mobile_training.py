@@ -28,6 +28,26 @@ class MobileTrainingTests(unittest.TestCase):
             self.headers = {'Authorization': 'Bearer ' + create_access_token(identity=self.user)}
         self.client = self.app.test_client()
 
+    def test_recent_records_only_count_improvements(self):
+        since = datetime(2026, 11, 5)
+        bench, squat, row = uuid4(), uuid4(), uuid4()
+        rows = [
+            (bench, 'Supino', datetime(2026, 10, 20), 30.0),
+            (bench, 'Supino', datetime(2026, 11, 10), 32.0),
+            (bench, 'Supino', datetime(2026, 11, 12), 32.0),
+            (squat, 'Agachamento', datetime(2026, 10, 1), 80.0),
+            (squat, 'Agachamento', datetime(2026, 11, 15), 80.0),
+            (row, 'Remada', datetime(2026, 11, 16), 40.0),
+        ]
+        records = sessions.recent_records(rows, since)
+        self.assertEqual(records, [{
+            'exercise_library_id': str(bench), 'name': 'Supino', 'weight_kg': 32.0,
+            'previous_kg': 30.0, 'achieved_at': '2026-11-10T00:00:00',
+        }])
+
+    def test_recent_records_require_authentication(self):
+        self.assertEqual(self.client.get('/exercises/records/recent').status_code, 401)
+
     def test_routes_require_authentication(self):
         self.assertEqual(self.client.get('/exercises/sessions/active').status_code, 401)
         self.assertEqual(self.client.post(f'/workouts/day/{uuid4()}/exercises', json={}).status_code, 401)
