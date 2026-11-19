@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/theme';
 import { useHealthEnabled, useProfile, useWorkoutHistory } from '@/hooks/queries';
 import { useHealthSync, useHealthWeek } from '@/hooks/use-health-sync';
 import { api, errorMessage } from '@/lib/api';
+import { healthProviderName } from '@/lib/health';
 import { healthWindows, weeklySummary } from '@/lib/health-summary';
 import type { HistoryPoint } from '@/types/api';
 
@@ -19,8 +20,8 @@ export function HealthSyncStatus() {
   const { sync, account, connected } = useHealthSync(profile.data?.id);
   if (!connected) return null;
   return <View style={{ gap: Spacing.two }}>
-    <Text variant="titleSm">Sincronização do Apple Saúde</Text>
-    <Text variant="caption">{account.data === false ? 'Conecte o Apple Saúde no Perfil para sincronizar com esta conta.' : sync.isFetching ? 'Buscando treinos e pesos…' :
+    <Text variant="titleSm">Sincronização do {healthProviderName()}</Text>
+    <Text variant="caption">{account.data === false ? `Conecte o ${healthProviderName()} no Perfil para sincronizar com esta conta.` : sync.isFetching ? 'Buscando treinos e pesos…' :
       sync.error ? errorMessage(sync.error, 'Não foi possível sincronizar. Tentaremos novamente automaticamente.') : sync.data ?
         `${sync.data.found ? 'Atualizado' : 'Nenhum registro externo disponível'} · ${new Date(sync.data.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : 'Aguardando sincronização.'}</Text>
     <Text variant="caption">Atualização automática ao abrir e voltar ao app, e a cada minuto enquanto estiver aberto. Sem dados? Confira as permissões no Saúde.</Text>

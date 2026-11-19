@@ -34,3 +34,15 @@ A migração é aditiva e idempotente; cria apenas `health_imports` e exige um b
 ## Validação
 
 `backend/tests/test_health_sync.py` verifica idempotência, isolamento, troca de conta, datas, preservação de peso manual recente e validação atômica do lote em SQLite isolado. Os testes mobile `health-reader.test.mjs` e `health-summary.test.mjs` verificam leitura nativa com fixtures, exclusão das próprias exportações, erros, janelas semanais e ausência de dados. Permissões e amostras reais exigem confirmação no iPhone.
+
+## Android: Health Connect
+
+No Android a mesma integração usa o Health Connect (`mobile/src/lib/health-connect.ts`, chamado por `health.ts`). O backend, a tabela `health_imports` e o fluxo de sincronização são os mesmos do iOS; os `sample_id` vêm do `metadata.id` do Health Connect.
+
+- **Requisitos:** Android 14+ já traz o Health Connect; no Android 9–13 é preciso o app "Health Connect" da Play Store (o FitGen abre a loja se faltar). `minSdkVersion` 26. Não funciona no Expo Go, só em build nativo (`npx expo prebuild --platform android` e `npx expo run:android`).
+- **Leitura:** treinos (`ExerciseSession`) e pesos dos últimos 90 dias, passos por dia, passos/energia ativa/distância de hoje, peso, gordura e massa magra. A leitura além de 30 dias usa a permissão `READ_HEALTH_DATA_HISTORY`, pedida à parte.
+- **Escrita:** treino de musculação (com energia ativa), água, refeição (energia, proteína, carboidrato, gordura), peso, gordura e massa magra. Circunferência da cintura não existe no Health Connect e não é gravada.
+- **Registros do próprio app:** são excluídos da importação pelo pacote `com.douglas.fitgen` (`metadata.dataOrigin`).
+- **Permissões:** declaradas em `app.json` (`android.permissions`). O plugin `react-native-health-connect` adiciona a tela de justificativa exigida pelo Health Connect.
+- **Play Store:** para publicar é preciso preencher a declaração de acesso a dados de saúde no Play Console.
+- **Validação:** `mobile/tests/health-connect.test.mjs` cobre importação, exclusão dos próprios registros, falta de permissão, Play Store e escrita. O build `assembleDebug` compila com a lib. Permissões e dados reais precisam ser confirmados em um aparelho Android.

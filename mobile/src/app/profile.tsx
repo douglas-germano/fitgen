@@ -29,7 +29,7 @@ import { useAppTheme, useColors } from '@/providers/theme';
 import { uploadableFile } from '@/lib/upload';
 import type { Profile } from '@/types/api';
 import { useConnectHealth, useGamificationProgress, useHealthEnabled, useProfile, useStreaks } from '@/hooks/queries';
-import { healthUnavailableReason, isHealthAvailable } from '@/lib/health';
+import { healthProviderName, healthUnavailableReason, isHealthAvailable } from '@/lib/health';
 import { useHealthSync } from '@/hooks/use-health-sync';
 import { api, errorMessage } from '@/lib/api';
 import { passwordError } from '@/lib/forms';
@@ -126,9 +126,9 @@ export default function ProfileScreen() {
         <ListItem icon={ShieldCheck} iconTone="chip" title="Privacidade da comunidade" caption="Compartilhamento e pessoas bloqueadas" arrow onPress={() => router.push('/community/settings')} />
       </View>
 
-      {Platform.OS === 'ios' && <View style={{ gap: Spacing.three }}>
+      {(Platform.OS === 'ios' || Platform.OS === 'android') && <View style={{ gap: Spacing.three }}>
         <SectionHeader title="Integrações:" />
-        <AppleHealthItem />
+        <HealthItem />
       </View>}
 
       <View style={{ gap: Spacing.three }}>
@@ -164,9 +164,10 @@ export default function ProfileScreen() {
   );
 }
 
-/** Apple Health on/off. Permissions per data type are managed by iOS in Settings > Health. */
-function AppleHealthItem() {
+/** Apple Health / Health Connect on/off. Permissions per data type are managed by the OS (iOS Settings > Health, Android Health Connect). */
+function HealthItem() {
   const available = isHealthAvailable();
+  const provider = healthProviderName();
   const { data: enabled } = useHealthEnabled();
   const profile = useProfile();
   const { account } = useHealthSync(profile.data?.id);
@@ -176,14 +177,14 @@ function AppleHealthItem() {
   const connect = async () => {
     try {
       await toggle.mutateAsync(true);
-      AppAlert.alert('Apple Saúde conectado', 'Treinos e pesos dos últimos 90 dias serão importados automaticamente para sua conta FitGen. Seus registros feitos no FitGen também serão enviados ao Saúde conforme as permissões.');
+      AppAlert.alert(`${provider} conectado`, 'Treinos e pesos dos últimos 90 dias serão importados automaticamente para sua conta FitGen. Seus registros feitos no FitGen também serão enviados ao Saúde conforme as permissões.');
     } catch (e) {
-      AppAlert.alert('Não foi possível conectar ao Apple Saúde', errorMessage(e));
+      AppAlert.alert(`Não foi possível conectar ao ${provider}`, errorMessage(e));
     }
   };
 
   const manage = () =>
-    AppAlert.alert('Apple Saúde', 'Para escolher quais dados o FitGen pode ler e gravar, abra Ajustes > Saúde > Acesso a Dados > FitGen.', [
+    AppAlert.alert(provider, Platform.OS === 'android' ? 'Para escolher quais dados o FitGen pode ler e gravar, abra o Health Connect > Permissões do app > FitGen.' : 'Para escolher quais dados o FitGen pode ler e gravar, abra Ajustes > Saúde > Acesso a Dados > FitGen.', [
       { text: 'Fechar', style: 'cancel' },
       { text: 'Revisar permissões', onPress: connect },
       { text: 'Desconectar', style: 'destructive', onPress: () => { void toggle.mutateAsync(false); } },
@@ -192,7 +193,7 @@ function AppleHealthItem() {
   return (
     <ListItem
       icon={HeartPulse}
-      title="Apple Saúde"
+      title={provider}
       caption={!available ? healthUnavailableReason() : enabled ? 'Sincronização automática de treinos e peso' : 'Conecte para importar treinos e pesos automaticamente para sua conta'}
       right={available ? <Badge tone={connectedToAccount ? 'volt' : 'chip'} label={connectedToAccount ? 'Conectado' : 'Conectar'} /> : undefined}
       onPress={available && !toggle.isPending ? (connectedToAccount ? manage : connect) : undefined}
