@@ -176,8 +176,8 @@ export function Page({
         <View
           onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, paddingTop: insets.top + Spacing.three, paddingHorizontal: Spacing.five, paddingBottom: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: scrolled ? Colors.line : 'transparent' }}>
-          <BlurView pointerEvents="none" intensity={70} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface + (ios ? '8c' : 'f0') }]} />
+          <BlurView pointerEvents="none" intensity={5} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface + (ios ? '14' : 'f0') }]} />
           {topBar}
         </View>
       ) : null}
