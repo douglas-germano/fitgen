@@ -12,7 +12,7 @@ from app.modules.identity.domain.models import User
 from app.modules.community.application import graph, metrics, serializers
 from app.modules.community.application.notify import notify
 from app.modules.community.domain.models import (
-    AUTO_HIDE_REPORTS, REPORT_TARGETS, Activity, Block, Comment, CommunitySettings, Friendship, GroupMember, Report,
+    AUTO_HIDE_REPORTS, REPORT_TARGETS, Activity, Block, Comment, CommunityGroup, CommunitySettings, Friendship, GroupMember, Report,
 )
 from app.modules.community.interface.common import body, clean_text, fail, me
 
@@ -231,11 +231,18 @@ def get_user(user_id):
     incoming = Friendship.query.filter_by(requester_id=target, addressee_id=uid, status='pending').first()
     shared = db.session.query(GroupMember.group_id).filter(GroupMember.user_id == target, GroupMember.group_id.in_(graph.group_ids(uid) or [uid])).count()
     friends = len(graph.friend_ids(target))
+    followers = Friendship.query.filter_by(addressee_id=target, status='accepted').count()
+    follows_me = Friendship.query.filter_by(requester_id=target, addressee_id=uid, status='accepted').first() is not None
+    shared_ids = graph.group_ids(target) & graph.group_ids(uid) if target != uid else set()
+    shared_list = [{'id': str(g.id), 'name': g.name} for g in CommunityGroup.query.filter(CommunityGroup.id.in_(shared_ids)).order_by(CommunityGroup.name).limit(6).all()] if shared_ids else []
     db.session.commit()
     return jsonify({
         **user,
         'stats': stats,
         'friend_count': friends,
+        'follower_count': followers,
+        'follows_me': follows_me,
+        'shared_group_list': shared_list,
         'following': bool(outgoing and outgoing.status == 'accepted'),
         'follow_state': 'self' if target == uid else outgoing.status if outgoing else 'none',
         'follow_request_id': str(outgoing.id) if outgoing else None,

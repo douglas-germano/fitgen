@@ -371,6 +371,10 @@ export interface FriendsList {
 export interface CommunityProfile extends CommunityUser {
   stats: { month_workouts?: number; month_minutes?: number; workout_streak?: number };
   friend_count: number;
+  /** Added later: older servers omit these. */
+  follower_count?: number;
+  follows_me?: boolean;
+  shared_group_list?: { id: string; name: string }[];
   following: boolean;
   follow_state: 'none' | 'pending' | 'accepted' | 'self';
   follow_request_id: string | null;
