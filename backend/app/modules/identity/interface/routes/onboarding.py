@@ -1,3 +1,5 @@
+import os
+import threading
 import uuid
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -134,6 +136,70 @@ def save_onboarding_data():
         }
     }), 200
 
+def _wait_seconds() -> float:
+    """How long the request waits for the plan before answering 202.
+
+    Must stay well below gunicorn's --timeout (120 s): past that the worker is
+    killed mid-request (SystemExit, Sentry FITGEN-BACKEND-7) and the user gets nothing.
+    """
+    return float(os.environ.get('ONBOARDING_WORKOUT_WAIT_SECONDS', '75'))
+
+
+# One generation per user at a time, per gunicorn worker. Kept in memory on purpose:
+# the plan itself is saved in the database, this only tracks the job in flight.
+_workout_jobs: dict[str, dict] = {}
+_workout_jobs_lock = threading.Lock()
+
+
+def _run_workout_job(app, user_id: uuid.UUID, job: dict) -> None:
+    """Generates the plan outside the request, so a slow AI answer can't kill the worker."""
+    with app.app_context():
+        try:
+            user = User.query.get(user_id)
+            profile = user.profile if user else None
+            if not profile:
+                raise ValueError('Onboarding not completed')
+            plan = WorkoutGeneratorService().generate_workout_plan(user, profile)
+            user.onboarding_completed = True
+            profile.onboarding_completed = True
+            db.session.commit()
+            job.update(status='done', plan_id=str(plan.id), plan_name=plan.name)
+        except Exception:
+            db.session.rollback()
+            app.logger.exception('Failed to generate onboarding workout')
+            job['status'] = 'failed'
+        finally:
+            db.session.remove()
+            job['event'].set()
+
+
+def _start_or_join_job(user_id: uuid.UUID) -> dict:
+    key = str(user_id)
+    with _workout_jobs_lock:
+        job = _workout_jobs.get(key)
+        if job and job['status'] == 'pending':
+            return job
+        job = {'status': 'pending', 'event': threading.Event(), 'plan_id': None, 'plan_name': None}
+        _workout_jobs[key] = job
+    app = current_app._get_current_object()
+    threading.Thread(target=_run_workout_job, args=(app, user_id, job), daemon=True,
+                     name=f'onboarding-workout-{key}').start()
+    return job
+
+
+def _job_response(job: dict):
+    if job['status'] == 'done':
+        return jsonify({
+            "msg": "Workout plan generated successfully",
+            "status": "done",
+            "plan_id": job['plan_id'],
+            "plan_name": job['plan_name'],
+        }), 200
+    if job['status'] == 'failed':
+        return jsonify({"msg": "Failed to generate workout plan", "status": "failed"}), 500
+    return jsonify({"msg": "Workout plan is being generated", "status": "pending"}), 202
+
+
 @onboarding_bp.route('/generate-workout', methods=['POST'])
 @jwt_required()
 def generate_workout():
@@ -145,6 +211,8 @@ def generate_workout():
     responses:
       200:
         description: Workout plan generated successfully
+      202:
+        description: Still generating; the plan is saved when ready (poll /generate-workout/status)
       400:
         description: Onboarding not completed
       500:
@@ -152,30 +220,31 @@ def generate_workout():
     """
     user_id = uuid.UUID(get_jwt_identity())
     user = User.query.get(user_id)
-    profile = user.profile
-    
-    if not profile:
+    if not user or not user.profile:
         return jsonify({"msg": "Onboarding not completed"}), 400
-        
-    try:
-        generator = WorkoutGeneratorService()
-        plan = generator.generate_workout_plan(user, profile)
-        
-        # Mark onboarding as completed
-        user.onboarding_completed = True
-        if profile:
-            profile.onboarding_completed = True
-        db.session.commit()
-        
-        return jsonify({
-            "msg": "Workout plan generated successfully",
-            "plan_id": plan.id,
-            "plan_name": plan.name
-        }), 200
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception('Failed to generate onboarding workout')
-        return jsonify({"msg": "Failed to generate workout plan"}), 500
+
+    job = _start_or_join_job(user_id)
+    job['event'].wait(timeout=_wait_seconds())
+    return _job_response(job)
+
+
+@onboarding_bp.route('/generate-workout/status', methods=['GET'])
+@jwt_required()
+def generate_workout_status():
+    """
+    Status of the onboarding workout generation started by POST /generate-workout
+    ---
+    tags:
+      - Onboarding
+    responses:
+      200:
+        description: "status: idle, pending, done or failed"
+    """
+    job = _workout_jobs.get(get_jwt_identity())
+    if not job:
+        return jsonify({"status": "idle"}), 200
+    body, code = _job_response(job)
+    return body, 200
 
 @onboarding_bp.route('/status', methods=['GET'])
 @jwt_required()
