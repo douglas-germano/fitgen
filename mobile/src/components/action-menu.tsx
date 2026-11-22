@@ -1,28 +1,64 @@
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { ChevronRight, Plus, type LucideIcon } from 'lucide-react-native';
 import { useRef, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OttoAvatar } from '@/components/otto';
 import { Dialog, ListItem, Text, type DialogHandle } from '@/components/ui';
 import { tabBarClearance, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 
 const FAB_SIZE = 58;
-/** Extra bottom room for a tab page with a floating "+", so it never covers the last item. */
-export const FAB_CLEARANCE = FAB_SIZE + Spacing.four;
+const OTTO_SIZE = 48;
+const FAB_GAP = Spacing.three;
+/** Extra bottom room for a page with the floating "+" and Otto, so they never cover the last item. */
+export const FAB_CLEARANCE = FAB_SIZE + FAB_GAP + OTTO_SIZE + Spacing.four;
 
-/** Floating "+" in the bottom-right corner, above the native tab bar. */
-export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt' }: {
+/** Floating "+" in the bottom-right corner, above the native tab bar, with the Otto chat button above it. */
+export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt', otto = true }: {
   onPress: () => void;
   label: string;
   hint?: string;
   busy?: boolean;
   tone?: 'volt' | 'neutral';
+  /** Show the "talk to Otto" button above the "+". */
+  otto?: boolean;
 }) {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
+  const bottom = tabBarClearance(insets.bottom) + Spacing.four;
   return (
+    <>
+    {otto && (
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/coach');
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Conversar com o Otto"
+        accessibilityHint="Abre o chat com o Otto, seu coach de treino e dieta"
+        hitSlop={6}
+        style={({ pressed }) => ({
+          position: 'absolute',
+          right: Spacing.five + (FAB_SIZE - OTTO_SIZE) / 2,
+          bottom: bottom + FAB_SIZE + FAB_GAP,
+          width: OTTO_SIZE,
+          height: OTTO_SIZE,
+          borderRadius: OTTO_SIZE / 2,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pressed ? Colors.surfaceChip : Colors.surface,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: Colors.line,
+          transform: [{ scale: pressed ? 0.94 : 1 }],
+          boxShadow: '0 3px 12px rgba(17, 18, 20, 0.16)',
+        })}>
+        <OttoAvatar size={30} />
+      </Pressable>
+    )}
     <Pressable
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -37,7 +73,7 @@ export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt' }:
       style={({ pressed }) => ({
         position: 'absolute',
         right: Spacing.five,
-        bottom: tabBarClearance(insets.bottom) + Spacing.four,
+        bottom,
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,
@@ -50,11 +86,11 @@ export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt' }:
         borderColor: Colors.line,
         opacity: busy ? 0.6 : 1,
         transform: [{ scale: pressed ? 0.94 : 1 }],
-        // The only floating element on the page, so the only one with a shadow.
         boxShadow: tone === 'neutral' ? '0 3px 12px rgba(17, 18, 20, 0.14)' : '0 6px 18px rgba(17, 18, 20, 0.22)',
       })}>
       <Plus size={28} strokeWidth={2.6} color={tone === 'neutral' ? Colors.ink : Colors.onVolt} />
     </Pressable>
+    </>
   );
 }
 
