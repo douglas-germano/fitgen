@@ -9,12 +9,14 @@ from sqlalchemy.exc import IntegrityError
 from app.shared import storage
 from app.shared.extensions import db, limiter
 from app.shared.utils.timezone import now_cuiaba
-from app.modules.community.application import graph, metrics, moderation, serializers
+from app.modules.community.application import graph, metrics, moderation, official, serializers
 from app.modules.community.application.group_summary import summary as group_summary
 from app.modules.community.application.notify import notify
 from app.modules.community.application.publisher import publish
 from app.modules.community.domain.models import Challenge, CommunityGroup, GroupMember, new_code
 from app.modules.community.interface.common import body, clean_text, fail, me
+from app.modules.identity.domain.models import User
+from app.shared.subscription_access import is_premium
 
 groups_bp = Blueprint('community_groups', __name__)
 
@@ -103,7 +105,15 @@ def list_groups():
         blocked = graph.blocked_ids(uid)
         excluded = db.session.query(GroupMember.group_id).filter(GroupMember.role == 'admin', GroupMember.user_id.in_(blocked))
         groups = CommunityGroup.query.filter(CommunityGroup.is_public.is_(True), CommunityGroup.id.notin_(excluded)).order_by(CommunityGroup.created_at.desc()).limit(100).all()
-        return jsonify([serializers.group(g, uid) for g in groups]), 200
+        # The PRO club is private but listed for discovery; the app joins it only with Premium.
+        pro = db.session.get(CommunityGroup, official.PRO_CLUB_ID)
+        if pro:
+            groups.insert(0, pro)
+        # How many people I follow are in each club: drives the app's "Para você" suggestions.
+        followed = graph.followed_ids(uid)
+        return jsonify([serializers.group(g, uid, {
+            'followed_members': sum(1 for m in g.members if m.user_id in followed),
+        }) for g in groups]), 200
     if scope != 'mine':
         return fail('Escopo inválido.')
     groups = CommunityGroup.query.join(GroupMember).filter(GroupMember.user_id == uid).order_by(CommunityGroup.created_at.desc()).all()
@@ -179,11 +189,16 @@ def join_group():
         group = CommunityGroup.query.filter_by(invite_code=code).with_for_update().first()
     else:
         gid = graph.parse_uuid(body().get('group_id'))
-        group = CommunityGroup.query.filter_by(id=gid, is_public=True).with_for_update().first() if gid else None
+        query = CommunityGroup.query.filter_by(id=gid)
+        if not official.is_pro_club(gid):
+            query = query.filter_by(is_public=True)
+        group = query.with_for_update().first() if gid else None
     if not group:
         return fail('Código de convite inválido.', 404)
     if any(m.user_id == uid for m in group.members):
         return jsonify(serializers.group(group, uid)), 200
+    if official.is_pro_club(group.id) and not is_premium(db.session.get(User, uid)):
+        return jsonify({'msg': 'O clube FitGen PRO é exclusivo para assinantes.', 'code': 'premium_required', 'feature': 'pro_club'}), 402
     if GroupMember.query.filter_by(user_id=uid).count() >= MAX_GROUPS_PER_USER:
         return fail(f'Você pode participar de até {MAX_GROUPS_PER_USER} grupos.')
     if any(graph.is_blocked(uid, m.user_id) for m in group.members if m.role == 'admin'):

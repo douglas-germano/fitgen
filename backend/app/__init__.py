@@ -130,13 +130,14 @@ def create_app(config_name='default'):
     
     # Register commands
     from app.commands import (
-        apply_community_sharing_defaults_command, community_nudge_command, community_seed_challenges_command,
+        apply_community_sharing_defaults_command, community_nudge_command, community_seed_challenges_command, community_seed_defaults_command,
         migrate_db_command, promote_user_command, seed_command, seed_exercises_command,
     )
     app.cli.add_command(seed_command)
     app.cli.add_command(promote_user_command)
     app.cli.add_command(community_nudge_command)
     app.cli.add_command(community_seed_challenges_command)
+    app.cli.add_command(community_seed_defaults_command)
     app.cli.add_command(seed_exercises_command)
     app.cli.add_command(migrate_db_command)
     app.cli.add_command(apply_community_sharing_defaults_command)
