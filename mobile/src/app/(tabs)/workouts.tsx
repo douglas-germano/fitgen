@@ -1,7 +1,9 @@
 import { AppAlert } from '@/lib/feedback';
 import { QueryError ,
   Badge,
+  BadgeIcon,
   Button,
+  Card,
   Dialog,
   EmptyState,
   ListItem,
@@ -45,8 +47,8 @@ import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 export default function WorkoutsScreen() {
   const Colors = useColors();
   const { width } = useWindowDimensions();
-  // Six thumbnails fill the content width (page gutters are Spacing.five).
-  const thumbSize = Math.min(56, Math.floor((width - Spacing.five * 2 - Spacing.two * 5) / 6));
+  // Leave room for both the page gutters and the workout card padding.
+  const thumbSize = Math.min(56, Math.floor((width - (Spacing.five + Spacing.four) * 2 - Spacing.two * 5) / 6));
   const { plan, isLoading, refetch, error } = useActiveWorkoutPlan();
   const history = useWorkoutHistory();
   const active = useActiveSession();
@@ -146,8 +148,6 @@ export default function WorkoutsScreen() {
         </Pressable>
       )}
 
-      <OutdoorCard last={lastOutdoor} />
-
       {!plan ? (
         <EmptyState
           icon={Dumbbell}
@@ -156,74 +156,75 @@ export default function WorkoutsScreen() {
           action={<Button size="sm" title="Gerar Plano" onPress={confirmGenerate} loading={generate.isPending} />}
         />
       ) : (
-        <>
-          <View style={{ gap: Spacing.four }}>
-            <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <Text variant="label" color={Colors.voltInk}>Treino de hoje</Text>
-              <Text variant="label" muted>{formatLongDate(new Date(), false)}</Text>
-            </Row>
+        <Card>
+          <Row style={{ gap: Spacing.three }}>
+            <BadgeIcon icon={Dumbbell} size={40} tone="chip" />
+            <View style={{ flex: 1, gap: Spacing.one }}>
+              <Text variant="titleMd" accessibilityRole="header">Treino de hoje</Text>
+              <Text variant="caption">{formatLongDate(new Date(), false)}</Text>
+            </View>
+          </Row>
 
-            {today && todaySession ? (
-              <>
-                {/* Already trained today. */}
-                <View style={{ gap: Spacing.two }}>
-                  <Badge label="Concluído" tone="soft" />
-                  <Text variant="display" accessibilityRole="header">{workoutTitle(today)}</Text>
-                  <Text muted>
-                    {Math.max(1, Math.round(todaySession.duration_seconds / 60))} min
-                    {todaySession.calories ? ` · ${Math.round(todaySession.calories)} kcal` : ''} · bom trabalho!
-                  </Text>
-                </View>
-                <Button variant="soft" title="Escolher outro treino" onPress={() => setPickerOpen(true)} />
-              </>
-            ) : today ? (
-              <>
-                <View style={{ gap: 4 }}>
-                  <Text variant="display" accessibilityRole="header">{workoutTitle(today)}</Text>
-                  <Text muted style={{ fontSize: 15, lineHeight: 22 }}>
-                    {today.exercises.length} {today.exercises.length === 1 ? 'exercício' : 'exercícios'} · {workoutMinutes(today)} min
-                  </Text>
-                </View>
-                {!activeSession && <Button title="Ver treino" onPress={() => start(today)} />}
-                {/* A strip of exercise images instead of a text list: the full list is one tap away. */}
-                <Row style={{ gap: Spacing.two }}>
-                  {today.exercises.slice(0, today.exercises.length > 6 ? 5 : 6).map((ex) => (
-                    <ExerciseThumbnail key={ex.id} exercise={ex} size={thumbSize} />
-                  ))}
-                  {today.exercises.length > 6 && (
-                    <View style={{ width: thumbSize, height: thumbSize, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text variant="titleSm" muted>+{today.exercises.length - 5}</Text>
-                    </View>
-                  )}
-                </Row>
-              </>
-            ) : (
-              <>
-                {/* Rest day: say what comes next instead of leaving a dead end. */}
-                <View style={{ gap: 4 }}>
-                  <Row style={{ gap: Spacing.two }}>
-                    <Moon size={22} color={Colors.ink} />
-                    <Text variant="display">Dia de Descanso</Text>
-                  </Row>
-                  <Text muted>Aproveite para recuperar suas energias.</Text>
-                </View>
-                {next && (
-                  <ListItem
-                    icon={Dumbbell}
-                    iconTone="chip"
-                    title={`${relativeDayLabel(next.date)} · ${workoutTitle(next.day)}`}
-                    caption={`${next.day.exercises.length} exercícios · ${workoutMinutes(next.day)} min`}
-                  />
+          {today && todaySession ? (
+            <>
+              {/* Already trained today. */}
+              <View style={{ gap: Spacing.two }}>
+                <Badge label="Concluído" tone="soft" />
+                <Text variant="titleLg">{workoutTitle(today)}</Text>
+                <Text muted>
+                  {Math.max(1, Math.round(todaySession.duration_seconds / 60))} min
+                  {todaySession.calories ? ` · ${Math.round(todaySession.calories)} kcal` : ''} · bom trabalho!
+                </Text>
+              </View>
+              <Button size="lg" title="Escolher outro treino" onPress={() => setPickerOpen(true)} />
+            </>
+          ) : today ? (
+            <>
+              <View style={{ gap: 4 }}>
+                <Text variant="titleLg">{workoutTitle(today)}</Text>
+                <Text muted style={{ fontSize: 15, lineHeight: 22 }}>
+                  {today.exercises.length} {today.exercises.length === 1 ? 'exercício' : 'exercícios'} · {workoutMinutes(today)} min
+                </Text>
+              </View>
+              {/* A strip of exercise images instead of a text list: the full list is one tap away. */}
+              <Row style={{ gap: Spacing.two }}>
+                {today.exercises.slice(0, today.exercises.length > 6 ? 5 : 6).map((ex) => (
+                  <ExerciseThumbnail key={ex.id} exercise={ex} size={thumbSize} />
+                ))}
+                {today.exercises.length > 6 && (
+                  <View style={{ width: thumbSize, height: thumbSize, borderRadius: Radius.sm, borderCurve: 'continuous', backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text variant="titleSm" muted>+{today.exercises.length - 5}</Text>
+                  </View>
                 )}
-                <Button variant="soft" title="Treinar mesmo assim" onPress={() => setPickerOpen(true)} />
-              </>
-            )}
-          </View>
-
-          <WeekStrip cells={cells} streak={streak} />
-        </>
+              </Row>
+              {!activeSession && <Button size="lg" icon={Play} title="Ver treino" onPress={() => start(today)} />}
+            </>
+          ) : (
+            <>
+              {/* Rest day: say what comes next instead of leaving a dead end. */}
+              <View style={{ gap: 4 }}>
+                <Row style={{ gap: Spacing.two }}>
+                  <Moon size={22} color={Colors.ink} />
+                  <Text variant="titleLg">Dia de Descanso</Text>
+                </Row>
+                <Text muted>Aproveite para recuperar suas energias.</Text>
+              </View>
+              {next && (
+                <ListItem
+                  icon={Dumbbell}
+                  iconTone="chip"
+                  title={`${relativeDayLabel(next.date)} · ${workoutTitle(next.day)}`}
+                  caption={`${next.day.exercises.length} exercícios · ${workoutMinutes(next.day)} min`}
+                />
+              )}
+              <Button size="lg" title="Treinar mesmo assim" onPress={() => setPickerOpen(true)} />
+            </>
+          )}
+        </Card>
       )}
 
+      <OutdoorCard last={lastOutdoor} />
+      {plan && <WeekStrip cells={cells} streak={streak} />}
       <RecordsCard />
 
     </Page>
