@@ -32,7 +32,7 @@ python3 -m flask migrate-db
 # Load the official exercise library (idempotent; keeps admin edits)
 python3 -m flask seed-exercises
 python3 -m flask apply-community-sharing-defaults
-# Official clubs and this month's public challenges (idempotent)
+# Official clubs and the public challenges of the month (idempotent)
 python3 -m flask community-seed-defaults
 '
 
