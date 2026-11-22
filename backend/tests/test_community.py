@@ -364,6 +364,56 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual(self.request('/groups/' + public['id'], 2).status_code, 404)
         self.assertEqual(self.request('/groups/' + public['id'], 1).status_code, 200)
 
+    def test_public_clubs_count_members_i_follow(self):
+        from app.modules.community.domain.models import Friendship
+        public = self.request('/groups', method='post', json={'name': 'Aberto', 'is_public': True}).json
+        self.assertEqual(self.request('/groups/join', 2, 'post', json={'group_id': public['id']}).status_code, 200)
+        # Pessoa 1 follows Pessoa 2 (accepted); a pending request does not count.
+        db.session.add_all([
+            Friendship(requester_id=self.users[1].id, addressee_id=self.users[2].id, status='accepted'),
+            Friendship(requester_id=self.users[3].id, addressee_id=self.users[2].id, status='pending'),
+        ])
+        db.session.commit()
+        by_user = {u: self.request('/groups?scope=public', u).json[0]['followed_members'] for u in (1, 3, 4)}
+        self.assertEqual(by_user, {1: 1, 3: 0, 4: 0})
+
+    def test_official_clubs_and_challenges_seed_once_and_pro_needs_premium(self):
+        from datetime import datetime, timedelta
+        from app.commands import OFFICIAL_CHALLENGES, seed_official_challenges
+        from app.modules.community.application import official
+        from app.modules.community.domain.models import Challenge, CommunityGroup
+        self.assertEqual(official.seed_official_clubs(), 5)
+        self.assertEqual(official.seed_official_clubs(), 0)
+        self.assertEqual(CommunityGroup.query.count(), 5)
+        self.assertEqual(seed_official_challenges(), 5)
+        self.assertEqual(seed_official_challenges(), 0)
+        self.assertEqual(Challenge.query.filter_by(is_public=True).count(), len(OFFICIAL_CHALLENGES))
+        owner = official.official_owner()
+        self.assertIsNone(owner.password_hash)
+        self.assertNotEqual(owner.role, 'admin')
+
+        listed = self.request('/groups?scope=public', 1).json
+        self.assertEqual(len(listed), 5)
+        pro = next(g for g in listed if g['premium_only'])
+        self.assertEqual(pro['id'], str(official.PRO_CLUB_ID))
+        self.assertFalse(pro['is_public'])
+        self.assertTrue(all(g['official'] for g in listed))
+        self.assertNotIn('invite_code', pro)
+
+        # Free user: blocked with the app's premium code; public official clubs stay open.
+        denied = self.request('/groups/join', 1, 'post', json={'group_id': pro['id']})
+        self.assertEqual(denied.status_code, 402)
+        self.assertEqual(denied.json['code'], 'premium_required')
+        public_id = next(g['id'] for g in listed if not g['premium_only'])
+        self.assertEqual(self.request('/groups/join', 1, 'post', json={'group_id': public_id}).status_code, 200)
+        # Premium user joins.
+        self.users[2].subscription_status = 'active'
+        self.users[2].subscription_expires_at = datetime.utcnow() + timedelta(days=30)
+        db.session.commit()
+        joined = self.request('/groups/join', 2, 'post', json={'group_id': pro['id']})
+        self.assertEqual(joined.status_code, 200, joined.json)
+        self.assertEqual(joined.json['my_role'], 'member')
+
     def test_public_club_visibility_validation_photo_and_blocks(self):
         self.app.config['COMMUNITY_MODERATION_ENABLED'] = False
         for bad in ('true', 'false', None, 1, 'invalid'):

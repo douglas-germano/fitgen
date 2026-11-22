@@ -1,6 +1,7 @@
 """JSON shapes shared by the community routes. Batch queries keep the feed at O(1) queries per page."""
 from sqlalchemy import func
 
+from app.modules.community.application import official
 from app.shared import storage
 from app.shared.extensions import db
 from app.modules.identity.domain.models import User, UserProfile
@@ -78,6 +79,8 @@ def group(g, viewer_id, extra=None):
         'is_public': g.is_public,
         'member_count': len(g.members), 'my_role': me.role if me else None,
         'created_at': iso(g.created_at),
+        'official': g.id in official.OFFICIAL_IDS,
+        'premium_only': official.is_pro_club(g.id),
     }
     if me:
         data['invite_code'] = g.invite_code

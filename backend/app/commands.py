@@ -101,6 +101,8 @@ OFFICIAL_CHALLENGES = [
     {"title": "12 treinos no mês", "description": "Treine 12 vezes até o fim do mês. Três por semana já resolve!", "metric": "workouts", "target": 12},
     {"title": "20 dias ativos", "description": "Registre treino, refeição ou água em 20 dias do mês.", "metric": "active_days", "target": 20},
     {"title": "Hidratação em dia", "description": "Bata sua meta de água em 15 dias do mês.", "metric": "hydration_days", "target": 15},
+    {"title": "600 minutos de treino", "description": "Some 10 horas de treino no mês: cerca de 20 minutos por dia.", "metric": "workout_minutes", "target": 600},
+    {"title": "Diário alimentar", "description": "Registre 60 refeições no mês: duas por dia já chegam lá.", "metric": "meals", "target": 60},
 ]
 
 
@@ -121,6 +123,14 @@ def seed_official_challenges():
         created += 1
     db.session.commit()
     return created
+
+
+@click.command(name='community-seed-defaults')
+@with_appcontext
+def community_seed_defaults_command():
+    """Official clubs and this month's public challenges (idempotent; runs on every deploy)."""
+    from app.modules.community.application.official import seed_official_clubs
+    print(f'{seed_official_clubs()} clubes oficiais e {seed_official_challenges()} desafios públicos criados.')
 
 
 @click.command(name='community-seed-challenges')
