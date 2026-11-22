@@ -3,13 +3,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.modules.coach.domain.chat_message import ChatMessage
 from app.modules.coach.application.coach_ai_service import CoachAIService
 from app.modules.coach.application.coach_context_service import CoachContextService
-from app.shared.extensions import db
+from app.shared.extensions import ai_limit, db, release_db_connection
 from app.shared.utils.timezone import now_cuiaba
 
 chat_bp = Blueprint('chat', __name__)
 
 @chat_bp.route('', methods=['POST'])
 @jwt_required()
+@ai_limit('chat', '30 per hour;100 per day')
 def send_message():
     """
     Envia mensagem para o coach virtual
@@ -41,7 +42,8 @@ def send_message():
             for msg in reversed(history)  # Ordem cronológica
         ]
         
-        # 3. Envia para o LLM (OpenRouter)
+        # 3. Envia para o LLM (OpenRouter), sem segurar conexão do banco enquanto espera
+        release_db_connection()
         result = CoachAIService.chat(context, history_list, message)
         
         if "error" in result and not result.get("response"):

@@ -70,20 +70,26 @@ def create_app(config_name='default'):
         app.config['RATELIMIT_STRATEGY'] = "fixed-window"
         app.logger.info("Using in-memory storage for rate limiting")
     
+    # RATELIMIT_ENABLED=false switches every limit off (e.g. during a load test)
+    app.config.setdefault('RATELIMIT_ENABLED', os.environ.get('RATELIMIT_ENABLED', 'true').lower() not in ('false', '0', 'no', 'off'))
     limiter.init_app(app)
     # Store limiter in app for access in routes
     app.limiter = limiter
     
     
+    # PostgreSQL pool, per gunicorn worker. Must be set BEFORE db.init_app (the engine
+    # is built there; set afterwards it was silently ignored and the pool stayed 5+10).
+    # With gevent a worker serves many requests at once, so the pool caps how many can
+    # touch the database together; keep workers x (size + overflow) under max_connections.
+    if (app.config.get('SQLALCHEMY_DATABASE_URI') or '').startswith('postgresql'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': int(os.environ.get('DB_POOL_SIZE', '10')),
+            'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '20')),
+            'pool_timeout': int(os.environ.get('DB_POOL_TIMEOUT', '10')),
+        }
     db.init_app(app)
-    
-    # PostgreSQL connection pool settings for Supabase
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'pool_size': 10,
-        'max_overflow': 20
-    }
     
     migrate.init_app(app, db)
     jwt.init_app(app)

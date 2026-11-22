@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.shared.extensions import db
+from app.shared.extensions import ai_limit, db, release_db_connection
 from app.modules.nutrition.domain.models import Meal
 from app.modules.analytics.domain.nutrition_analyzer import NutritionAnalyzerService
 from app.modules.coach.infrastructure.ai_service import AIService
@@ -12,6 +12,7 @@ nutrition_bp = Blueprint('nutrition', __name__)
 
 @nutrition_bp.route('/estimate', methods=['POST'])
 @jwt_required()
+@ai_limit('meal_estimate', '60 per hour')
 def estimate_nutrition():
     """
     Estimate nutritional values from text description using AI
@@ -68,6 +69,7 @@ def estimate_nutrition():
                  return jsonify({"msg": "Nenhuma imagem válida fornecida"}), 400
                  
             if images_data:
+                release_db_connection()
                 result = analyzer.analyze_meal(images_data, description)
                 if not result:
                      return jsonify({"msg": "Falha ao analisar imagens"}), 500
@@ -102,7 +104,8 @@ Exemplo para "200g de frango grelhado":
 
 IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem código adicional."""
 
-        # Generate content
+        # Generate content (without holding a DB connection while the AI answers)
+        release_db_connection()
         response_text = ai.generate_text(prompt)
         if not response_text:
             raise ValueError("Empty response from AI provider")
@@ -180,6 +183,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem código 
 
 @nutrition_bp.route('/analyze', methods=['POST'])
 @jwt_required()
+@ai_limit('meal_estimate', '60 per hour')
 def analyze_food_image():
     """
     Analyze food image using AI

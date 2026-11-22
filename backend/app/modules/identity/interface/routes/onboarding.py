@@ -3,7 +3,7 @@ import threading
 import uuid
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.shared.extensions import db
+from app.shared.extensions import ai_limit, db
 from app.modules.identity.domain.models import User, UserProfile
 from app.modules.analytics.domain.metrics_calculator import calculate_bmr, calculate_tdee
 from app.modules.training.application.workout_generator import WorkoutGeneratorService
@@ -202,6 +202,7 @@ def _job_response(job: dict):
 
 @onboarding_bp.route('/generate-workout', methods=['POST'])
 @jwt_required()
+@ai_limit('workout_generate', '20 per day')
 def generate_workout():
     """
     Generate initial workout plan

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.shared.extensions import db, cache
+from app.shared.extensions import ai_limit, db, cache, release_db_connection
 from app.modules.nutrition.domain.diet import DietPreference, DietPlan
 from app.modules.coach.infrastructure.ai_service import AIService
 from datetime import datetime
@@ -136,6 +136,7 @@ def save_diet_preferences():
 
 @diet_bp.route('/generate', methods=['POST'])
 @jwt_required()
+@ai_limit('diet_generate', '10 per day')
 def generate_diet_plan():
     """
     Generate personalized diet plan using AI (OpenRouter)
@@ -232,6 +233,7 @@ Retorne APENAS um JSON válido com esta estrutura:
 }}"""
 
         prompt = append_chat_context(prompt, user_id, pref)
+        release_db_connection()  # don't hold a pooled connection while the AI answers
         response_text = ai.generate_text(prompt)
         if not response_text:
             raise ValueError("Empty response from AI provider")
@@ -350,6 +352,7 @@ def get_current_diet_plan():
 
 @diet_bp.route('/regenerate-day', methods=['POST'])
 @jwt_required()
+@ai_limit('diet_regenerate_day', '30 per day')
 def regenerate_day_plan():
     """
     Regenerate diet plan for a specific day
@@ -452,6 +455,7 @@ def regenerate_day_plan():
             prompt += '\nInclua também a chave "lanche" para o lanche do dia.'
 
         prompt = append_chat_context(prompt, user_id, pref)
+        release_db_connection()  # don't hold a pooled connection while the AI answers
         new_day_plan = ai.generate_json(prompt)
         
         if new_day_plan:
