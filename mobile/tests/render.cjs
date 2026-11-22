@@ -195,6 +195,9 @@ try {
           outdoorStartButton.onPress();
           assert.equal(pushedRoutes.pop(), '/outdoor');
           if (mode === 'content') {
+            assert.ok(result.includes('Escolher outro treino'));
+            const todayCardIndex = result.indexOf('Treino de hoje');
+            assert.ok(todayCardIndex >= 0 && todayCardIndex < result.indexOf('Atividades ao ar livre'));
             assert.ok(result.includes('Último pedal') && result.includes('4,00 km'));
             latestOutdoorButton.onPress();
             assert.deepEqual(pushedRoutes.pop(), { pathname: '/outdoor/[id]', params: { id: bike.id } });

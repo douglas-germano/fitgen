@@ -41,7 +41,7 @@ export function OutdoorCard({ last }: { last: ExerciseSessionSummary | undefined
           <Text variant="caption">Corrida, caminhada e pedal com GPS</Text>
         </View>
       </Row>
-      <Button title="Iniciar atividade" variant="soft" icon={Play} onPress={() => router.push('/outdoor')} />
+      <Button size="lg" title="Iniciar atividade" icon={Play} onPress={() => router.push('/outdoor')} />
       {last && (
         <Pressable
           onPress={() => router.push({ pathname: '/outdoor/[id]', params: { id: last.id } })}
