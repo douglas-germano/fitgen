@@ -181,6 +181,11 @@ try {
         latestOutdoorButton = undefined;
         const result=renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
         assert.ok(result.length>0);
+        if (mode === 'content' && file.endsWith('/app/profile.tsx')) {
+          for (const text of ['Sua semana', 'Histórico', 'Medidas', 'Primeiro treino', 'Configurações', 'Conta e preferências']) {
+            assert.ok(result.includes(text), `Missing web profile content: ${text}`);
+          }
+        }
         if (mode === 'content' && file.endsWith('/app/coach.tsx')) {
           assert.ok(result.includes('Como posso te ajudar hoje?'));
           assert.ok(result.includes('Qual é o treino de hoje?') && result.includes(profilePhoto));
