@@ -50,7 +50,7 @@ def check_text(text):
     if _BLOCKLIST.search(text or ''):
         return False, 'O texto tem termos ofensivos. Revise e tente novamente.'
     try:
-        result = _ai().generate_json(TEXT_PROMPT + text)
+        result = _ai().generate_json(TEXT_PROMPT + text, feature="moderation")
         if isinstance(result, dict) and result.get('allowed') is False:
             return False, result.get('reason') or 'Esse conteúdo não segue as regras da comunidade.'
     except Exception as exc:  # provider missing or down: local check already ran
@@ -62,7 +62,7 @@ def check_image(data, mime_type):
     if not _enabled():
         return True, None
     try:
-        result = _ai().analyze_image(IMAGE_PROMPT, [{'data': data, 'mime_type': mime_type}])
+        result = _ai().analyze_image(IMAGE_PROMPT, [{'data': data, 'mime_type': mime_type}], feature="moderation")
         if isinstance(result, dict) and result.get('allowed') is True:
             return True, None
         if isinstance(result, dict) and result.get('allowed') is False:

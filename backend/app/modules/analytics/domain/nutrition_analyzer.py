@@ -51,10 +51,10 @@ class NutritionAnalyzerService:
         """
         
         if isinstance(images_data, list):
-             result = self.ai.analyze_image(prompt, images_data)
+             result = self.ai.analyze_image(prompt, images_data, feature="meal_photo")
         else:
              # Legacy support or single image -> wrap in list
-             result = self.ai.analyze_image(prompt, [{'data': images_data, 'mime_type': mime_type}])
+             result = self.ai.analyze_image(prompt, [{'data': images_data, 'mime_type': mime_type}], feature="meal_photo")
         
         # Normalize field names if needed
         if result and 'food_name' in result:

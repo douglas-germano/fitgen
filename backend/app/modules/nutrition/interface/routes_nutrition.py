@@ -106,7 +106,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem código 
 
         # Generate content (without holding a DB connection while the AI answers)
         release_db_connection()
-        response_text = ai.generate_text(prompt)
+        response_text = ai.generate_text(prompt, feature="meal_estimate")
         if not response_text:
             raise ValueError("Empty response from AI provider")
         

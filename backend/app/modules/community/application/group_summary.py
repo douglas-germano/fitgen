@@ -38,7 +38,7 @@ def summary(group, viewer_id=None):
         for r in ranking)
     try:
         from app.modules.coach.infrastructure.ai_service import AIService
-        text = AIService().generate_text(PROMPT.format(name=group.name, lines=lines))
+        text = AIService().generate_text(PROMPT.format(name=group.name, lines=lines), feature="group_summary")
     except Exception as exc:
         log.info('group summary AI unavailable: %s', exc)
     text = (text or '').strip()

@@ -234,7 +234,7 @@ Retorne APENAS um JSON válido com esta estrutura:
 
         prompt = append_chat_context(prompt, user_id, pref)
         release_db_connection()  # don't hold a pooled connection while the AI answers
-        response_text = ai.generate_text(prompt)
+        response_text = ai.generate_text(prompt, feature="diet_week")
         if not response_text:
             raise ValueError("Empty response from AI provider")
         
@@ -456,7 +456,7 @@ def regenerate_day_plan():
 
         prompt = append_chat_context(prompt, user_id, pref)
         release_db_connection()  # don't hold a pooled connection while the AI answers
-        new_day_plan = ai.generate_json(prompt)
+        new_day_plan = ai.generate_json(prompt, feature="diet_day")
         
         if new_day_plan:
             # Update plan

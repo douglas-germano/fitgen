@@ -6,14 +6,60 @@ Env vars:
     OPENROUTER_MODEL    (optional, default: google/gemini-2.5-pro)
     OPENROUTER_BASE_URL (optional, default: https://openrouter.ai/api/v1)
     OPENROUTER_TIMEOUT  (optional, seconds, default: 120)
+    AI_MAX_TOKENS_<FEATURE> (optional) overrides one entry of MAX_TOKENS, e.g. AI_MAX_TOKENS_DIET_WEEK=16000
+    AI_REASONING_MAX_TOKENS (optional, default 2000; 0 = don't send) caps reasoning ("thinking") tokens
 """
 import base64
 import json
+import logging
 import os
 
 import requests
 
+log = logging.getLogger(__name__)
+
 DEFAULT_MODEL = "google/gemini-2.5-pro"
+
+# Output cap per feature (OpenRouter `max_tokens`). Without it OpenRouter reserves the
+# model's whole output window (65k tokens) and asks for credit to cover it. Reasoning
+# models spend part of this budget thinking, so keep headroom over the visible answer.
+MAX_TOKENS = {
+    "default": 4000,
+    "coach": 3000,            # each round of the coach's tool loop
+    "diet_week": 16000,       # 7 days x meals + shopping list (~5-6k visible tokens)
+    "diet_day": 4000,
+    "workout_plan": 12000,
+    "meal_estimate": 1500,
+    "meal_photo": 2000,
+    "moderation": 1000,       # {"allowed": .., "reason": ..} plus thinking
+    "group_summary": 1000,
+    "transcription": 3000,
+}
+
+
+def max_tokens_for(feature):
+    """Cap for a feature, overridable with env AI_MAX_TOKENS_<FEATURE>."""
+    default = MAX_TOKENS.get(feature, MAX_TOKENS["default"])
+    try:
+        return int(os.environ.get(f"AI_MAX_TOKENS_{feature.upper()}", default))
+    except ValueError:
+        return default
+
+
+def reasoning_for(max_tokens):
+    """OpenRouter `reasoning` cap, or None. Kept under half of max_tokens so the answer fits.
+
+    Measured on the weekly diet prompt with openrouter/free: without a cap some models spent
+    the whole 16k budget thinking and returned cut JSON (2 of 3 runs); with 2000, 6 of 6 valid
+    and 2-3x faster. Models that don't reason ignore it.
+    """
+    try:
+        cap = int(os.environ.get("AI_REASONING_MAX_TOKENS", "2000"))
+    except ValueError:
+        cap = 2000
+    if cap <= 0:
+        return None
+    return {"max_tokens": min(cap, max_tokens // 2)}
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
 JSON_ONLY_INSTRUCTION = (
@@ -122,9 +168,13 @@ class AIService:
 
     # ------------------------------------------------------------------ core
 
-    def chat_completion(self, messages, tools=None, **extra):
+    def chat_completion(self, messages, tools=None, feature="default", **extra):
         """Calls OpenRouter and returns the first choice's message dict."""
-        payload = {"model": self.model, "messages": messages, **extra}
+        payload = {"model": self.model, "messages": messages, "max_tokens": max_tokens_for(feature)}
+        reasoning = reasoning_for(payload["max_tokens"])
+        if reasoning:
+            payload["reasoning"] = reasoning
+        payload.update(extra)
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
@@ -157,32 +207,36 @@ class AIService:
         choices = body.get("choices") or []
         if not choices:
             raise AIServiceError("OpenRouter returned no choices")
+        if choices[0].get("finish_reason") == "length":
+            # Answer cut at max_tokens: JSON will likely fail to parse. Raise AI_MAX_TOKENS_<FEATURE>.
+            log.warning("AI answer truncated at max_tokens=%s (feature=%s, model=%s, usage=%s)",
+                        payload["max_tokens"], feature, self.model, body.get("usage"))
         return choices[0].get("message") or {}
 
-    def _complete_text(self, content):
-        message = self.chat_completion([{"role": "user", "content": content}])
+    def _complete_text(self, content, feature="default"):
+        message = self.chat_completion([{"role": "user", "content": content}], feature=feature)
         return (message.get("content") or "").strip()
 
     # ------------------------------------------------------------ public API
 
-    def generate_text(self, prompt):
+    def generate_text(self, prompt, feature="default"):
         """Generates a plain-text response. Returns None on failure."""
         try:
-            return self._complete_text(prompt)
+            return self._complete_text(prompt, feature)
         except Exception as e:
             print(f"Error generating text: {e}")
             return None
 
-    def generate_json(self, prompt):
+    def generate_json(self, prompt, feature="default"):
         """Generates and parses a JSON response. Returns None on failure."""
         try:
-            text = self._complete_text(f"{prompt}\n\n{JSON_ONLY_INSTRUCTION}")
+            text = self._complete_text(f"{prompt}\n\n{JSON_ONLY_INSTRUCTION}", feature)
             return parse_json_text(text)
         except Exception as e:
             print(f"Error generating content: {e}")
             return None
 
-    def analyze_image(self, prompt, images_data=None):
+    def analyze_image(self, prompt, images_data=None, feature="default"):
         """
         Analyzes images and returns parsed JSON.
         images_data: [{'data': bytes, 'mime_type': str}]
@@ -190,7 +244,7 @@ class AIService:
         text = None
         try:
             content = build_user_content(f"{prompt}\n\n{JSON_ONLY_INSTRUCTION}", images_data)
-            text = self._complete_text(content)
+            text = self._complete_text(content, feature)
             return parse_json_text(text)
         except Exception as e:
             print(f"Error analyzing image: {e}")
@@ -205,7 +259,7 @@ class AIService:
                 "Transcreva o áudio em português. Retorne apenas o texto transcrito, sem comentários adicionais.",
                 [{"data": audio_data, "mime_type": mime_type}],
             )
-            transcription = self._complete_text(content)
+            transcription = self._complete_text(content, "transcription")
             if transcription:
                 print(f"🎤 Audio transcribed: {transcription}")
                 return transcription
@@ -216,7 +270,7 @@ class AIService:
             return None
 
     def generate_with_functions(self, content, tools, function_executor, max_iterations=5,
-                                system_prompt=None):
+                                system_prompt=None, feature="coach"):
         """
         Runs a tool-calling loop.
 
@@ -236,7 +290,7 @@ class AIService:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": content})
 
-            message = self.chat_completion(messages, tools=tools)
+            message = self.chat_completion(messages, tools=tools, feature=feature)
 
             for _ in range(max_iterations):
                 tool_calls = message.get("tool_calls") or []
@@ -271,7 +325,7 @@ class AIService:
                         "content": json.dumps({"result": result}, ensure_ascii=False, default=str),
                     })
 
-                message = self.chat_completion(messages, tools=tools)
+                message = self.chat_completion(messages, tools=tools, feature=feature)
 
             final_text = (message.get("content") or "").strip()
             return final_text or "Desculpe, não consegui processar sua solicitação."

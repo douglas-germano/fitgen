@@ -50,7 +50,7 @@ class AILimitTests(unittest.TestCase):
     def test_releases_db_connection_before_calling_the_ai(self):
         calls = []
         with patch.object(routes.AIService, '__init__', return_value=None), \
-             patch.object(routes.AIService, 'generate_text', side_effect=lambda p: calls.append('ai') or AI_JSON), \
+             patch.object(routes.AIService, 'generate_text', side_effect=lambda p, **kw: calls.append('ai') or AI_JSON), \
              patch.object(routes, 'release_db_connection', side_effect=lambda: calls.append('release')):
             self.assertEqual(self.estimate(self.alice).status_code, 200)
         self.assertEqual(calls, ['release', 'ai'])

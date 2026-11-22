@@ -21,7 +21,7 @@ class WorkoutGeneratorService:
         
         for attempt in range(max_retries):
             try:
-                ai_response = self.ai.generate_json(prompt)
+                ai_response = self.ai.generate_json(prompt, feature="workout_plan")
                 if ai_response:
                     break
             except Exception as e:
