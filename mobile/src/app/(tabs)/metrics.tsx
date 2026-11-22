@@ -76,13 +76,6 @@ export default function MetricsScreen() {
     value,
   }));
   const formatValue = (value: number) => `${formatDecimal(value)}${unit === '%' ? '%' : ` ${unit}`}`;
-  const latest = chart.at(-1);
-  const change = latest && chart.length > 1
-    ? Math.round((latest.value - chart[0].value) * 10) / 10
-    : undefined;
-  const variation = change === undefined ? undefined : change === 0
-    ? 'Sem variação no período'
-    : `${change > 0 ? '+' : '−'}${formatDecimal(Math.abs(change))} ${unit === '%' ? 'pp' : unit} no período`;
 
   // Mifflin-St Jeor, matching the backend calculation.
   const height = user?.height_cm ? user.height_cm / 100 : undefined;
@@ -124,7 +117,6 @@ export default function MetricsScreen() {
 
       <HeaderCard title={`Evolução de ${title.toLowerCase()}`} value={current !== undefined ? formatValue(current) : 'Sem registro'}>
         <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four, gap: Spacing.two }}>
-          {variation && <Text muted style={{ fontSize: 13 }}>{variation}</Text>}
           {chart.length > 0 ? (
             <TrendChart data={chart} formatValue={formatValue} title={`Evolução de ${title.toLowerCase()}`} />
           ) : (
