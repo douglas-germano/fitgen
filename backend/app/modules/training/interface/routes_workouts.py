@@ -65,6 +65,48 @@ def add_exercise(day_id):
     return jsonify({'id': str(exercise.id), 'msg': 'Exercício adicionado.'}), 201
 
 
+def workout_name(data):
+    name = data.get('name') if isinstance(data, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError('Informe o nome do treino.')
+    name = ' '.join(name.split())
+    if len(name) > 80:
+        raise ValueError('Use no máximo 80 caracteres.')
+    return name
+
+
+@workouts_bp.route('/day/<uuid:day_id>', methods=['PUT'])
+@jwt_required()
+def rename_day(day_id):
+    """Renames one workout of the plan ("Treino A – Peito e Tríceps")."""
+    user_id = uuid.UUID(get_jwt_identity())
+    day = WorkoutDay.query.filter_by(id=day_id, user_id=user_id).first()
+    if not day:
+        return jsonify({'msg': 'Treino não encontrado.'}), 404
+    try:
+        day.name = workout_name(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify({'msg': str(error)}), 400
+    db.session.commit()
+    return jsonify({'id': str(day.id), 'name': day.name}), 200
+
+
+@workouts_bp.route('/<uuid:plan_id>', methods=['PUT'])
+@jwt_required()
+def rename_plan(plan_id):
+    """Renames the plan itself."""
+    user_id = uuid.UUID(get_jwt_identity())
+    plan = WorkoutPlan.query.filter_by(id=plan_id, user_id=user_id).first()
+    if not plan:
+        return jsonify({'msg': 'Plano não encontrado.'}), 404
+    try:
+        plan.name = workout_name(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify({'msg': str(error)}), 400
+    db.session.commit()
+    return jsonify({'id': str(plan.id), 'name': plan.name}), 200
+
+
 @workouts_bp.route('/exercises/<uuid:exercise_id>', methods=['PUT', 'DELETE'])
 @jwt_required()
 def edit_exercise(exercise_id):
