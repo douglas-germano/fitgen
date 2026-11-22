@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { CheckCircle2, Lock, Sparkles } from 'lucide-react-native';
+import { BadgeCheck, CheckCircle2, Lock } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, View } from 'react-native';
 import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases';
@@ -249,7 +249,7 @@ export function PaywallView({ gate = false }: { gate?: boolean }) {
   return (
     <Page topBar={<TopBar title={gate ? 'FitGen' : 'Assinatura'} back={!gate} />}>
       <View style={{ gap: Spacing.three }}>
-        <BadgeIcon icon={gate ? Lock : Sparkles} size={48} />
+        <BadgeIcon icon={gate ? Lock : BadgeCheck} size={48} />
         <Text variant="display">{gate ? 'Assine para continuar' : 'FitGen Premium'}</Text>
         <Text muted>
           {gate

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Award, Bell, Camera, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, FileText, HeartPulse, History, Info, KeyRound, Mail, MessagesSquare, Ruler, ShieldCheck, Sparkles, SunMoon, Target, User, Users, Utensils } from 'lucide-react-native';
+import { Award, BadgeCheck, Bell, Camera, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, FileText, HeartPulse, History, Info, KeyRound, Mail, MessagesSquare, Ruler, ShieldCheck, SunMoon, Target, User, Users, Utensils } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Platform, Pressable, View } from 'react-native';
 
@@ -119,7 +119,7 @@ export default function ProfileScreen() {
         <ProfileRow icon={KeyRound} title="Senha" onPress={() => setPasswordOpen(true)} />
         <ProfileRow icon={Bell} title="Notificações" onPress={() => router.push('/notifications')} />
         <ProfileRow icon={SunMoon} title="Aparência" value={THEME_LABEL[preference]} onPress={() => setThemeOpen(true)} />
-        <ProfileRow icon={Sparkles} title="Assinatura" value={plan.premium ? 'Premium' : plan.title} onPress={() => router.push('/paywall')} />
+        <ProfileRow icon={BadgeCheck} title="Assinatura" value={plan.premium ? 'Premium' : plan.title} onPress={() => router.push('/paywall')} />
       </ProfileGroup>
 
       <ProfileGroup title="Outros">

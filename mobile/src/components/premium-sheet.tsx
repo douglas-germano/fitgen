@@ -1,4 +1,4 @@
-import { CheckCircle2, Sparkles } from 'lucide-react-native';
+import { BadgeCheck, CheckCircle2 } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
@@ -82,7 +82,7 @@ function PremiumSheet({ feature }: { feature: PremiumFeature | null }) {
     <Dialog ref={sheet} sheet sheetSize="registration" visible onClose={onClose} title={copy.title} footer={footer}>
       <View style={{ gap: Spacing.four }}>
         <View style={{ gap: Spacing.two }}>
-          <BadgeIcon icon={Sparkles} size={44} />
+          <BadgeIcon icon={BadgeCheck} size={44} />
           <Text variant="titleLg">{copy.headline}</Text>
           <Text muted>{copy.description}</Text>
         </View>
