@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { BadgeCheck, CalendarDays, ChevronRight, Droplets, Dumbbell, Flame, Trophy, Users, Utensils, type LucideIcon } from 'lucide-react-native';
-import { Children, Fragment, useState, type ReactNode } from 'react';
+import { BadgeCheck, CalendarDays, Droplets, Dumbbell, Flame, Trophy, Users, Utensils } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { HeaderCard, Tile, TileColors, TileRow } from '@/components/grouped';
 import { Dialog, ListItem, Text } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useAchievements, useWorkoutHistory } from '@/hooks/queries';
 import { distanceLabel } from '@/lib/outdoor';
 import { profileWeek } from '@/lib/profile-week';
@@ -24,7 +25,7 @@ const MEDALS: MedalFinish[] = [
 ];
 
 /** Shortcut tile glyph colors (fixed, like the rest of the medal art). */
-const TILE = { week: '#ff8a3d', community: '#a77bff', premium: '#3d8bff' };
+const TILE = { week: TileColors.orange, community: TileColors.purple, premium: TileColors.blue };
 
 export function activeTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -55,11 +56,11 @@ export function ProfileTiles({ planTitle, planCaption }: { planTitle: string; pl
 
   return (
     <>
-      <View style={{ flexDirection: 'row', gap: Spacing.three, alignItems: 'stretch' }}>
+      <TileRow>
         <Tile icon={CalendarDays} color={TILE.week} title="Sua semana" caption={weekCaption} onPress={() => setWeekOpen(true)} />
         <Tile icon={Users} color={TILE.community} title="Comunidade" caption="Pessoas e grupos" onPress={() => router.push('/(tabs)/social')} />
         <Tile icon={BadgeCheck} color={TILE.premium} title={planTitle} caption={planCaption} onPress={() => router.push('/paywall')} />
-      </View>
+      </TileRow>
       {weekOpen && (
         <Dialog visible title="Sua semana" description={range} onClose={() => setWeekOpen(false)}>
           {sessions.length ? sessions.map((session) => (
@@ -69,20 +70,6 @@ export function ProfileTiles({ planTitle, planCaption }: { planTitle: string; pl
         </Dialog>
       )}
     </>
-  );
-}
-
-function Tile({ icon: Icon, color, title, caption, onPress }: {
-  icon: LucideIcon; color: string; title: string; caption: string; onPress: () => void;
-}) {
-  const colors = useColors();
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${caption}`} onPress={onPress}
-      style={({ pressed }) => [styles.tile, { backgroundColor: pressed ? colors.surfaceChip : colors.surfaceSunken }]}>
-      <Icon size={30} color={color} fill={color} fillOpacity={0.22} strokeWidth={2} />
-      <Text variant="titleSm" style={{ textAlign: 'center', fontSize: 14, lineHeight: 18 }} numberOfLines={2}>{title}</Text>
-      <Text muted style={{ textAlign: 'center', fontSize: 12, lineHeight: 16 }} numberOfLines={3}>{caption}</Text>
-    </Pressable>
   );
 }
 
@@ -97,13 +84,7 @@ export function ProfileMedals() {
     .sort((a, b) => (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''));
 
   return (
-    <View style={[styles.group, { backgroundColor: colors.surfaceSunken }]}>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/achievements')}
-        style={({ pressed }) => [styles.medalHeader, { opacity: pressed ? 0.7 : 1 }]}>
-        <Text style={{ flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600' }} accessibilityRole="header">Minhas medalhas</Text>
-        {achievements.data ? <Text muted style={{ fontSize: 17, lineHeight: 22 }}>{unlocked.length}</Text> : null}
-        <ChevronRight size={18} color={colors.inkMuted} />
-      </Pressable>
+    <HeaderCard title="Minhas medalhas" value={achievements.data ? String(unlocked.length) : null} onPress={() => router.push('/achievements')}>
       {unlocked.length ? (
         <View style={styles.medalRow}>
           {unlocked.slice(0, MEDALS.length).map((item, i) => (
@@ -123,7 +104,7 @@ export function ProfileMedals() {
           <Text muted>{selected.description}</Text>
         </Dialog>
       )}
-    </View>
+    </HeaderCard>
   );
 }
 
@@ -141,61 +122,9 @@ function Medal({ achievement, finish, onPress }: { achievement: Achievement; fin
   );
 }
 
-// ---------- Grouped list ----------
-
-/** Rounded group of rows with inset dividers, like the system settings lists. */
-export function ProfileGroup({ title, children, nativeID }: { title?: string; children: ReactNode; nativeID?: string }) {
-  const colors = useColors();
-  const rows = Children.toArray(children).filter(Boolean);
-  return (
-    <View nativeID={nativeID} style={{ gap: Spacing.three }}>
-      {title ? <Text accessibilityRole="header" style={{ fontSize: 17, lineHeight: 22, fontWeight: '700', paddingHorizontal: Spacing.two }}>{title}</Text> : null}
-      <View style={[styles.group, { backgroundColor: colors.surfaceSunken }]}>
-        {rows.map((row, i) => (
-          <Fragment key={i}>
-            {i > 0 && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginLeft: 56, marginRight: Spacing.four }} />}
-            {row}
-          </Fragment>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-export function ProfileRow({ icon: Icon, title, value, dot, onPress }: {
-  icon: LucideIcon;
-  title: string;
-  /** Muted text before the chevron ("Versão: 1.0.12"). */
-  value?: string | null;
-  /** Small red attention dot after the title. */
-  dot?: boolean;
-  onPress?: () => void;
-}) {
-  const colors = useColors();
-  return (
-    <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress}
-      style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceChip : 'transparent' }]}>
-      <Icon size={24} color={colors.ink} strokeWidth={1.6} />
-      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
-        <Text style={{ fontSize: 16, lineHeight: 22, flexShrink: 1 }} numberOfLines={1}>{title}</Text>
-        {dot && <View style={[styles.dot, { backgroundColor: colors.danger }]} />}
-      </View>
-      {value ? <Text muted style={{ fontSize: 14, maxWidth: '50%' }} numberOfLines={1}>{value}</Text> : null}
-      {onPress && <ChevronRight size={16} color={colors.inkMuted} />}
-    </Pressable>
-  );
-}
+export { Group as ProfileGroup, GroupRow as ProfileRow } from '@/components/grouped';
 
 const styles = StyleSheet.create({
-  tile: {
-    flex: 1, minWidth: 0, borderRadius: Radius.md, borderCurve: 'continuous', alignItems: 'center',
-    paddingVertical: Spacing.four, paddingHorizontal: Spacing.two, gap: Spacing.one,
-  },
-  group: { borderRadius: Radius.md + 4, borderCurve: 'continuous', overflow: 'hidden' },
-  medalHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
-    paddingHorizontal: Spacing.four, paddingTop: Spacing.four, paddingBottom: Spacing.three,
-  },
   medalRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.five, paddingTop: Spacing.two, paddingBottom: Spacing.five,
@@ -206,9 +135,4 @@ const styles = StyleSheet.create({
   },
   medalInner: { position: 'absolute', top: 3, left: 3, right: 3, bottom: 3, borderRadius: 7, borderWidth: 1.5 },
   medalEmpty: { borderStyle: 'dashed', transform: [{ rotate: '45deg' }] },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.four, minHeight: 56,
-    paddingHorizontal: Spacing.four, paddingVertical: Spacing.three,
-  },
-  dot: { width: 7, height: 7, borderRadius: 4 },
 });

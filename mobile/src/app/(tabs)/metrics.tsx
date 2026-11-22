@@ -1,41 +1,37 @@
 import { AppAlert } from '@/lib/feedback';
 import { QueryError ,
   Button,
-  Card,
   Dialog,
-  EmptyState,
   Input,
   Page,
   PageSkeleton,
   Row,
-  SectionHeader,
   Text,
-  TopBar,
   type DialogHandle,
 } from '@/components/ui';
 import * as Haptics from 'expo-haptics';
-import { Droplets, Ruler, Scale, Utensils } from 'lucide-react-native';
+import { Droplet, Droplets, Dumbbell, Flame, Gauge, Ruler, Scale, Utensils, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { TrendChart } from '@/components/charts';
+import { Group, GroupRow, HeaderCard, Tile, TileColors, TileRow } from '@/components/grouped';
 import { DashboardBottom, DashboardOverview, useDayDashboard, type LogKind } from '@/components/dashboard-sections';
 import { HydrationLogger } from '@/components/hydration-logger';
 import { MealLogger } from '@/components/meal-logger';
-import { Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useLogMetrics, useMetricHistory } from '@/hooks/queries';
 import { errorMessage } from '@/lib/api';
 import { decimal } from '@/lib/forms';
 import { formatDayMonth, formatDecimal, formatInt } from '@/lib/workout';
 import type { HistoryPoint } from '@/types/api';
-import { useColors } from '@/providers/theme';
 
 type Metric = 'weight' | 'fat' | 'muscle';
-const METRICS: Record<Metric, { title: string; unit: string }> = {
-  weight: { title: 'Peso', unit: 'kg' },
-  fat: { title: 'Gordura', unit: '%' },
-  muscle: { title: 'Músculo', unit: 'kg' },
+const METRICS: Record<Metric, { title: string; unit: string; icon: LucideIcon; color: string }> = {
+  weight: { title: 'Peso', unit: 'kg', icon: Scale, color: TileColors.orange },
+  fat: { title: 'Gordura', unit: '%', icon: Droplet, color: TileColors.purple },
+  muscle: { title: 'Músculo', unit: 'kg', icon: Dumbbell, color: TileColors.blue },
 };
 
 function orderedHistory(history: HistoryPoint[] = []) {
@@ -48,9 +44,6 @@ const sameDay = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10);
 
 /** Day summary + body measurements in one screen (the former home dashboard lives here). */
 export default function MetricsScreen() {
-  const Colors = useColors();
-  const { width, fontScale } = useWindowDimensions();
-  const stackTabs = width / Math.max(1, fontScale) < 266;
   const day = useDayDashboard();
   const { profile, dashboard } = day;
   const weight = useMetricHistory('weight');
@@ -100,13 +93,19 @@ export default function MetricsScreen() {
   const volume = dashboard.data?.workout_volume;
   const records = [...histories.weight].reverse();
 
+  const latestOf = (key: Metric) => key === 'weight' ? currentWeight : histories[key].at(-1)?.value;
+  const tileValue = (key: Metric) => {
+    const value = latestOf(key);
+    return value === undefined ? '—' : `${formatDecimal(value)} ${METRICS[key].unit}`;
+  };
+  const visibleRecords = showAll ? records : records.slice(0, 3);
+
   return (
     <View style={{ flex: 1 }}>
     <Page
       tab
-      topBar={<TopBar title="Medidas" />}
       // Room for the floating "+" so it never covers the last record.
-      contentStyle={{ paddingBottom: FAB_CLEARANCE }}
+      contentStyle={{ width: '100%', maxWidth: 480, alignSelf: 'center', gap: Spacing.four, paddingBottom: FAB_CLEARANCE }}
       refreshing={weight.isRefetching || day.isRefetching}
       onRefresh={() => {
         weight.refetch();
@@ -114,98 +113,47 @@ export default function MetricsScreen() {
         muscle.refetch();
         day.refetch();
       }}>
-      <View style={{ gap: Spacing.four }}>
-        <View accessibilityRole="tablist" style={{
-          flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one,
-          borderRadius: Radius.md, borderCurve: 'continuous',
-          backgroundColor: Colors.surfaceSunken, padding: Spacing.one,
-        }}>
-          {(Object.keys(METRICS) as Metric[]).map((key) => {
-            const selected = metric === key;
-            return (
-              <Pressable
-                key={key}
-                accessibilityRole="tab"
-                aria-selected={selected}
-                onPress={() => setMetric(key)}
-                style={({ pressed }) => ({
-                  flexGrow: 1, flexBasis: stackTabs ? '100%' : '30%', minWidth: 78, minHeight: 44,
-                  alignItems: 'center', justifyContent: 'center',
-                  paddingHorizontal: Spacing.two, paddingVertical: Spacing.two,
-                  borderRadius: Radius.sm, borderCurve: 'continuous',
-                  backgroundColor: selected ? Colors.surface : pressed ? Colors.surfaceChip : 'transparent',
-                })}>
-                <Text variant={selected ? 'titleSm' : 'label'} color={selected ? Colors.voltInk : Colors.inkMuted} style={{ textAlign: 'center' }}>
-                  {METRICS[key].title}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <View accessibilityRole="tablist">
+        <TileRow>
+          {(Object.keys(METRICS) as Metric[]).map((key) => (
+            <Tile key={key} role="tab" icon={METRICS[key].icon} color={METRICS[key].color} title={METRICS[key].title}
+              value={tileValue(key)} selected={metric === key} onPress={() => setMetric(key)} />
+          ))}
+        </TileRow>
+      </View>
 
-        <Card style={{ gap: Spacing.three }}>
-          <Text variant="label" muted>{title} atual</Text>
-          <Text
-            variant="display"
-            accessibilityRole="header"
-            style={{ fontSize: 34, lineHeight: 42, fontVariant: ['tabular-nums'] }}>
-            {current !== undefined ? formatValue(current) : 'Sem registro'}
-          </Text>
-          {variation && <Text variant="label" muted>{variation}</Text>}
+      <HeaderCard title={`Evolução de ${title.toLowerCase()}`} value={current !== undefined ? formatValue(current) : 'Sem registro'}>
+        <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four, gap: Spacing.two }}>
+          {variation && <Text muted style={{ fontSize: 13 }}>{variation}</Text>}
           {chart.length > 0 ? (
             <TrendChart data={chart} formatValue={formatValue} title={`Evolução de ${title.toLowerCase()}`} />
           ) : (
-            <Text variant="label" muted>Use o botão + para registrar suas medidas.</Text>
-          )}
-        </Card>
-      </View>
-
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader
-          title="Registros de peso"
-          action={records.length > 2 ? (showAll ? 'Ver menos' : 'Ver todos') : undefined}
-          onAction={() => setShowAll((v) => !v)}
-        />
-        {records.length === 0 ? (
-          <EmptyState icon={Scale} message="Registre suas medidas para acompanhar a evolução." />
-        ) : (
-          (showAll ? records : records.slice(0, 2)).map((r, index) => {
-            const f = histories.fat.find((p) => sameDay(p.date, r.date));
-            const m = histories.muscle.find((p) => sameDay(p.date, r.date));
-            const details = [f && `Gordura ${formatDecimal(f.value)}%`, m && `Músculo ${formatDecimal(m.value)} kg`].filter(Boolean).join(' · ');
-            return (
-              <Row key={`${r.date}-${index}`} style={{
-                justifyContent: 'space-between', flexWrap: 'wrap', minHeight: 44,
-                borderTopWidth: StyleSheet.hairlineWidth, borderColor: Colors.line, paddingVertical: Spacing.two,
-              }}>
-                <View style={{ flexGrow: 1, flexShrink: 1, gap: 2 }}>
-                  <Text variant="titleMd">{formatDayMonth(r.date)}</Text>
-                  {details ? <Text variant="caption" style={{ fontSize: 12 }}>{details}</Text> : null}
-                </View>
-                <Text variant="titleSm" style={{ fontSize: 15 }}>
-                  {formatDecimal(r.value)} kg
-                </Text>
-              </Row>
-            );
-          })
-        )}
-      </View>
-
-      {(bmr !== undefined || bmi || volume) && (
-        <View style={{ gap: Spacing.two }}>
-          <SectionHeader title="Indicadores" />
-          {bmr !== undefined && <Text variant="body" muted>Metabolismo basal · {formatInt(bmr)} kcal</Text>}
-          {bmi && <Text variant="body" muted>IMC · {bmi}</Text>}
-          {volume && (
-            <Text variant="body" muted>
-              Volume de treino · {formatInt(volume.volume_kg)} kg · {volume.change_percentage >= 0 ? '+' : ''}{formatDecimal(volume.change_percentage, 0)}% vs. semana anterior
-            </Text>
+            <Text muted>Use o botão + para registrar suas medidas.</Text>
           )}
         </View>
+      </HeaderCard>
+
+      <Group title="Registros de peso" action={records.length > 3 ? (showAll ? 'Ver menos' : 'Ver todos') : undefined} onAction={() => setShowAll((v) => !v)}>
+        {records.length === 0 ? (
+          <GroupRow icon={Scale} title="Nenhum registro ainda" caption="Registre suas medidas para acompanhar a evolução." onPress={() => setFormOpen(true)} />
+        ) : visibleRecords.map((r, index) => {
+          const f = histories.fat.find((p) => sameDay(p.date, r.date));
+          const m = histories.muscle.find((p) => sameDay(p.date, r.date));
+          const details = [f && `Gordura ${formatDecimal(f.value)}%`, m && `Músculo ${formatDecimal(m.value)} kg`].filter(Boolean).join(' · ');
+          return <GroupRow key={`${r.date}-${index}`} icon={Scale} title={formatDayMonth(r.date)} caption={details || null} value={`${formatDecimal(r.value)} kg`} />;
+        })}
+      </Group>
+
+      {(bmr !== undefined || bmi || volume) && (
+        <Group title="Indicadores">
+          {bmr !== undefined && <GroupRow icon={Flame} title="Metabolismo basal" value={`${formatInt(bmr)} kcal`} />}
+          {bmi && <GroupRow icon={Gauge} title="IMC" value={bmi} />}
+          {volume && <GroupRow icon={Dumbbell} title="Volume de treino" caption={`${volume.change_percentage >= 0 ? '+' : ''}${formatDecimal(volume.change_percentage, 0)}% vs. semana anterior`} value={`${formatInt(volume.volume_kg)} kg`} />}
+        </Group>
       )}
 
       <DashboardOverview d={day} />
-      <DashboardBottom d={day} />
+      <DashboardBottom />
 
       {formOpen && <MetricsSheet onClose={() => setFormOpen(false)} />}
       {logger === 'meal' && <MealLogger visible onClose={() => setLogger(null)} />}
