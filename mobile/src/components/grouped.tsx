@@ -62,13 +62,15 @@ export function Group({ title, action, onAction, children, nativeID }: {
   );
 }
 
-export function GroupRow({ icon: Icon, leading, title, caption, value, dot, onPress }: {
+export function GroupRow({ icon: Icon, leading, title, caption, captionLines = 2, value, dot, onPress, accessibilityLabel }: {
   icon?: LucideIcon;
   /** Custom 24px leading view instead of an icon (avatar, mascot). */
   leading?: ReactNode;
   title: string;
   /** Muted second line. */
   caption?: string | null;
+  captionLines?: number;
+  accessibilityLabel?: string;
   /** Muted text before the chevron ("Versão: 1.0.12", "82,4 kg"). */
   value?: string | null;
   /** Small red attention dot after the title. */
@@ -77,7 +79,7 @@ export function GroupRow({ icon: Icon, leading, title, caption, value, dot, onPr
 }) {
   const colors = useColors();
   return (
-    <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress}
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={accessibilityLabel} disabled={!onPress} onPress={onPress}
       style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceChip : 'transparent' }]}>
       <View style={{ width: 24, alignItems: 'center' }}>
         {leading ?? (Icon && <Icon size={24} color={colors.ink} strokeWidth={1.6} />)}
@@ -87,7 +89,7 @@ export function GroupRow({ icon: Icon, leading, title, caption, value, dot, onPr
           <Text style={{ fontSize: 16, lineHeight: 22, flexShrink: 1 }} numberOfLines={1}>{title}</Text>
           {dot && <View style={[styles.dot, { backgroundColor: colors.danger }]} />}
         </View>
-        {caption ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={2}>{caption}</Text> : null}
+        {caption ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={captionLines}>{caption}</Text> : null}
       </View>
       {value ? <Text muted style={{ fontSize: 14, maxWidth: '50%', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{value}</Text> : null}
       {onPress && <ChevronRight size={16} color={colors.inkMuted} />}

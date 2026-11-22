@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { Bell, Flame, Heart, LayoutGrid, Users, Utensils, type LucideIcon } from 'lucide-react-native';
-import { BadgeIcon, Button, Card, Chips, EmptyState, Page, PageSkeleton, QueryError, Row, Text, TopBar } from '@/components/ui';
+import { View } from 'react-native';
+import { Bell, CheckCheck, ChevronLeft, Flame, Heart, LayoutGrid, Users, Utensils, type LucideIcon } from 'lucide-react-native';
+import { Group, GroupRow } from '@/components/grouped';
+import { Button, Chips, IconButton, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useFriends, useRespondFriendRequest } from '@/hooks/community';
 import { useMarkNotificationRead, useNotifications } from '@/hooks/queries';
@@ -50,43 +51,42 @@ export default function NotificationsScreen() {
     try { await Promise.all(unread.map(n => markRead.mutateAsync(n.id))); } catch (e) { error(e); }
     finally { setMarkingAll(false); }
   };
-  return <Page topBar={<TopBar title="Notificações" back />} refreshing={query.isRefetching} onRefresh={refresh}>
+  return <Page topBar={
+    <Row style={{ width: '100%', maxWidth: 480, alignSelf: 'center', justifyContent: 'space-between' }}>
+      <IconButton icon={ChevronLeft} label="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
+      {unread.length > 0 && <IconButton icon={CheckCheck} label="Marcar todas como lidas" onPress={markingAll ? undefined : markAll} />}
+    </Row>
+  } refreshing={query.isRefetching} onRefresh={refresh}
+    contentStyle={{ width: '100%', maxWidth: 480, alignSelf: 'center', gap: Spacing.four }}>
     <Chips options={FILTERS} value={filter} onChange={setFilter} />
-    {requests.error && <Button variant="soft" title="Tentar carregar solicitações" onPress={() => requests.refetch()} />}
-    {list.length === 0 && <EmptyState icon={Bell} message="Nenhuma notificação por enquanto." />}
-    {groups.map(g => <View key={g.label} style={{ gap: Spacing.three }}>
-      <Text variant="label" muted>{g.label}</Text>
+    {requests.error && <Group>
+      <GroupRow icon={Users} title="Não foi possível carregar as solicitações" caption="Toque para tentar novamente" onPress={() => requests.refetch()} />
+    </Group>}
+    {list.length === 0 && <Group>
+      <GroupRow icon={Bell} title="Nenhuma notificação por enquanto" caption={filter === 'all' ? 'Avisos sobre metas, conquistas e a comunidade aparecem aqui.' : 'Nada nesta categoria.'} />
+    </Group>}
+    {groups.map(g => <Group key={g.label} title={g.label}>
       {g.items.map(n => {
         const request = requests.data?.received.find(r => r.id === n.link_id);
         const isRequest = n.link_type === 'community_follow_request' || n.link_type === 'community_friends';
         const busy = respond.isPending;
+        const path = isRequest ? (request ? `/community/user/${request.user.id}` : null) : communityNotificationPath(n.link_type, n.link_id);
         const open = () => {
           if (!n.is_read) markRead.mutate(n.id, { onError: error });
-          if (isRequest) {
-            if (request) router.push(`/community/user/${request.user.id}`);
-          } else {
-            const path = communityNotificationPath(n.link_type, n.link_id);
-            if (path) router.push(path as `/community/activity/${string}`);
-          }
+          if (path) router.push(path as `/community/activity/${string}`);
         };
-        return <Card key={n.id}>
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`${n.is_read ? '' : 'Não lida. '}${n.title}. ${n.message}`}>
-            <Row style={{ gap: 12, alignItems: 'flex-start' }}>
-              <BadgeIcon icon={ICONS[n.type] ?? Bell} tone={n.is_read ? 'chip' : 'volt'} size={32} />
-              <View style={{ flex: 1, gap: 5 }}>
-                <Text variant="titleSm">{n.title}</Text><Text muted style={{ fontSize: 13, lineHeight: 19 }}>{n.message}</Text>
-                <Text variant="caption">{new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</Text>
-              </View>
-            </Row>
-          </Pressable>
-          {isRequest && request && <Row style={{ gap: 10 }}>
-            <Button title="Aceitar" style={{ flex: 1 }} loading={busy && respond.variables?.id === request.id && respond.variables.accept} disabled={busy} onPress={() => respond.mutate({ id: request.id, accept: true }, { onError: error })} />
-            <Button title="Recusar" variant="soft" style={{ flex: 1 }} disabled={busy} onPress={() => respond.mutate({ id: request.id, accept: false }, { onError: error })} />
+        const time = new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return <View key={n.id}>
+          <GroupRow icon={ICONS[n.type] ?? Bell} title={n.title} caption={n.message} captionLines={4} value={time} dot={!n.is_read}
+            accessibilityLabel={`${n.is_read ? '' : 'Não lida. '}${n.title}. ${n.message}`}
+            onPress={path || !n.is_read ? open : undefined} />
+          {isRequest && request && <Row style={{ gap: Spacing.two, paddingLeft: 56, paddingRight: Spacing.four, paddingBottom: Spacing.three }}>
+            <Button size="sm" title="Aceitar" style={{ flex: 1 }} loading={busy && respond.variables?.id === request.id && respond.variables.accept} disabled={busy} onPress={() => respond.mutate({ id: request.id, accept: true }, { onError: error })} />
+            <Button size="sm" title="Recusar" variant="soft" style={{ flex: 1 }} disabled={busy} onPress={() => respond.mutate({ id: request.id, accept: false }, { onError: error })} />
           </Row>}
-          {isRequest && !request && !requests.error && <Text variant="caption">{requests.isLoading ? 'Carregando solicitação…' : 'Solicitação encerrada.'}</Text>}
-        </Card>;
+          {isRequest && !request && !requests.error && <Text muted style={{ fontSize: 12, paddingLeft: 56, paddingBottom: Spacing.three }}>{requests.isLoading ? 'Carregando solicitação…' : 'Solicitação encerrada.'}</Text>}
+        </View>;
       })}
-    </View>)}
-    {unread.length > 0 && <Button size="lg" variant="soft" title="Marcar Todas como Lidas" onPress={markAll} loading={markingAll} />}
+    </Group>)}
   </Page>;
 }
