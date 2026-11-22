@@ -1,132 +1,65 @@
 import { router } from 'expo-router';
-import { ArrowUpRight, ChevronRight, Droplets, Dumbbell, Flame, History, Ruler, Trophy, Utensils, type LucideIcon } from 'lucide-react-native';
-import { useState } from 'react';
+import { CalendarDays, ChevronRight, Droplets, Dumbbell, Flame, Sparkles, Trophy, Users, Utensils, type LucideIcon } from 'lucide-react-native';
+import { Children, Fragment, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Card, Dialog, IconButton, ListItem, Row, SectionHeader, Text } from '@/components/ui';
+import { Dialog, ListItem, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAchievements, useWorkoutHistory } from '@/hooks/queries';
 import { distanceLabel } from '@/lib/outdoor';
 import { profileWeek } from '@/lib/profile-week';
-import { WEEKDAY_SHORT } from '@/lib/workout';
-import { useAppTheme, useColors } from '@/providers/theme';
+import { useColors } from '@/providers/theme';
 import type { Achievement } from '@/types/api';
 
 const dateWithMonth = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
-const kilometers = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
-const achievementStamps = [
-  { rim: '#85923c', fill: '#e5eb9d', ink: '#29320a' },
-  { rim: '#659582', fill: '#c8f0dc', ink: '#1c4534' },
-  { rim: '#9f7446', fill: '#f1d099', ink: '#432607' },
+
+/** Medal finishes, newest first: gold, silver, bronze, volt, steel. */
+type MedalFinish = { light: string; dark: string; rim: string; ink: string };
+const MEDALS: MedalFinish[] = [
+  { light: '#ffe58a', dark: '#c9971c', rim: '#f6d35b', ink: '#5a3d00' },
+  { light: '#f4f6f8', dark: '#9aa3ad', rim: '#d5dbe1', ink: '#323a42' },
+  { light: '#ffd2a8', dark: '#b8692e', rim: '#e9a26b', ink: '#4a2307' },
+  { light: '#e4ff9c', dark: '#7fbf00', rim: '#bfef3c', ink: '#243400' },
+  { light: '#cfe3ff', dark: '#4f7fc4', rim: '#93b9ee', ink: '#10284d' },
 ];
 
-function activeTime(seconds: number) {
+/** Shortcut tile glyph colors (fixed, like the rest of the medal art). */
+const TILE = { week: '#ff8a3d', community: '#a77bff', premium: '#3d8bff' };
+
+export function activeTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours ? `${hours}h${remainder ? ` ${remainder}min` : ''}` : `${minutes} min`;
 }
 
-function achievementIcon(category: string) {
-  if (/streak|consist/i.test(category)) return Flame;
-  if (/work|trein/i.test(category)) return Dumbbell;
-  if (/hydr|hidrat/i.test(category)) return Droplets;
-  if (/nutri|diet/i.test(category)) return Utensils;
-  return Trophy;
+function AchievementGlyph({ category, color }: { category: string; color: string }) {
+  const props = { size: 22, color, strokeWidth: 2.4 };
+  if (/streak|consist/i.test(category)) return <Flame {...props} />;
+  if (/work|trein/i.test(category)) return <Dumbbell {...props} />;
+  if (/hydr|hidrat/i.test(category)) return <Droplets {...props} />;
+  if (/nutri|diet/i.test(category)) return <Utensils {...props} />;
+  return <Trophy {...props} />;
 }
 
-export function ProfileOverview() {
-  const colors = useColors();
-  const { scheme } = useAppTheme();
+// ---------- Shortcut tiles ----------
+
+export function ProfileTiles({ planTitle, planCaption }: { planTitle: string; planCaption: string }) {
   const history = useWorkoutHistory();
-  const achievements = useAchievements();
   const [weekOpen, setWeekOpen] = useState(false);
-  const [achievement, setAchievement] = useState<Achievement | null>(null);
-  const { days, sessions, seconds, outdoorMeters } = profileWeek(history.data ?? [], new Date());
-  const start = days[0].date;
-  const end = days[6].date;
-  const range = `${start.getMonth() === end.getMonth() ? start.getDate() : dateWithMonth.format(start)} a ${dateWithMonth.format(end)}`;
-  const weeklyStats = [
-    { label: 'Treinos', value: String(sessions.length) },
-    { label: 'Tempo ativo', value: activeTime(seconds) },
-    { label: 'Ao ar livre', value: `${kilometers.format(outdoorMeters / 1000)} km` },
-  ];
-  const earned = (achievements.data ?? [])
-    .filter((item) => item.unlocked)
-    .sort((a, b) => (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''))
-    .slice(0, achievementStamps.length);
-  const divider = scheme === 'dark' ? '#465142' : '#d7e8b7';
+  const { days, sessions, seconds } = profileWeek(history.data ?? [], new Date());
+  const range = `${dateWithMonth.format(days[0].date)} a ${dateWithMonth.format(days[6].date)}`;
+  const weekCaption = history.data === undefined
+    ? (history.error ? 'Indisponível' : 'Carregando…')
+    : sessions.length ? `${sessions.length} ${sessions.length === 1 ? 'treino' : 'treinos'} · ${activeTime(seconds)}` : 'Nenhum treino ainda';
 
   return (
     <>
-      <View style={{ gap: Spacing.two }}>
-        <Card style={{ gap: Spacing.three, backgroundColor: colors.voltSoft, borderWidth: 1, borderColor: divider }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text variant="titleMd" accessibilityRole="header">Sua semana</Text>
-              <Text variant="caption">{range}</Text>
-            </View>
-            {history.data !== undefined && (
-              <IconButton icon={ArrowUpRight} label="Ver resumo da semana" onPress={() => setWeekOpen(true)} />
-            )}
-          </Row>
-          {history.data !== undefined ? (
-            <>
-              <Row style={{ marginVertical: Spacing.one, alignItems: 'flex-start' }}>
-                {weeklyStats.map(({ label, value }, i) => (
-                  <View key={label} style={{ flex: 1, minWidth: 0, paddingLeft: i ? Spacing.two : 0, borderLeftWidth: i ? 1 : 0, borderColor: divider }}>
-                    <Text variant="titleLg" color={colors.voltInk} style={{ fontSize: 19, lineHeight: 24 }}>{value}</Text>
-                    <Text variant="caption">{label}</Text>
-                  </View>
-                ))}
-              </Row>
-              <Row style={{ paddingTop: Spacing.two, borderTopWidth: 1, borderColor: divider }}>
-                {days.map(({ date, active }) => (
-                  <View key={date.getDay()} accessible accessibilityLabel={`${WEEKDAY_SHORT[date.getDay()]}, ${active ? 'com atividade' : 'sem atividade registrada'}`}
-                    style={{ flex: 1, alignItems: 'center', gap: Spacing.one }}>
-                    <View style={{ width: '76%', height: 3, borderRadius: 3, backgroundColor: active ? colors.voltInk : divider }} />
-                    <Text variant="caption" style={{ fontSize: 10 }}>{WEEKDAY_SHORT[date.getDay()]}</Text>
-                  </View>
-                ))}
-              </Row>
-            </>
-          ) : history.error ? (
-            <Text muted>Não foi possível carregar seus treinos.</Text>
-          ) : (
-            <Text muted>Carregando seu resumo…</Text>
-          )}
-        </Card>
-        <Row style={{ alignItems: 'stretch' }}>
-          <ProfileShortcut label="Histórico" icon={History} onPress={() => router.push('/workout/history')} />
-          <ProfileShortcut label="Medidas" icon={Ruler} onPress={() => router.push('/(tabs)/metrics')} />
-        </Row>
+      <View style={{ flexDirection: 'row', gap: Spacing.three, alignItems: 'stretch' }}>
+        <Tile icon={CalendarDays} color={TILE.week} title="Sua semana" caption={weekCaption} onPress={() => setWeekOpen(true)} />
+        <Tile icon={Users} color={TILE.community} title="Comunidade" caption="Pessoas e grupos" onPress={() => router.push('/(tabs)/social')} />
+        <Tile icon={Sparkles} color={TILE.premium} title={planTitle} caption={planCaption} onPress={() => router.push('/paywall')} />
       </View>
-
-      <View style={{ gap: Spacing.two }}>
-        <SectionHeader title="Conquistas" action="Ver todas" onAction={() => router.push('/achievements')} />
-        <Card style={{ padding: Spacing.three }}>
-          {earned.length ? (
-            <Row style={{ alignItems: 'flex-start' }}>
-              {earned.map((item, i) => {
-                const stamp = achievementStamps[i];
-                const Icon = achievementIcon(item.category);
-                return (
-                  <Pressable key={item.id} onPress={() => setAchievement(item)} accessibilityRole="button"
-                    style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: Spacing.one, opacity: pressed ? 0.72 : 1 })}>
-                    <View style={[styles.medal, { backgroundColor: stamp.fill, borderColor: stamp.rim }]}>
-                      <Icon size={21} color={stamp.ink} />
-                    </View>
-                    <Text variant="titleSm" style={{ textAlign: 'center', fontSize: 12, lineHeight: 16 }}>{item.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </Row>
-          ) : (
-            <Text muted>{achievements.error ? 'Não foi possível carregar suas conquistas.' : achievements.data ? 'Você ainda não desbloqueou conquistas.' : 'Carregando suas conquistas…'}</Text>
-          )}
-        </Card>
-      </View>
-
       {weekOpen && (
         <Dialog visible title="Sua semana" description={range} onClose={() => setWeekOpen(false)}>
           {sessions.length ? sessions.map((session) => (
@@ -135,33 +68,147 @@ export function ProfileOverview() {
           )) : <Text muted>Nenhum treino registrado nesta semana.</Text>}
         </Dialog>
       )}
-      {achievement && (
-        <Dialog visible title={achievement.name} onClose={() => setAchievement(null)}>
-          <Text muted>{achievement.description}</Text>
-        </Dialog>
-      )}
     </>
   );
 }
 
-function ProfileShortcut({ label, icon: Icon, onPress }: { label: string; icon: LucideIcon; onPress: () => void }) {
+function Tile({ icon: Icon, color, title, caption, onPress }: {
+  icon: LucideIcon; color: string; title: string; caption: string; onPress: () => void;
+}) {
   const colors = useColors();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress}
-      style={({ pressed }) => [styles.shortcut, { backgroundColor: colors.surfaceSunken, borderColor: colors.line, opacity: pressed ? 0.72 : 1 }]}>
-      <Icon size={16} color={colors.voltInk} />
-      <Text variant="titleSm" style={{ flex: 1, fontSize: 13 }}>{label}</Text>
-      <ChevronRight size={14} color={colors.inkMuted} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${caption}`} onPress={onPress}
+      style={({ pressed }) => [styles.tile, { backgroundColor: pressed ? colors.surfaceChip : colors.surfaceSunken }]}>
+      <Icon size={30} color={color} fill={color} fillOpacity={0.22} strokeWidth={2} />
+      <Text variant="titleSm" style={{ textAlign: 'center', fontSize: 14, lineHeight: 18 }} numberOfLines={2}>{title}</Text>
+      <Text muted style={{ textAlign: 'center', fontSize: 12, lineHeight: 16 }} numberOfLines={3}>{caption}</Text>
+    </Pressable>
+  );
+}
+
+// ---------- Medals ----------
+
+export function ProfileMedals() {
+  const colors = useColors();
+  const achievements = useAchievements();
+  const [selected, setSelected] = useState<Achievement | null>(null);
+  const unlocked = (achievements.data ?? [])
+    .filter((item) => item.unlocked)
+    .sort((a, b) => (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''));
+
+  return (
+    <View style={[styles.group, { backgroundColor: colors.surfaceSunken }]}>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/achievements')}
+        style={({ pressed }) => [styles.medalHeader, { opacity: pressed ? 0.7 : 1 }]}>
+        <Text style={{ flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600' }} accessibilityRole="header">Minhas medalhas</Text>
+        {achievements.data ? <Text muted style={{ fontSize: 17, lineHeight: 22 }}>{unlocked.length}</Text> : null}
+        <ChevronRight size={18} color={colors.inkMuted} />
+      </Pressable>
+      {unlocked.length ? (
+        <View style={styles.medalRow}>
+          {unlocked.slice(0, MEDALS.length).map((item, i) => (
+            <Medal key={item.id} achievement={item} finish={MEDALS[i]} onPress={() => setSelected(item)} />
+          ))}
+          {Array.from({ length: Math.max(0, MEDALS.length - unlocked.length) }, (_, i) => (
+            <View key={`empty-${i}`} style={[styles.medal, styles.medalEmpty, { borderColor: colors.line }]} />
+          ))}
+        </View>
+      ) : (
+        <Text muted style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+          {achievements.error ? 'Não foi possível carregar suas medalhas.' : achievements.data ? 'Treine para ganhar sua primeira medalha.' : 'Carregando suas medalhas…'}
+        </Text>
+      )}
+      {selected && (
+        <Dialog visible title={selected.name} onClose={() => setSelected(null)}>
+          <Text muted>{selected.description}</Text>
+        </Dialog>
+      )}
+    </View>
+  );
+}
+
+function Medal({ achievement, finish, onPress }: { achievement: Achievement; finish: MedalFinish; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={achievement.name} onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+      <View style={[styles.medal, { backgroundColor: finish.light, borderColor: finish.dark, transform: [{ rotate: '45deg' }] }]}>
+        <View style={[styles.medalInner, { borderColor: finish.rim }]} />
+        <View style={{ transform: [{ rotate: '-45deg' }] }}>
+          <AchievementGlyph category={achievement.category} color={finish.ink} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// ---------- Grouped list ----------
+
+/** Rounded group of rows with inset dividers, like the system settings lists. */
+export function ProfileGroup({ title, children, nativeID }: { title?: string; children: ReactNode; nativeID?: string }) {
+  const colors = useColors();
+  const rows = Children.toArray(children).filter(Boolean);
+  return (
+    <View nativeID={nativeID} style={{ gap: Spacing.three }}>
+      {title ? <Text accessibilityRole="header" style={{ fontSize: 17, lineHeight: 22, fontWeight: '700', paddingHorizontal: Spacing.two }}>{title}</Text> : null}
+      <View style={[styles.group, { backgroundColor: colors.surfaceSunken }]}>
+        {rows.map((row, i) => (
+          <Fragment key={i}>
+            {i > 0 && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginLeft: 56, marginRight: Spacing.four }} />}
+            {row}
+          </Fragment>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export function ProfileRow({ icon: Icon, title, value, dot, onPress }: {
+  icon: LucideIcon;
+  title: string;
+  /** Muted text before the chevron ("Versão: 1.0.12"). */
+  value?: string | null;
+  /** Small red attention dot after the title. */
+  dot?: boolean;
+  onPress?: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress}
+      style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.surfaceChip : 'transparent' }]}>
+      <Icon size={24} color={colors.ink} strokeWidth={1.6} />
+      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+        <Text style={{ fontSize: 16, lineHeight: 22, flexShrink: 1 }} numberOfLines={1}>{title}</Text>
+        {dot && <View style={[styles.dot, { backgroundColor: colors.danger }]} />}
+      </View>
+      {value ? <Text muted style={{ fontSize: 14, maxWidth: '50%' }} numberOfLines={1}>{value}</Text> : null}
+      {onPress && <ChevronRight size={16} color={colors.inkMuted} />}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  shortcut: {
-    flex: 1, minHeight: 46, borderWidth: 1, borderRadius: Radius.sm, paddingHorizontal: Spacing.three,
-    alignItems: 'center', flexDirection: 'row', gap: Spacing.two,
+  tile: {
+    flex: 1, minWidth: 0, borderRadius: Radius.md, borderCurve: 'continuous', alignItems: 'center',
+    paddingVertical: Spacing.four, paddingHorizontal: Spacing.two, gap: Spacing.one,
+  },
+  group: { borderRadius: Radius.md + 4, borderCurve: 'continuous', overflow: 'hidden' },
+  medalHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.two,
+    paddingHorizontal: Spacing.four, paddingTop: Spacing.four, paddingBottom: Spacing.three,
+  },
+  medalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.five, paddingTop: Spacing.two, paddingBottom: Spacing.five,
   },
   medal: {
-    width: 47, height: 47, borderRadius: 16, borderWidth: 3, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 11, borderWidth: 2.5, margin: 8, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
   },
+  medalInner: { position: 'absolute', top: 3, left: 3, right: 3, bottom: 3, borderRadius: 7, borderWidth: 1.5 },
+  medalEmpty: { borderStyle: 'dashed', transform: [{ rotate: '45deg' }] },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.four, minHeight: 56,
+    paddingHorizontal: Spacing.four, paddingVertical: Spacing.three,
+  },
+  dot: { width: 7, height: 7, borderRadius: 4 },
 });
