@@ -76,11 +76,33 @@ class OutdoorTrainingTests(unittest.TestCase):
 
     def test_reject_invalid_points_and_active_duration(self):
         owner = self.headers(self.owner)
-        for fields in ({'route': [[[91, 0]]]}, {'duration_seconds': 421}, {'activity_type': 'bike'}):
+        for fields in ({'route': [[[91, 0]]]}, {'duration_seconds': 421}, {'activity_type': 'swim'}, {'activity_type': []}):
             with self.subTest(fields=fields):
                 response = self.client.put(self.activity_url, json={**self.payload, **fields}, headers=owner)
                 self.assertEqual(response.status_code, 400)
         self.assertEqual(self.client.get('/outdoor', headers=owner).json, [])
+
+    def test_bike_accepts_cycling_speed_and_keeps_route_private(self):
+        owner = self.headers(self.owner)
+        other = self.headers(self.other)
+        route = [[[0, 0], [0, 0.05]]]  # 5.56 km in five minutes (about 67 km/h).
+        payload = {**self.payload, 'route': route}
+        self.assertEqual(self.client.put(self.activity_url, json=payload, headers=owner).status_code, 400)
+        self.assertEqual(self.client.put(self.activity_url, json={
+            **payload, 'activity_type': 'bike', 'route': [[[0, 0], [0, 0.2]]],
+        }, headers=owner).status_code, 400)
+
+        payload['activity_type'] = 'bike'
+        saved = self.client.put(self.activity_url, json=payload, headers=owner)
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json['outdoor_type'], 'bike')
+        self.assertEqual(saved.json['workout_name'], 'Pedal ao ar livre')
+        self.assertAlmostEqual(saved.json['distance_meters'], 5559.7, places=1)
+        self.assertEqual(saved.json['calories'], 69)
+        self.assertEqual(saved.json['route'], route)
+        self.assertEqual(self.client.put(self.activity_url, json=payload, headers=owner).json, saved.json)
+        self.assertNotIn('route', self.client.get('/outdoor', headers=owner).json[0])
+        self.assertEqual(self.client.get(self.activity_url, headers=other).status_code, 404)
 
 
 if __name__ == '__main__':

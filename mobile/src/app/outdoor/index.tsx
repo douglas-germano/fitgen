@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Check, Footprints, LocateFixed, Pause, Play, Zap } from 'lucide-react-native';
+import { Bike, Check, Footprints, LocateFixed, Pause, Play, Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -11,7 +11,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/queries';
 import { useColors } from '@/providers/theme';
 import { AppAlert } from '@/lib/feedback';
-import { estimatedCalories, outdoorName, type OutdoorType } from '@/lib/outdoor';
+import { estimatedCalories, OUTDOOR_NAMES, outdoorName, type OutdoorType } from '@/lib/outdoor';
 import { enableOutdoorBackground, requestOutdoorLocation, startOutdoorLocation, stopOutdoorLocation } from '@/lib/outdoor-location';
 import { durationSeconds, finishDraft, pauseDraft, readDraft, removeDraft, writeDraft, type OutdoorDraft } from '@/lib/outdoor-recording';
 import { randomUUID } from 'expo-crypto';
@@ -23,6 +23,11 @@ function KeepScreenAwake() {
 }
 
 const announceError = (error: unknown) => AppAlert.alert('Atividade ao ar livre', error instanceof Error ? error.message : 'Tente novamente.');
+const ACTIVITY_OPTIONS = [
+  { value: 'run', Icon: Zap },
+  { value: 'walk', Icon: Footprints },
+  { value: 'bike', Icon: Bike },
+] as const;
 
 export default function OutdoorScreen() {
   const colors = useColors();
@@ -192,7 +197,7 @@ export default function OutdoorScreen() {
         style={stackActions ? undefined : { flex: 1 }} disabled={!seconds || busy} onPress={finish} />
     </View>
   ) : (
-    <Button title={type === 'run' ? 'Iniciar corrida' : 'Iniciar caminhada'} icon={Play} size="lg"
+    <Button title={OUTDOOR_NAMES[type].start} icon={Play} size="lg"
       onPress={() => void start()} loading={busy} disabled={!owner} />
   );
 
@@ -201,17 +206,14 @@ export default function OutdoorScreen() {
       {!draft ? (
         <>
           <View style={{ gap: Spacing.two }}>
-            <Text variant="display" accessibilityRole="header">Corrida e caminhada</Text>
+            <Text variant="display" accessibilityRole="header">Qual atividade?</Text>
             <Text muted style={{ fontSize: 16, lineHeight: 23 }}>
               Registre o tempo, a distância e o trajeto pelo GPS.
             </Text>
           </View>
 
           <View accessibilityRole="radiogroup" accessibilityLabel="Tipo de atividade" style={{ gap: Spacing.two }}>
-            {([
-              { value: 'run', title: 'Corrida', Icon: Zap },
-              { value: 'walk', title: 'Caminhada', Icon: Footprints },
-            ] as const).map(({ value, title, Icon }) => {
+            {ACTIVITY_OPTIONS.map(({ value, Icon }) => {
               const selected = type === value;
               return (
                 <Pressable key={value} accessibilityRole="radio" aria-checked={selected}
@@ -223,7 +225,7 @@ export default function OutdoorScreen() {
                     backgroundColor: selected ? colors.voltSoft : pressed ? colors.surfaceChip : colors.surfaceSunken,
                   })}>
                   <Icon size={22} color={selected ? colors.voltInk : colors.inkMuted} />
-                  <Text variant="titleMd" style={{ flex: 1 }}>{title}</Text>
+                  <Text variant="titleMd" style={{ flex: 1 }}>{OUTDOOR_NAMES[value].title}</Text>
                   {selected && <Check size={20} color={colors.voltInk} />}
                 </Pressable>
               );
@@ -263,7 +265,8 @@ export default function OutdoorScreen() {
             {running && !draft.background && <Text variant="label" muted>Mantenha esta tela aberta durante o percurso.</Text>}
           </View>
 
-          <OutdoorStats seconds={seconds} meters={draft.meters} calories={estimatedCalories(draft.type, draft.meters, draft.weight)} />
+          <OutdoorStats type={draft.type} seconds={seconds} meters={draft.meters}
+            calories={estimatedCalories(draft.type, draft.meters, draft.weight, seconds)} />
           <OutdoorMap live={running} route={draft.route} emptyMessage="O trajeto aparece após o primeiro ponto de GPS." />
           {!running && (
             <Pressable accessibilityRole="button" onPress={discard} disabled={busy}

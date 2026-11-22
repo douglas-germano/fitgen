@@ -146,6 +146,8 @@ export default function WorkoutsScreen() {
         </Pressable>
       )}
 
+      <OutdoorCard last={lastOutdoor} />
+
       {!plan ? (
         <EmptyState
           icon={Dumbbell}
@@ -222,7 +224,6 @@ export default function WorkoutsScreen() {
         </>
       )}
 
-      <OutdoorCard last={lastOutdoor} />
       <RecordsCard />
 
     </Page>
@@ -252,8 +253,8 @@ export default function WorkoutsScreen() {
         }] : []),
         {
           key: 'outdoor', icon: Route,
-          title: 'Corrida ou caminhada ao ar livre',
-          caption: 'Registre tempo, distância e trajeto por GPS',
+          title: 'Atividade ao ar livre',
+          caption: 'Corrida, caminhada e pedal com GPS',
           onPress: () => router.push('/outdoor'),
         },
         ...(plan ? [{

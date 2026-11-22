@@ -11,9 +11,14 @@ const RN = require('react-native-web');
 const root = path.resolve(__dirname, '../src');
 const now = new Date().toISOString();
 const outdoor = {
-  id: 'outdoor', started_at: now, duration_seconds: 600, workout_name: 'Corrida ao ar livre',
+  id: 'outdoor', started_at: new Date(Date.parse(now) - 1000).toISOString(), duration_seconds: 600, workout_name: 'Corrida ao ar livre',
   outdoor_type: 'run', distance_meters: 1200, calories: 96, route: [[[-16.46, -54.63], [-16.462, -54.632]]],
 };
+const bike = {
+  ...outdoor, id: 'bike', started_at: now, workout_name: 'Pedal ao ar livre', outdoor_type: 'bike',
+  distance_meters: 4000, calories: 120,
+};
+let outdoorDetail = outdoor;
 const plan = { id: 'plan', name: 'Plano de teste', is_active: true, created_at: now, days: [{ id: 'day', day_of_week: ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()], name: 'Treino A', exercises: [{ id: 'ex', name: 'Prancha Frontal', sets: 3, reps: '12', rest_seconds: 60, exercise_library_id: 'prancha', animation_url: 'https://example.test/prancha.gif' }] }] };
 const profile = { id: 'user', name: 'Atleta de teste', email: 'test@example.com', onboarding_completed: true, height_cm: 180, current_weight_kg: 80, target_weight_kg: 78, age: 30, gender: 'male' };
 const profilePhoto = 'https://example.test/atleta.jpg';
@@ -40,11 +45,15 @@ const hooks = new Proxy({}, { get: (_, key) => {
     if (key === 'useExerciseLibrary') return query([libraryExercise]);
     if (key === 'useProfile') return query({ ...profile, profile_picture: profilePhoto, is_premium: historyPremium });
     if (key === 'useChatHistory') return query(coachMessages);
+    if (key === 'useWorkoutHistory') return query([
+      { id: 'session', started_at: now, duration_seconds: 900, workout_name: 'Treino A', calories: 70 },
+      outdoor, bike,
+    ]);
     if (key === 'useLibraryExerciseHistory') {
       historyEnabled = enabled;
       return query({ pages: [{ sessions: [{ id: 'session', started_at: now, sets: [{ id: 'set', set_number: 1, weight_kg: 15, reps: 12 }] }] }] });
     }
-    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useWorkoutHistory: [{ id:'session', started_at: now, duration_seconds: 900, workout_name:'Treino A', calories:70 }, outdoor], useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useRecentRecords:[{ exercise_library_id: libraryExercise.id, name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }]}[key]));
+    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useRecentRecords:[{ exercise_library_id: libraryExercise.id, name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }]}[key]));
   };
 } });
 const chain = new Proxy({}, { get: () => () => chain });
@@ -57,6 +66,8 @@ const notificationButtons = [];
 const exerciseThumbnails = [];
 const exerciseAddButtons = [];
 const dismissedRoutes = [];
+let outdoorStartButton;
+let latestOutdoorButton;
 let catalogList;
 let exerciseSheet;
 let exerciseRouteParams;
@@ -69,6 +80,8 @@ const stubs = {
     if (props.accessibilityHint === 'Abre a tela de notificações') notificationButtons.push(props);
     if (props.accessibilityLabel?.startsWith('Ver execução de')) exerciseThumbnails.push(props);
     if (props.accessibilityLabel?.toLowerCase() === 'adicionar exercício') exerciseAddButtons.push(props);
+    if (props.accessibilityLabel === 'Iniciar atividade') outdoorStartButton = props;
+    if (props.accessibilityHint === 'Abre o resumo com o trajeto') latestOutdoorButton = props;
     return React.createElement(RN.Pressable, props);
   } },
   'react-native-reanimated': { __esModule:true, default:{ View:RN.View }, FadeIn:chain, FadeInDown:chain, useReducedMotion:()=>false, useSharedValue:(value)=>({value}), useAnimatedRef:()=>React.useRef(null), useAnimatedStyle:()=>({}), withTiming:()=>0,withRepeat:()=>0,withDelay:()=>0,Easing:{out:()=>0,quad:0} },
@@ -83,11 +96,19 @@ const stubs = {
   'expo-location': { Accuracy: { High: 4 } },
   'expo-task-manager': { defineTask() {} },
   'expo-maps': { AppleMaps: { View: () => null, MapColorScheme: { LIGHT: 'LIGHT', DARK: 'DARK' } } },
-  'expo-sqlite/kv-store': { SQLiteStorage: class {} }, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
+  'expo-sqlite/kv-store': { SQLiteStorage: class {
+    items = new Map();
+    getItemSync(key) { return this.items.get(key) ?? null; }
+    setItemSync(key, value) { this.items.set(key, value); }
+    removeItemSync(key) { this.items.delete(key); }
+  } }, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0'}}},
   'expo-apple-authentication':{ isAvailableAsync:async()=>false, AppleAuthenticationButton:()=>null, AppleAuthenticationButtonType:{}, AppleAuthenticationButtonStyle:{}, AppleAuthenticationScope:{} },
   '@react-native-google-signin/google-signin':{ GoogleSignin:{ configure(){} }, isCancelledResponse:()=>false, isErrorWithCode:()=>false, statusCodes:{} },
-  '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>query(options?.queryKey?.[0] === 'outdoor-detail' ? { record: outdoor, pending: false } : options?.queryKey?.[0] === 'outdoor-route' ? outdoor.route : options?.queryKey?.[0] === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : options?.queryKey?.[0] === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}})},
+  '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>{
+    const key = options?.queryKey?.[0];
+    return query(key === 'outdoor-detail' ? { record: outdoorDetail, pending: false } : key === 'outdoor-route' ? outdoor.route : key === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : key === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}});
+  }},
 };
 let cache;
 let onboardingStates = null;
@@ -156,6 +177,8 @@ try {
         exerciseThumbnails.length = 0;
         scrollViews.length = 0;
         workoutActions = undefined;
+        outdoorStartButton = undefined;
+        latestOutdoorButton = undefined;
         const result=renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
         assert.ok(result.length>0);
         if (mode === 'content' && file.endsWith('/app/coach.tsx')) {
@@ -163,20 +186,41 @@ try {
           assert.ok(result.includes('Qual é o treino de hoje?') && result.includes(profilePhoto));
         }
         if (['empty', 'content'].includes(mode) && file.endsWith('/app/(tabs)/workouts.tsx')) {
-          const title = 'Corrida ou caminhada ao ar livre';
+          const title = 'Atividade ao ar livre';
           assert.ok(result.includes('Ações de treino'));
           assert.ok(!result.includes(title));
+          for (const text of ['Atividades ao ar livre', 'Corrida, caminhada e pedal com GPS', 'Iniciar atividade']) {
+            assert.ok(result.includes(text));
+          }
+          outdoorStartButton.onPress();
+          assert.equal(pushedRoutes.pop(), '/outdoor');
+          if (mode === 'content') {
+            assert.ok(result.includes('Último pedal') && result.includes('4,00 km'));
+            latestOutdoorButton.onPress();
+            assert.deepEqual(pushedRoutes.pop(), { pathname: '/outdoor/[id]', params: { id: bike.id } });
+          } else {
+            assert.equal(latestOutdoorButton, undefined);
+          }
           assert.equal(workoutActions.visible, false);
           const outdoorAction = workoutActions.items.find((item) => item.key === 'outdoor');
           assert.equal(outdoorAction?.title, title);
+          assert.ok(outdoorAction.caption.includes('pedal'));
           outdoorAction.onPress();
           assert.equal(pushedRoutes.pop(), '/outdoor');
         }
         if (mode === 'content' && file.endsWith('/app/workout/history.tsx')) {
-          for (const text of ['Treino A', 'Corrida ao ar livre', '1,20 km']) assert.ok(result.includes(text));
+          for (const text of ['Treino A', 'Corrida ao ar livre', '1,20 km', 'Pedal ao ar livre', '4,00 km']) assert.ok(result.includes(text));
         }
         if (mode === 'content' && file.endsWith('/app/outdoor/[id].tsx')) {
           for (const text of ['Trajeto GPS', '1,20 km', '96 kcal', '8:20 /km']) assert.ok(result.includes(text));
+          outdoorDetail = bike;
+          const bikeResult = renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
+          outdoorDetail = outdoor;
+          for (const text of ['Pedal ao ar livre', '4,00 km', '120 kcal', '24 km/h']) assert.ok(bikeResult.includes(text));
+          assert.ok(!bikeResult.includes('Ritmo médio'));
+        }
+        if (mode === 'content' && file.endsWith('/app/outdoor/index.tsx')) {
+          for (const text of ['Corrida', 'Caminhada', 'Pedal']) assert.ok(result.includes(text));
         }
         if (mode === 'content' && file.endsWith('/app/exercises/index.tsx')) {
           for (const text of ['Prancha Frontal', 'Buscar exercício', 'Dá pra fazer em casa', libraryExercise.animation_url]) assert.ok(result.includes(text));
@@ -252,6 +296,24 @@ try {
     onboardingStates = null; count++;
   }
   mode = 'content'; cache = new Map();
+  const { finishDraft, pauseDraft, readDraft, readPending, recordLocations, writeDraft } = load(path.join(root, 'lib/outdoor-recording.ts'));
+  const start = Date.parse(now);
+  const fix = (offset, longitude) => ({ timestamp: start + offset, coords: { latitude: 0, longitude, accuracy: 5 } });
+  writeDraft({
+    id: 'offline-bike', owner: 'bike-owner', type: 'bike', weight: 75, started: start,
+    runningSince: start, activeMs: 0, lastFix: null, lastPointAt: null, background: false, route: [], meters: 0,
+  });
+  recordLocations([fix(0, 0), fix(4000, 0.0006), fix(8000, 0.01)], 'bike-owner');
+  const recorded = readDraft('bike-owner');
+  assert.equal(recorded.route[0].length, 2, 'accepts cycling speed and drops an implausible GPS jump');
+  assert.ok(recorded.meters > 65 && recorded.meters < 68);
+  const paused = pauseDraft(recorded, start + 8000);
+  const offlineBike = finishDraft(paused, start + 20000);
+  assert.equal(offlineBike.outdoor_type, 'bike');
+  assert.equal(offlineBike.duration_seconds, 8);
+  assert.deepEqual(readPending('bike-owner'), [offlineBike]);
+  assert.equal(readDraft('bike-owner'), null);
+
   const { AppThemeProvider } = load(path.join(root, 'providers/theme.tsx'));
   const renderPickerRoute = (route) => renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(path.join(root, 'app', route)).default)));
   for (const [source, route, pathname] of [
