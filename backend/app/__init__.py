@@ -131,15 +131,14 @@ def create_app(config_name='default'):
     # Register commands
     from app.commands import (
         apply_community_sharing_defaults_command, community_nudge_command, community_seed_challenges_command,
-        ensure_auth_schema_command, ensure_outdoor_schema_command, promote_user_command, seed_command, seed_exercises_command,
+        migrate_db_command, promote_user_command, seed_command, seed_exercises_command,
     )
     app.cli.add_command(seed_command)
     app.cli.add_command(promote_user_command)
     app.cli.add_command(community_nudge_command)
     app.cli.add_command(community_seed_challenges_command)
     app.cli.add_command(seed_exercises_command)
-    app.cli.add_command(ensure_outdoor_schema_command)
-    app.cli.add_command(ensure_auth_schema_command)
+    app.cli.add_command(migrate_db_command)
     app.cli.add_command(apply_community_sharing_defaults_command)
 
     from app.modules.identity.interface.routes.auth import auth_bp

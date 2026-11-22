@@ -20,7 +20,7 @@ class UserStreak(db.Model):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, db.ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)  # FK in __table_args__
     current_workout_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     longest_workout_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_nutrition_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -14,6 +14,8 @@ config = context.config
 fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
+IGNORED_TABLES = {'fitgen_data_migrations'}
+
 
 def get_engine():
     try:
@@ -93,6 +95,14 @@ def run_migrations_online():
     conf_args = current_app.extensions['migrate'].configure_args
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
+
+    # Tables the app manages itself, outside the models (like alembic_version):
+    # fitgen_data_migrations records one-off data changes (app/commands.py).
+    def include_object(obj, name, type_, reflected, compare_to):
+        return not (type_ == 'table' and name in IGNORED_TABLES)
+
+    conf_args.setdefault('include_object', include_object)
+    conf_args.setdefault('compare_type', True)
 
     connectable = get_engine()
 

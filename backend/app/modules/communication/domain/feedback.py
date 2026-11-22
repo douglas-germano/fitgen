@@ -19,7 +19,7 @@ class Feedback(db.Model):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, db.ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)  # FK in __table_args__
     type: Mapped[str] = mapped_column(Enum('bug', 'feature', 'improvement', 'question', 'other', name='feedback_types'), nullable=False)
     category: Mapped[str] = mapped_column(Enum('workout', 'nutrition', 'ui', 'performance', 'other', name='feedback_categories'), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -29,7 +29,7 @@ class Feedback(db.Model):
     screenshot_url: Mapped[Optional[str]] = mapped_column(String(512))
     priority: Mapped[Optional[str]] = mapped_column(Enum('low', 'medium', 'high', 'critical', name='priority_levels'))
     admin_response: Mapped[Optional[str]] = mapped_column(Text)
-    admin_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, db.ForeignKey('users.id'))
+    admin_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid)  # FK in __table_args__
     responded_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, onupdate=datetime.datetime.utcnow)
 

@@ -1,4 +1,5 @@
 import click
+from flask import current_app
 from flask.cli import with_appcontext
 from app.shared.extensions import db
 from app.modules.gamification.domain.achievements import Achievement
@@ -143,34 +144,37 @@ def seed_exercises_command(overwrite):
     print(f'Biblioteca de exercícios: {created} criados, {updated} atualizados.')
 
 
-@click.command(name='ensure-outdoor-schema')
+BASELINE_REVISION = '0001_baseline'
+
+
+@click.command(name='migrate-db')
 @with_appcontext
-def ensure_outdoor_schema_command():
-    """Create the outdoor activity table on database snapshots and existing installs."""
-    from app.modules.training.domain.models import OutdoorSession
+def migrate_db_command():
+    """Brings the schema up to date with Alembic; run on every deploy (entrypoint.sh).
 
-    OutdoorSession.__table__.create(db.engine, checkfirst=True)
-
-
-@click.command(name='ensure-auth-schema')
-@with_appcontext
-def ensure_auth_schema_command():
-    """Add Google/Apple sign-in columns and allow password-less users (no Alembic history in prod)."""
+    The old migration chain was broken (a missing revision) and the schema had been
+    built with db.create_all() and ad-hoc ALTERs, so existing databases have tables but
+    no usable alembic_version. Those are stamped at the baseline (it describes what they
+    already have) instead of running it. Any failure now stops the deploy.
+    """
+    from flask_migrate import stamp, upgrade
     from sqlalchemy import inspect, text
 
-    with db.engine.begin() as connection:
-        postgres = connection.dialect.name == 'postgresql'
-        columns = {c['name']: c for c in inspect(connection).get_columns('users')}
-        for column in ('google_sub', 'apple_sub'):
-            if column not in columns:
-                guard = ' IF NOT EXISTS' if postgres else ''
-                connection.execute(text(f'ALTER TABLE users ADD COLUMN{guard} {column} VARCHAR(255)'))
-                connection.execute(text(
-                    f'CREATE UNIQUE INDEX IF NOT EXISTS uq_users_{column} ON users ({column})'
-                ))
-        if postgres and not columns['password_hash']['nullable']:
-            connection.execute(text('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL'))
-    print('Auth schema OK')
+    tables = set(inspect(db.engine).get_table_names())
+    current = None
+    if 'alembic_version' in tables:
+        with db.engine.connect() as connection:
+            current = connection.execute(text('SELECT version_num FROM alembic_version')).scalar()
+
+    from alembic.script import ScriptDirectory
+    config = current_app.extensions['migrate'].migrate.get_config()
+    known = {rev.revision for rev in ScriptDirectory.from_config(config).walk_revisions()}
+
+    if 'users' in tables and (current is None or current not in known):
+        click.echo(f'Existing schema without a known revision ({current or "none"}): stamping {BASELINE_REVISION}')
+        stamp(revision=BASELINE_REVISION, purge=True)
+    upgrade()
+    click.echo('Database schema up to date')
 
 
 @click.command(name='apply-community-sharing-defaults')

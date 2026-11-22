@@ -1,1 +1,11 @@
-Single-database configuration for Flask.
+Schema changes go through Alembic (Flask-Migrate). The history starts at 0001_baseline
+(the schema as of 2026-11-22); the older, broken chain is in git history only.
+
+Changing the schema:
+  1. Edit the models.
+  2. flask db migrate -m "what changed"   (against a database at head; review the file)
+  3. flask db upgrade                      (locally), then commit the migration.
+
+Deploys run `flask migrate-db` (app/commands.py) under a lock: it stamps databases that
+predate the baseline, then upgrades. A failing migration stops the deploy.
+Don't create tables or columns with db.create_all() or ad-hoc ALTERs outside a migration.

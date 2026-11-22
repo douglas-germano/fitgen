@@ -20,7 +20,7 @@ class ProgressSnapshot(db.Model):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, db.ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)  # FK in __table_args__
     snapshot_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     snapshot_type: Mapped[str] = mapped_column(Enum('weekly', 'monthly', 'quarterly', name='snapshot_types'), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, default=datetime.datetime.utcnow)

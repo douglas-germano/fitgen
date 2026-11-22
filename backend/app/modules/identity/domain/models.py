@@ -5,12 +5,17 @@ from app.shared.extensions import db
 
 class User(db.Model):
     __tablename__ = 'users'
+    # Unique indexes (not constraints), as production has them since sign-in with Google/Apple
+    __table_args__ = (
+        db.Index('uq_users_google_sub', 'google_sub', unique=True),
+        db.Index('uq_users_apple_sub', 'apple_sub', unique=True),
+    )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=True)  # NULL for Google/Apple-only accounts
-    google_sub = db.Column(db.String(255), unique=True, nullable=True)
-    apple_sub = db.Column(db.String(255), unique=True, nullable=True)
+    google_sub = db.Column(db.String(255), nullable=True)  # unique: see __table_args__
+    apple_sub = db.Column(db.String(255), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), default='user')  # 'user' or 'admin'
     is_active = db.Column(db.Boolean, default=True, nullable=False)

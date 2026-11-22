@@ -26,15 +26,11 @@ echo "✓ Environment variables verified"
 # Migrations and seeds run under a Postgres advisory lock: with several replicas
 # starting together, one runs them while the others wait (scripts/run_locked.py).
 python3 scripts/run_locked.py startup-tasks sh -ec '
-echo "Running database migrations..."
-python3 -m flask db upgrade || {
-    echo "WARNING: Database migrations failed or no migrations to run"
-}
+# Schema changes go through Alembic (backend/migrations); a failure stops the deploy.
+python3 -m flask migrate-db
 
 # Load the official exercise library (idempotent; keeps admin edits)
 python3 -m flask seed-exercises
-python3 -m flask ensure-outdoor-schema
-python3 -m flask ensure-auth-schema
 python3 -m flask apply-community-sharing-defaults
 '
 

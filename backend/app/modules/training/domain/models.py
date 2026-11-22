@@ -77,6 +77,8 @@ class WorkoutSession(db.Model):
 
 class ExerciseLog(db.Model):
     __tablename__ = 'exercise_logs'
+    # Exercise history lookups (per user, per library exercise)
+    __table_args__ = (db.Index('ix_exercise_logs_user_library', 'user_id', 'exercise_library_id'),)
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workout_session_id = db.Column(UUID(as_uuid=True), db.ForeignKey('workout_sessions.id'), nullable=False)
