@@ -3,28 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Bell, Camera, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, FileText, HeartPulse, Link2, Mail, Settings, ShieldCheck, Sparkles, Target, User, Users, type LucideIcon } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { Award, Bell, Camera, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, FileText, HeartPulse, History, Info, KeyRound, Mail, MessagesSquare, Ruler, ShieldCheck, Sparkles, SunMoon, Target, User, Users, Utensils } from 'lucide-react-native';
+import { useState } from 'react';
 import { Linking, Platform, Pressable, View } from 'react-native';
 
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  IconButton,
-  Input,
-  LinkText,
-  ListItem,
-  Page,
-  PageSkeleton,
-  QueryError,
-  Row,
-  SectionHeader,
-  Text,
-  TopBar,
-} from '@/components/ui';
+import { Avatar, Button, Dialog, IconButton, Input, LinkText, ListItem, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTheme, useColors } from '@/providers/theme';
 import { uploadableFile } from '@/lib/upload';
@@ -34,10 +17,12 @@ import { healthProviderName, healthUnavailableReason, isHealthAvailable } from '
 import { useHealthSync } from '@/hooks/use-health-sync';
 import { api, errorMessage } from '@/lib/api';
 import { passwordError } from '@/lib/forms';
-import { ProfileOverview } from '@/components/profile-overview';
+import { ProfileGroup, ProfileMedals, ProfileRow, ProfileTiles } from '@/components/profile-overview';
 import { ChoiceField } from '@/components/choice-field';
 import { useAuth } from '@/providers/auth';
 import { planSummary } from '@/lib/plan';
+
+const THEME_LABEL = { light: 'Claro', dark: 'Escuro', system: 'Sistema' } as const;
 
 export default function ProfileScreen() {
   const Colors = useColors();
@@ -50,9 +35,11 @@ export default function ProfileScreen() {
   const streaks = useStreaks();
   const [nameOpen, setNameOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const web = Platform.OS === 'web';
+  const native = Platform.OS === 'ios' || Platform.OS === 'android';
 
   if (isLoading) return <PageSkeleton title="Perfil" back tab={false} />;
   if (error) return <QueryError title="Perfil" back error={error} onRetry={refetch} />;
@@ -80,189 +67,108 @@ export default function ProfileScreen() {
 
   const level = progress.data?.level ?? profile?.level;
   const streak = streaks.data?.workout_streak ?? 0;
+  const subtitle = [level ? `Nível ${level}` : null, streak ? `${streak} ${streak === 1 ? 'dia seguido' : 'dias seguidos'}` : null]
+    .filter(Boolean).join(' · ') || profile?.email;
 
   const confirmSignOut = () =>
     AppAlert.alert('Sair da Conta', 'Deseja encerrar sua sessão atual?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Sair', style: 'destructive', onPress: signOut },
     ]);
-
-  const accountPreferences = (
-    <View style={{ gap: Spacing.three }}>
-      <SectionHeader title="Aparência" />
-      <Card>
-        <ChoiceField
-          label="Tema do aplicativo"
-          value={preference}
-          options={[{ label: 'Claro', value: 'light' }, { label: 'Escuro', value: 'dark' }, { label: 'Sistema', value: 'system' }]}
-          onChange={(next) => { void setPreference(next).catch(() => AppAlert.alert('Não foi possível salvar o tema', 'A aparência foi aplicada, mas não pôde ser salva neste dispositivo.')); }}
-        />
-        <Text muted>Em Sistema, o FitGen acompanha a aparência do dispositivo.</Text>
-      </Card>
-      <SectionHeader title="Assinatura" />
-      <ListItem icon={Sparkles} iconTone={plan.premium ? 'volt' : 'chip'} title={plan.premium ? 'FitGen Premium' : 'Ver assinatura'} caption={plan.premium ? plan.caption : `${plan.title} · ${plan.caption}`} arrow onPress={() => router.push('/paywall')} />
-      <SectionHeader title={web ? 'Conta' : 'Configurações da Conta:'} />
-      <ListItem icon={Target} title="Minha configuração inicial" caption="Revisar a conversa sobre treino e alimentação" arrow onPress={() => router.push('/onboarding')} />
-      {!web && <ListItem icon={Target} title="Objetivos e dados físicos" caption="Rotina, medidas e preferências de treino" arrow onPress={() => router.push('/profile-edit')} />}
-      {!web && <ListItem icon={User} iconTone="chip" title="Alterar Nome" caption="Seu nome de exibição" arrow onPress={() => setNameOpen(true)} />}
-      <ListItem icon={Mail} iconTone="chip" title="Email" caption={web ? profile?.email : "O email não pode ser alterado"} />
-      <ListItem icon={Link2} iconTone="chip" title="Alterar Senha" caption="Altere sua senha de acesso" arrow onPress={() => setPasswordOpen(true)} />
-      <ListItem icon={Bell} iconTone="chip" title="Notificações" caption="Lembretes de treino, água e metas" arrow onPress={() => router.push('/notifications')} />
-    </View>
-  );
-  const communityPeople = (
-    <ListItem icon={Users} iconTone="chip" title="Pessoas" caption="Buscar pessoas e gerenciar quem você segue" arrow onPress={() => router.push('/community/people')} />
-  );
-  const communityPrivacy = (
-    <ListItem icon={ShieldCheck} iconTone="chip" title="Privacidade da comunidade" caption="Compartilhamento e pessoas bloqueadas" arrow onPress={() => router.push('/community/settings')} />
-  );
-  const support = (
-    <Card style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.five }}>
-      <Text muted style={{ flex: 1 }}>
-        Precisa de ajuda? Entre em contato conosco.
-      </Text>
-      <Button size="sm" variant="soft" title="Enviar Email" onPress={() => Linking.openURL('mailto:suporte@fitgen.com').catch(() => AppAlert.alert('Contato', 'Envie sua mensagem para suporte@fitgen.com.'))} />
-    </Card>
-  );
-  const privacyPolicy = (
-    <ListItem
-      icon={FileText}
-      iconTone="chip"
-      title="Política de Privacidade"
-      arrow
-      onPress={() => router.push('/privacy')}
-    />
-  );
-  const accountActions = (
-    <View style={{ gap: Spacing.four, alignItems: 'center', paddingTop: Spacing.four }}>
-      <Button variant="inverse" size="lg" title="Sair da Conta" onPress={confirmSignOut} style={{ alignSelf: 'stretch' }} />
-      <LinkText
-        title="Excluir Minha Conta"
-        style={{ color: Colors.inkMuted, fontSize: 14 }}
-        onPress={() => router.push('/delete-account')}
-      />
-      <Text variant="caption">FitGen v{Constants.expoConfig?.version}</Text>
-    </View>
-  );
+  const contactSupport = () =>
+    Linking.openURL('mailto:suporte@fitgen.com').catch(() => AppAlert.alert('Contato', 'Envie sua mensagem para suporte@fitgen.com.'));
 
   return (
-    <Page tab={false} topBar={web ? (
-      <Row style={{ width: '100%', maxWidth: 424, alignSelf: 'center' }}>
+    <Page tab={false} topBar={
+      <Row style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}>
         <IconButton icon={ChevronLeft} label="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
-        <Text variant="titleLg" accessibilityRole="header" style={{ flex: 1, fontSize: 27, lineHeight: 33 }}>Perfil</Text>
-        <IconButton icon={Settings} label="Ir às configurações"
-          onPress={() => document.getElementById('profile-settings')?.scrollIntoView({ block: 'center' })} />
+        <Text accessibilityRole="header" style={{ flex: 1, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.5 }}>Perfil</Text>
       </Row>
-    ) : <TopBar title="Perfil" back />} refreshing={isRefetching} onRefresh={refetch}
-      contentStyle={web ? { width: '100%', maxWidth: 424, alignSelf: 'center', gap: Spacing.five } : undefined}>
-      {web ? (
-        <>
-          <Pressable accessibilityRole="button" accessibilityLabel="Editar perfil" onPress={() => setEditOpen(true)}
-            style={({ pressed }) => ({
-              flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.three,
-              borderBottomWidth: 1, borderColor: Colors.line, opacity: pressed ? 0.72 : 1,
-            })}>
-            <Avatar name={profile?.name} uri={profile?.profile_picture} size={52} />
-            <View style={{ flex: 1 }}>
-              <Text variant="titleMd">{profile?.name}</Text>
-              <Text variant="caption">Editar perfil</Text>
-            </View>
-            <ChevronRight size={16} color={Colors.inkMuted} />
-          </Pressable>
-          <ProfileOverview />
-          <View nativeID="profile-settings" style={{ gap: Spacing.two }}>
-            <SectionHeader title="Configurações" />
-            <View style={{ borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.line, backgroundColor: Colors.surfaceSunken }}>
-              <ProfileSettingsGroup title="Conta e preferências" icon={User}>
-                {accountPreferences}
-                {communityPeople}
-                {accountActions}
-              </ProfileSettingsGroup>
-              <ProfileSettingsGroup title="Integrações" icon={Link2}>
-                <Text muted>Conecte o Apple Saúde ou o Health Connect pelo aplicativo móvel do FitGen.</Text>
-              </ProfileSettingsGroup>
-              <ProfileSettingsGroup title="Privacidade" icon={ShieldCheck}>
-                {communityPrivacy}
-                {privacyPolicy}
-              </ProfileSettingsGroup>
-              <ProfileSettingsGroup title="Ajuda e suporte" icon={CircleHelp} last>
-                {support}
-              </ProfileSettingsGroup>
-            </View>
-          </View>
-          {editOpen && (
-            <Dialog visible title="Editar perfil" onClose={() => setEditOpen(false)}>
-              <ListItem icon={User} title="Alterar nome" caption={profile?.name} arrow onPress={() => { setEditOpen(false); setNameOpen(true); }} />
-              <ListItem icon={Camera} title={uploading ? 'Enviando foto…' : 'Alterar foto'} arrow onPress={uploading ? undefined : changePhoto} />
-              <ListItem icon={Target} title="Objetivos e dados físicos" arrow onPress={() => { setEditOpen(false); router.push('/profile-edit'); }} />
-            </Dialog>
-          )}
-        </>
-      ) : (
-        <>
-          <Card style={{ alignItems: 'center', paddingVertical: Spacing.six, gap: Spacing.two }}>
-            <Avatar name={profile?.name} uri={profile?.profile_picture} size={80} />
-            <Text variant="titleLg" style={{ marginTop: Spacing.two, textAlign: 'center' }}>
-              {profile?.name}
-            </Text>
-            <Text muted>{profile?.email}</Text>
-            <Row style={{ marginTop: Spacing.one }}>
-              {level ? <Badge label={`Nível ${level}`} /> : null}
-              <Badge tone="chip" label={`${streak} ${streak === 1 ? 'dia seguido' : 'dias seguidos'}`} />
-            </Row>
-            <Button size="sm" variant="soft" icon={Camera} title="Alterar foto" loading={uploading} onPress={changePhoto} />
-          </Card>
-          {accountPreferences}
-          <View style={{ gap: Spacing.three }}>
-            <SectionHeader title="Comunidade" />
-            {communityPeople}
-            {communityPrivacy}
-          </View>
-          {(Platform.OS === 'ios' || Platform.OS === 'android') && <View style={{ gap: Spacing.three }}>
-            <SectionHeader title="Integrações:" />
-            <HealthItem />
-          </View>}
-          <View style={{ gap: Spacing.three }}>
-            <SectionHeader title="Ajuda e Suporte:" />
-            {support}
-            {privacyPolicy}
-          </View>
-          {accountActions}
-        </>
-      )}
+    } refreshing={isRefetching} onRefresh={refetch}
+      contentStyle={{ width: '100%', maxWidth: 480, alignSelf: 'center', gap: Spacing.four }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Editar perfil" onPress={() => setEditOpen(true)}
+        style={({ pressed }) => ({
+          flexDirection: 'row', alignItems: 'center', gap: Spacing.four, padding: Spacing.four,
+          borderRadius: Radius.md + 4, borderCurve: 'continuous',
+          backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken,
+        })}>
+        <View style={{ padding: 2, borderRadius: 40, borderWidth: 2, borderColor: Colors.ink }}>
+          <Avatar name={profile?.name} uri={profile?.profile_picture} size={56} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text style={{ fontSize: 19, lineHeight: 24, fontWeight: '600' }} numberOfLines={1}>{profile?.name}</Text>
+          {subtitle ? <Text muted style={{ fontSize: 13 }} numberOfLines={1}>{subtitle}</Text> : null}
+        </View>
+        <ChevronRight size={18} color={Colors.inkMuted} />
+      </Pressable>
 
+      <ProfileTiles planTitle={plan.premium ? 'Premium' : 'Assinatura'} planCaption={plan.premium ? plan.caption : plan.title} />
+      <ProfileMedals />
+
+      <ProfileGroup title="Seus dados">
+        <ProfileRow icon={Award} title="Minhas conquistas" onPress={() => router.push('/achievements')} />
+        <ProfileRow icon={History} title="Minhas atividades" onPress={() => router.push('/workout/history')} />
+        <ProfileRow icon={Dumbbell} title="Meus treinos" onPress={() => router.push('/(tabs)/workouts')} />
+        <ProfileRow icon={Utensils} title="Plano alimentar" onPress={() => router.push('/diet-plan')} />
+        <ProfileRow icon={Ruler} title="Medidas" onPress={() => router.push('/(tabs)/metrics')} />
+        {!web && <ProfileRow icon={Target} title="Objetivos e dados físicos" onPress={() => router.push('/profile-edit')} />}
+        {native && <HealthRow />}
+      </ProfileGroup>
+
+      <ProfileGroup title="Conta e preferências" nativeID="profile-settings">
+        <ProfileRow icon={Mail} title="Email" value={profile?.email} />
+        <ProfileRow icon={KeyRound} title="Senha" onPress={() => setPasswordOpen(true)} />
+        <ProfileRow icon={Bell} title="Notificações" onPress={() => router.push('/notifications')} />
+        <ProfileRow icon={SunMoon} title="Aparência" value={THEME_LABEL[preference]} onPress={() => setThemeOpen(true)} />
+        <ProfileRow icon={Sparkles} title="Assinatura" value={plan.premium ? 'Premium' : plan.title} onPress={() => router.push('/paywall')} />
+      </ProfileGroup>
+
+      <ProfileGroup title="Outros">
+        <ProfileRow icon={MessagesSquare} title="Configuração inicial" onPress={() => router.push('/onboarding')} />
+        <ProfileRow icon={Users} title="Pessoas" onPress={() => router.push('/community/people')} />
+        <ProfileRow icon={ShieldCheck} title="Gerenciamento de privacidade" onPress={() => router.push('/community/settings')} />
+        <ProfileRow icon={FileText} title="Política de privacidade" onPress={() => router.push('/privacy')} />
+        <ProfileRow icon={CircleHelp} title="Ajuda" onPress={contactSupport} />
+        <ProfileRow icon={Info} title="Sobre" value={`Versão: ${Constants.expoConfig?.version ?? '—'}`} />
+      </ProfileGroup>
+
+      <View style={{ gap: Spacing.four, alignItems: 'center', paddingTop: Spacing.two }}>
+        <Pressable accessibilityRole="button" onPress={confirmSignOut}
+          style={({ pressed }) => ({
+            alignSelf: 'stretch', minHeight: 52, alignItems: 'center', justifyContent: 'center',
+            borderRadius: Radius.md + 4, borderCurve: 'continuous',
+            backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken,
+          })}>
+          <Text style={{ fontSize: 16, fontWeight: '600' }} color={Colors.danger}>Sair da conta</Text>
+        </Pressable>
+        <LinkText title="Excluir minha conta" style={{ color: Colors.inkMuted, fontSize: 14 }} onPress={() => router.push('/delete-account')} />
+      </View>
+
+      {editOpen && (
+        <Dialog visible title="Editar perfil" onClose={() => setEditOpen(false)}>
+          <ListItem icon={User} title="Alterar nome" caption={profile?.name} arrow onPress={() => { setEditOpen(false); setNameOpen(true); }} />
+          <ListItem icon={Camera} title={uploading ? 'Enviando foto…' : 'Alterar foto'} arrow onPress={uploading ? undefined : () => { setEditOpen(false); void changePhoto(); }} />
+          {!web && <ListItem icon={Target} title="Objetivos e dados físicos" arrow onPress={() => { setEditOpen(false); router.push('/profile-edit'); }} />}
+        </Dialog>
+      )}
+      {themeOpen && (
+        <Dialog visible title="Aparência" description="Em Sistema, o FitGen acompanha a aparência do dispositivo." onClose={() => setThemeOpen(false)}>
+          <ChoiceField
+            label="Tema do aplicativo"
+            value={preference}
+            options={[{ label: 'Claro', value: 'light' }, { label: 'Escuro', value: 'dark' }, { label: 'Sistema', value: 'system' }]}
+            onChange={(next) => { void setPreference(next).catch(() => AppAlert.alert('Não foi possível salvar o tema', 'A aparência foi aplicada, mas não pôde ser salva neste dispositivo.')); }}
+          />
+        </Dialog>
+      )}
       {nameOpen && <NameDialog current={profile?.name ?? ''} onClose={() => setNameOpen(false)} />}
       {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
     </Page>
   );
 }
 
-function ProfileSettingsGroup({ title, icon: Icon, last, children }: {
-  title: string;
-  icon: LucideIcon;
-  last?: boolean;
-  children: ReactNode;
-}) {
-  const colors = useColors();
-  const [open, setOpen] = useState(false);
-  return (
-    <View style={{ borderBottomWidth: last ? 0 : 1, borderColor: colors.line }}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}
-        style={({ pressed }) => ({
-          flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 48, paddingHorizontal: Spacing.three,
-          opacity: pressed ? 0.72 : 1,
-        })}>
-        <Icon size={18} color={colors.inkMuted} />
-        <Text variant="titleSm" style={{ flex: 1 }}>{title}</Text>
-        {open ? <ChevronDown size={15} color={colors.inkMuted} /> : <ChevronRight size={15} color={colors.inkMuted} />}
-      </Pressable>
-      {open && <View style={{ gap: Spacing.three, paddingHorizontal: Spacing.three, paddingBottom: Spacing.three }}>{children}</View>}
-    </View>
-  );
-}
-
 /** Apple Health / Health Connect on/off. Permissions per data type are managed by the OS (iOS Settings > Health, Android Health Connect). */
-function HealthItem() {
+function HealthRow() {
   const available = isHealthAvailable();
   const provider = healthProviderName();
   const { data: enabled } = useHealthEnabled();
@@ -288,12 +194,12 @@ function HealthItem() {
     ]);
 
   return (
-    <ListItem
+    <ProfileRow
       icon={HeartPulse}
       title={provider}
-      caption={!available ? healthUnavailableReason() : enabled ? 'Sincronização automática de treinos e peso' : 'Conecte para importar treinos e pesos automaticamente para sua conta'}
-      right={available ? <Badge tone={connectedToAccount ? 'volt' : 'chip'} label={connectedToAccount ? 'Conectado' : 'Conectar'} /> : undefined}
-      onPress={available && !toggle.isPending ? (connectedToAccount ? manage : connect) : undefined}
+      value={!available ? 'Indisponível' : connectedToAccount ? 'Conectado' : 'Conectar'}
+      dot={available && !connectedToAccount}
+      onPress={available && !toggle.isPending ? (connectedToAccount ? manage : connect) : !available ? () => AppAlert.alert(provider, healthUnavailableReason()) : undefined}
     />
   );
 }

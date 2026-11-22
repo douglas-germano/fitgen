@@ -187,7 +187,7 @@ try {
           assert.ok(result.includes('Nenhuma refeição registrada neste período.'));
         }
         if (mode === 'content' && file.endsWith('/app/profile.tsx')) {
-          for (const text of ['Sua semana', 'Histórico', 'Medidas', 'Primeiro treino', 'Configurações', 'Conta e preferências']) {
+          for (const text of ['Sua semana', 'Minhas medalhas', 'Minhas atividades', 'Medidas', 'Seus dados', 'Conta e preferências', 'Outros', 'Versão:']) {
             assert.ok(result.includes(text), `Missing web profile content: ${text}`);
           }
         }
