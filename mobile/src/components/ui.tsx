@@ -161,7 +161,8 @@ export function Page({
         scrollEventThrottle={16}
         onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > (ios ? -inset : 0) + 2)}
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingHorizontal: Spacing.five, paddingTop: (topBar ? Spacing.three : 0) + (ios ? 0 : inset), paddingBottom: bottom }}
+        contentContainerStyle={{ paddingHorizontal: Spacing.five, // Without a top bar the content clears the status bar itself.
+        paddingTop: topBar ? Spacing.three + (ios ? 0 : inset) : insets.top + Spacing.four, paddingBottom: bottom }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
