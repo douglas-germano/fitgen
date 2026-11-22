@@ -73,6 +73,7 @@ let exerciseSheet;
 let exerciseRouteParams;
 let workoutActions;
 const stubs = {
+  expo: { requireOptionalNativeModule: () => null },
   'react-native': { ...RN, FlatList: (props) => {
     if (props.data?.[0] === libraryExercise) catalogList = props;
     return React.createElement(RN.FlatList, props);
@@ -107,6 +108,7 @@ const stubs = {
   '@react-native-google-signin/google-signin':{ GoogleSignin:{ configure(){} }, isCancelledResponse:()=>false, isErrorWithCode:()=>false, statusCodes:{} },
   '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>{
     const key = options?.queryKey?.[0];
+    if (key === 'nutrition-history' && mode === 'empty') return { ...query(undefined), data: { data: [] } };
     return query(key === 'outdoor-detail' ? { record: outdoorDetail, pending: false } : key === 'outdoor-route' ? outdoor.route : key === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : key === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}});
   }},
 };
@@ -181,6 +183,9 @@ try {
         latestOutdoorButton = undefined;
         const result=renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
         assert.ok(result.length>0);
+        if (mode === 'empty' && file.endsWith('/app/nutrition-history.tsx')) {
+          assert.ok(result.includes('Nenhuma refeição registrada neste período.'));
+        }
         if (mode === 'content' && file.endsWith('/app/profile.tsx')) {
           for (const text of ['Sua semana', 'Histórico', 'Medidas', 'Primeiro treino', 'Configurações', 'Conta e preferências']) {
             assert.ok(result.includes(text), `Missing web profile content: ${text}`);

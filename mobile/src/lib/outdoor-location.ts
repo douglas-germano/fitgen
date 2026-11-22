@@ -28,10 +28,11 @@ export async function requestOutdoorLocation() {
 }
 
 export async function startOutdoorLocation(owner: string, id: string, onError: () => void) {
-  const iosBackground = Platform.OS === 'ios' && (await Location.getBackgroundPermissionsAsync()).granted;
-  if (iosBackground || Platform.OS === 'android') {
+  if (Platform.OS === 'ios' || Platform.OS === 'android') {
     if (await TaskManager.isAvailableAsync()) {
       try {
+        // A workout started in the foreground can keep receiving updates on iOS
+        // with When In Use access and the system's background location indicator.
         await Location.startLocationUpdatesAsync(TASK, {
           ...options,
           activityType: Location.ActivityType.Fitness,
@@ -54,10 +55,4 @@ export async function startOutdoorLocation(owner: string, id: string, onError: (
     if (readDraft(owner)?.id === id) recordLocations([point], owner);
   }, onError);
   return false;
-}
-
-export async function enableOutdoorBackground() {
-  const foreground = await Location.requestForegroundPermissionsAsync();
-  if (!foreground.granted) return false;
-  return (await Location.requestBackgroundPermissionsAsync()).granted;
 }

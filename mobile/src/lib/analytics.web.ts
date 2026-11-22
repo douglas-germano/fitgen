@@ -1,4 +1,5 @@
 /** The web build (PWA) ships without crash reporting or analytics; same API as analytics.ts, all no-ops. */
+import { ErrorBoundary } from 'expo-router';
 import type { ComponentType } from 'react';
 
 import type { AnalyticsEvent } from './analytics';
@@ -15,3 +16,5 @@ export function identifyUser(_userId: string, _traits?: Props) {}
 export function resetUser() {}
 export function captureError(_error: unknown, _context?: Props) {}
 export const withMonitoring = <P extends Record<string, unknown>>(component: ComponentType<P>) => component;
+export function reportRequestError(_error: unknown, _context: { kind: 'query' | 'mutation'; key?: unknown }) {}
+export const MonitoredErrorBoundary = ErrorBoundary;

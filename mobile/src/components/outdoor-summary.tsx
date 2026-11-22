@@ -3,7 +3,7 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { Row, SectionHeader, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { distanceLabel, elapsedLabel, paceLabel, type OutdoorRoute, type OutdoorType } from '@/lib/outdoor';
+import { distanceLabel, elapsedLabel, paceLabel, speedLabel, type OutdoorRoute, type OutdoorType } from '@/lib/outdoor';
 import { useColors } from '@/providers/theme';
 
 export function OutdoorStats({ type, seconds, meters, calories, summary = false }: {
@@ -16,7 +16,7 @@ export function OutdoorStats({ type, seconds, meters, calories, summary = false 
   const colors = useColors();
   const { width, fontScale } = useWindowDimensions();
   const stackStats = width / Math.max(1, fontScale) < 280;
-  const speed = seconds && meters ? (meters * 3.6 / seconds).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km/h' : '—';
+  const speed = speedLabel(seconds, meters);
   const stats = [
     { label: summary ? 'Tempo ativo' : 'Distância', value: summary ? elapsedLabel(seconds) : distanceLabel(meters) },
     ...(type === 'bike' ? [] : [{ label: 'Ritmo médio', value: paceLabel(seconds, meters) }]),

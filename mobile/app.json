@@ -2,7 +2,7 @@
   "expo": {
     "name": "FitGen",
     "slug": "fitgen",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fitgen",
@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.douglas.fitgen",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -92,6 +93,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-outdoor-live",
       [
         "expo-location",
         {

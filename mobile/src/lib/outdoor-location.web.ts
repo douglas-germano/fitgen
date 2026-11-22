@@ -32,7 +32,3 @@ export async function stopOutdoorLocation() {
   if (watcher !== undefined) navigator.geolocation.clearWatch(watcher);
   watcher = undefined;
 }
-
-export async function enableOutdoorBackground() {
-  return false;
-}

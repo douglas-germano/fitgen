@@ -12,7 +12,8 @@ import { useProfile } from '@/hooks/queries';
 import { useColors } from '@/providers/theme';
 import { AppAlert } from '@/lib/feedback';
 import { estimatedCalories, OUTDOOR_NAMES, outdoorName, type OutdoorType } from '@/lib/outdoor';
-import { enableOutdoorBackground, requestOutdoorLocation, startOutdoorLocation, stopOutdoorLocation } from '@/lib/outdoor-location';
+import { publishOutdoorLive } from '@/lib/outdoor-live';
+import { requestOutdoorLocation, startOutdoorLocation, stopOutdoorLocation } from '@/lib/outdoor-location';
 import { durationSeconds, finishDraft, pauseDraft, readDraft, removeDraft, writeDraft, type OutdoorDraft } from '@/lib/outdoor-recording';
 import { randomUUID } from 'expo-crypto';
 import { useQueryClient } from '@tanstack/react-query';
@@ -41,7 +42,6 @@ export default function OutdoorScreen() {
   const [now, setNow] = useState(Date.now);
   const [busy, setBusy] = useState(false);
   const [gpsMessage, setGpsMessage] = useState<string>();
-  const [backgroundAllowed, setBackgroundAllowed] = useState(false);
   const activeScreen = useRef(false);
   const startInProgress = useRef(false);
 
@@ -81,7 +81,12 @@ export default function OutdoorScreen() {
       const current = readDraft(owner);
       setNow(timestamp);
       if (current && durationSeconds(current, timestamp) >= 86400) pause(timestamp);
-      else setDraft(current);
+      else {
+        setDraft(current);
+        if (Platform.OS === 'android' && current?.runningSince != null) {
+          publishOutdoorLive(current, durationSeconds(current, timestamp));
+        }
+      }
     };
     const timer = setInterval(tick, 1000);
     const state = AppState.addEventListener('change', (next) => {
@@ -137,7 +142,9 @@ export default function OutdoorScreen() {
       }
       const updated = { ...tracked, background };
       writeDraft(updated);
-      setNow(Date.now());
+      const now = Date.now();
+      publishOutdoorLive(updated, durationSeconds(updated, now), 'start');
+      setNow(now);
       setDraft(updated);
     } catch (error) {
       if (current) writeDraft(current);
@@ -232,21 +239,13 @@ export default function OutdoorScreen() {
             })}
           </View>
 
-          {Platform.OS === 'ios' && !backgroundAllowed && (
+          {Platform.OS === 'ios' && (
             <View style={{ gap: Spacing.two, paddingTop: Spacing.four, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line }}>
               <Row>
                 <LocateFixed size={18} color={colors.inkMuted} />
                 <Text variant="titleMd" style={{ flex: 1 }}>GPS com o iPhone bloqueado</Text>
               </Row>
-              <Text muted>Para continuar registrando o trajeto com a tela bloqueada, permita a localização em segundo plano.</Text>
-              <Pressable accessibilityRole="button" disabled={busy} style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => {
-                void enableOutdoorBackground().then((allowed) => {
-                  setBackgroundAllowed(allowed);
-                  if (!allowed) setGpsMessage('Para registrar com a tela bloqueada, selecione Sempre nos ajustes de localização do FitGen.');
-                }).catch(announceError);
-              }}>
-                <Text variant="titleSm" color={colors.voltInk}>Permitir GPS em segundo plano</Text>
-              </Pressable>
+              <Text muted>O FitGen continua usando o GPS com a tela bloqueada durante a atividade que você iniciou.</Text>
             </View>
           )}
           {Platform.OS === 'web' && <Text variant="label" muted>Mantenha esta aba visível para registrar o trajeto.</Text>}
@@ -262,7 +261,13 @@ export default function OutdoorScreen() {
                 {gpsStatus}
               </Text>
             </Row>
-            {running && !draft.background && <Text variant="label" muted>Mantenha esta tela aberta durante o percurso.</Text>}
+            {running && !draft.background && (
+              <Text variant="label" muted>
+                {Platform.OS === 'ios'
+                  ? 'O GPS em segundo plano não iniciou. A atividade será pausada se você sair do app.'
+                  : 'Mantenha esta tela aberta durante o percurso.'}
+              </Text>
+            )}
           </View>
 
           <OutdoorStats type={draft.type} seconds={seconds} meters={draft.meters}

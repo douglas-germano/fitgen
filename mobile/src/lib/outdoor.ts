@@ -34,6 +34,11 @@ export function paceLabel(seconds: number, meters: number) {
   return `${Math.floor(pace / 60)}:${String(pace % 60).padStart(2, '0')} /km`;
 }
 
+export function speedLabel(seconds: number, meters: number) {
+  if (!seconds || !meters) return '—';
+  return (meters * 3.6 / seconds).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km/h';
+}
+
 const BIKE_MET_BY_MPH = [[10, 4], [12, 6.8], [14, 8], [16, 10]] as const;
 
 export function estimatedCalories(type: OutdoorType, meters: number, weight: number | null | undefined, seconds: number) {

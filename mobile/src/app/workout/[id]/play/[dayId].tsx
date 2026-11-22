@@ -6,7 +6,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowUpRight, ChevronRight, Dumbbell, Flame, Heart, Play, Plus, Timer } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,6 +32,7 @@ import { useColors } from '@/providers/theme';
 import { Motion } from '@/constants/motion';
 import { useActiveSession, useStreaks, useWorkoutPlan } from '@/hooks/queries';
 import { useExercisePicker } from '@/hooks/use-exercise-picker';
+import { liveActivity } from '@/lib/live-activity';
 import { saveWorkoutToHealth } from '@/lib/health';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { exerciseLine, formatInt, workoutMinutes, workoutTitle } from '@/lib/workout';
@@ -39,6 +40,7 @@ import type { Exercise } from '@/types/api';
 
 /** Rough strength-training burn used for the final estimate (kcal per minute). */
 const KCAL_PER_MIN = 6;
+const NO_EXERCISES: Exercise[] = [];
 
 /** Keeps the screen on while mounted — nobody wants the phone to lock between sets. */
 function KeepAwake() {
@@ -78,6 +80,7 @@ export default function WorkoutScreen() {
   const [finished, setFinished] = useState<{ duration: number; calories: number } | null>(null);
   const restored = useRef(false);
   const startedAt = useRef<number | null>(null);
+  const liveStartedFor = useRef<string | null>(null);
 
   // A session already open for this very workout (left earlier, or opened from the banner) resumes in place.
   useEffect(() => {
@@ -117,9 +120,51 @@ export default function WorkoutScreen() {
     return () => clearInterval(t);
   }, [finished, sessionId, restEnd]);
 
-  const exercises = day?.exercises ?? [];
+  const exercises = day?.exercises ?? NO_EXERCISES;
   const setsFor = (ex: Exercise) => logs[ex.id] ?? defaultSets(ex);
   const started = !!sessionId;
+  const allSets = exercises.flatMap(setsFor);
+  const doneCount = allSets.filter((s) => s.done).length;
+  const selected = exercises.find((exercise) => exercise.id === selectedId);
+  const nextExercise = selected && setsFor(selected).some((set) => !set.done)
+    ? selected
+    : exercises.find((exercise) => setsFor(exercise).some((set) => !set.done));
+  const nextSets = nextExercise ? setsFor(nextExercise) : [];
+  const nextSet = nextSets.findIndex((set) => !set.done);
+  const liveDetail = nextExercise
+    ? `${nextExercise.name} · Série ${nextSet + 1}/${nextSets.length}`
+    : allSets.length ? 'Todas as séries registradas' : 'Treino em andamento';
+  const liveSessionId = sessionId && !finished ? sessionId : null;
+  const liveTitle = day ? workoutTitle(day) : null;
+  const liveProgress = `${doneCount}/${allSets.length} séries registradas`;
+
+  useEffect(() => {
+    if (!liveSessionId) return;
+    return () => { void liveActivity?.end(liveSessionId).catch(() => {}); };
+  }, [liveSessionId]);
+
+  useEffect(() => {
+    if (!liveActivity || !liveSessionId || liveTitle === null || startedAt.current === null) return;
+    const native = liveActivity;
+    const start = startedAt.current;
+    const url = `fitgen:///workout/${encodeURIComponent(id)}/play/${encodeURIComponent(dayId)}`;
+    const publish = (foreground: boolean) => {
+      const end = restEnd !== null && restEnd > Date.now() ? restEnd : null;
+      const requestStart = foreground && liveStartedFor.current !== liveSessionId;
+      if (requestStart) liveStartedFor.current = liveSessionId;
+      void native.publishWorkout(liveSessionId, liveTitle, liveDetail, liveProgress, start, end, url, requestStart)
+        .catch(() => {
+          if (requestStart && liveStartedFor.current === liveSessionId) liveStartedFor.current = null;
+        });
+    };
+
+    publish(AppState.currentState === 'active');
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') publish(true);
+    });
+    return () => listener.remove();
+  }, [id, dayId, liveSessionId, liveTitle, liveDetail, liveProgress, restEnd]);
+
   // A different workout is still open: it must be resumed or finished before this one can start.
   const other = active.data && day && active.data.workout_day_id !== day.id ? active.data : null;
 
@@ -140,11 +185,8 @@ export default function WorkoutScreen() {
     );
   }
 
-  const allSets = exercises.flatMap(setsFor);
-  const doneCount = allSets.filter((s) => s.done).length;
   const progress = allSets.length ? Math.round((doneCount / allSets.length) * 100) : 0;
   const volume = volumeOf(allSets);
-  const selected = exercises.find((e) => e.id === selectedId);
   const reload = () => queryClient.invalidateQueries({ queryKey: ['workout', id] });
 
   if (finished) {

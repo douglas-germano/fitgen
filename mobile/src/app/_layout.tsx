@@ -6,7 +6,7 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -21,7 +21,7 @@ import { AuthProvider, useAuth } from '@/providers/auth';
 import { useHealthAutoSync } from '@/hooks/use-health-sync';
 import { usePurchasesIdentity } from '@/hooks/use-purchases';
 import { useAnalyticsIdentity, useScreenTracking } from '@/hooks/use-analytics';
-import { withMonitoring } from '@/lib/analytics';
+import { MonitoredErrorBoundary, reportRequestError, withMonitoring } from '@/lib/analytics';
 import { PaywallView } from '@/components/paywall-view';
 import { PremiumSheetHost } from '@/components/premium-sheet';
 import { stopOutdoorLocation } from '@/lib/outdoor-location';
@@ -34,6 +34,9 @@ function RootLayout() {
     () =>
       new QueryClient({
         defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } },
+        // Every failed request goes through here once; analytics decides what becomes a Sentry issue.
+        queryCache: new QueryCache({ onError: (error, query) => reportRequestError(error, { kind: 'query', key: query.queryKey }) }),
+        mutationCache: new MutationCache({ onError: (error, _v, _c, mutation) => reportRequestError(error, { kind: 'mutation', key: mutation.options.mutationKey }) }),
       }),
   );
 
@@ -59,6 +62,9 @@ function RootLayout() {
 }
 
 export default withMonitoring(RootLayout);
+
+/** A screen that throws while rendering shows Expo Router's "try again" screen and is reported to Sentry. */
+export const ErrorBoundary = MonitoredErrorBoundary;
 
 function RootNavigator() {
   const { colors: Colors, scheme, ready: themeReady } = useAppTheme();

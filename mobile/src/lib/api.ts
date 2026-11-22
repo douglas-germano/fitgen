@@ -20,13 +20,24 @@ let refreshInFlight: Promise<boolean> | null = null;
 export class ApiError extends Error {
   status: number;
   data: unknown;
+  /** Route template of the failed request (`/workouts/:id`), used to group errors in Sentry. */
+  endpoint?: string;
 
-  constructor(message: string, status: number, data?: unknown) {
+  constructor(message: string, status: number, data?: unknown, endpoint?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.data = data;
+    this.endpoint = endpoint;
   }
+}
+
+/** `/workouts/12/days/3?x=1` → `/workouts/:id/days/:id` (ids, uuids and query strings out, so one route = one group). */
+export function endpointTemplate(endpoint: string) {
+  return endpoint
+    .split('?')[0]
+    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi, '/:id')
+    .replace(/\/\d+(?=\/|$)/g, '/:id');
 }
 
 export async function loadTokens(): Promise<boolean> {
@@ -151,7 +162,7 @@ export async function api<T = unknown>(
     }
     await clearTokens();
     unauthorizedHandler?.();
-    throw new ApiError('Sua sessão expirou. Entre novamente.', 401);
+    throw new ApiError('Sua sessão expirou. Entre novamente.', 401, undefined, endpointTemplate(endpoint));
   }
 
   const data = await parseBody(res);
@@ -160,13 +171,13 @@ export async function api<T = unknown>(
     if (res.status === 402 && code === 'subscription_required') subscriptionRequiredHandler?.();
     if (res.status === 402 && code === 'premium_required') {
       premiumRequiredHandler?.((data as { feature?: string }).feature);
-      throw new ApiError('Esse recurso faz parte do FitGen Premium.', 402, data);
+      throw new ApiError('Esse recurso faz parte do FitGen Premium.', 402, data, endpointTemplate(endpoint));
     }
     const fields = data?.errors && typeof data.errors === 'object'
       ? Object.values(data.errors).flat().filter((v): v is string => typeof v === 'string').join('\n') : '';
     const message = fields ||
       (data?.msg ?? data?.message ?? data?.error ?? `Falha na requisição (${res.status})`);
-    throw new ApiError(String(message), res.status, data);
+    throw new ApiError(String(message), res.status, data, endpointTemplate(endpoint));
   }
   return data as T;
 }
