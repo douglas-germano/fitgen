@@ -186,6 +186,11 @@ try {
         if (mode === 'empty' && file.endsWith('/app/nutrition-history.tsx')) {
           assert.ok(result.includes('Nenhuma refeição registrada neste período.'));
         }
+        if (mode === 'content' && file.endsWith('/app/(tabs)/metrics.tsx')) {
+          for (const text of ['Peso', 'Gordura', 'Músculo', 'Evolução de peso', 'Registros de peso', 'Hoje', 'Esta semana', 'Minhas medalhas', 'Resumo semanal']) {
+            assert.ok(result.includes(text), `Missing metrics content: ${text}`);
+          }
+        }
         if (mode === 'content' && file.endsWith('/app/profile.tsx')) {
           for (const text of ['Sua semana', 'Minhas medalhas', 'Minhas atividades', 'Medidas', 'Seus dados', 'Conta e preferências', 'Outros', 'Versão:']) {
             assert.ok(result.includes(text), `Missing web profile content: ${text}`);
