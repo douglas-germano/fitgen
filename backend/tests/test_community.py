@@ -12,8 +12,9 @@ from flask import Flask
 from flask_jwt_extended import JWTManager, create_access_token
 from app.shared.extensions import db
 from app.shared import model_registry
+from app.commands import apply_community_sharing_defaults_command
 from app.modules.identity.domain.models import User
-from app.modules.community.domain.models import Activity, Challenge, ChallengeParticipant, CommunitySettings, ALL_TABLES
+from app.modules.community.domain.models import Activity, Challenge, ChallengeParticipant, CommunitySettings, ALL_TABLES, SETTING_FIELDS
 from app.modules.community.application import graph, moderation, publisher, challenges
 from app.modules.community.interface.routes_feed import feed_bp
 from app.modules.community.interface.routes_groups import groups_bp
@@ -40,6 +41,7 @@ class CommunityTests(unittest.TestCase):
         for bp in (feed_bp, groups_bp, people_bp, challenges_bp):
             self.app.register_blueprint(bp, url_prefix='/community')
         self.app.register_blueprint(clubs_admin_bp, url_prefix='/admin/clubs')
+        self.app.cli.add_command(apply_community_sharing_defaults_command)
         self.ctx = self.app.app_context(); self.ctx.push()
         self.addCleanup(self.ctx.pop)
         # Legacy analytics constraints use PG-specific casts; this suite only needs these tables.
@@ -76,8 +78,39 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual(rotated.status_code, 200)
         self.assertEqual(self.join(g, 2).status_code, 404)
 
-    def test_opt_in_auto_feed_deduplicates_without_health_measurements(self):
+    def test_sharing_defaults_and_search_respect_later_opt_out(self):
+        uid = str(self.users[1].id)
+        self.assertIsNone(db.session.get(CommunitySettings, self.users[1].id))
+        found = self.request('/users/search?q=Pessoa+1').json
+        self.assertEqual([user['id'] for user in found], [uid])
+        self.assertEqual(self.request('/settings', 1).json, dict.fromkeys(SETTING_FIELDS, True))
+        self.request('/settings', 1, 'put', json={'discoverable': False})
+        self.assertEqual(self.request('/users/search?q=Pessoa+1').json, [])
+        self.assertEqual(self.request('/users/' + uid).status_code, 404)
+        self.users[2].soft_delete()
+        db.session.commit()
+        self.assertEqual(self.request('/users/search?q=Pessoa+2').json, [])
+
+    def test_existing_settings_are_enabled_once_without_creating_publications(self):
         uid = self.users[0].id
+        self.request('/settings', method='put', json=dict.fromkeys(SETTING_FIELDS, False))
+        friend_code = graph.settings_for(uid).friend_code
+        runner = self.app.test_cli_runner()
+        applied = runner.invoke(args=['apply-community-sharing-defaults'])
+        self.assertEqual(applied.exit_code, 0, applied.output)
+        self.assertIn('1 existing settings rows', applied.output)
+        self.assertEqual(self.request('/settings').json, dict.fromkeys(SETTING_FIELDS, True))
+        self.assertEqual(graph.settings_for(uid).friend_code, friend_code)
+        self.assertEqual(Activity.query.count(), 0)
+        self.request('/settings', method='put', json={'share_hydration': False})
+        repeated = runner.invoke(args=['apply-community-sharing-defaults'])
+        self.assertEqual(repeated.exit_code, 0, repeated.output)
+        self.assertIn('already applied', repeated.output)
+        self.assertFalse(self.request('/settings').json['share_hydration'])
+
+    def test_auto_feed_deduplicates_and_respects_sharing_controls(self):
+        uid = self.users[0].id
+        self.request('/settings', method='put', json={'share_workouts': False, 'share_hydration': False})
         self.assertIsNone(publisher.publish(uid, 'workout_completed', {'workout_name': 'A'}, source_id='s'))
         self.request('/settings', method='put', json={'share_workouts': True})
         first = publisher.publish(uid, 'workout_completed', {'workout_name': 'A'}, source_id='s')
@@ -227,6 +260,7 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual(profile.xp, 100)
         self.assertEqual(UserAchievement.query.count(), 1)
         self.assertEqual(self.request('/challenges/' + str(challenge.id) + '/leave', method='post').status_code, 409)
+        self.request('/settings', method='put', json={'share_workouts': False})
         self.assertEqual(metrics.weekly_ranking([uid])[0]['workouts'], 0)
         self.request('/settings', method='put', json={'share_workouts': True})
         self.assertEqual(metrics.weekly_ranking([uid])[0]['workouts'], 1)

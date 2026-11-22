@@ -171,3 +171,35 @@ def ensure_auth_schema_command():
         if postgres and not columns['password_hash']['nullable']:
             connection.execute(text('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL'))
     print('Auth schema OK')
+
+
+@click.command(name='apply-community-sharing-defaults')
+@with_appcontext
+def apply_community_sharing_defaults_command():
+    """Enable the beta cohort's settings once, then respect individual changes."""
+    from sqlalchemy import Column, MetaData, String, Table, or_, select, text
+    from app.modules.community.domain.models import CommunitySettings, SETTING_FIELDS
+
+    settings = CommunitySettings.__table__
+    migrations = Table('fitgen_data_migrations', MetaData(), Column('name', String(100), primary_key=True))
+    migration = 'community_sharing_defaults_for_beta'
+
+    with db.engine.begin() as connection:
+        if connection.dialect.name == 'postgresql':
+            # Keep concurrent deployments from racing to apply the same data migration.
+            connection.execute(text('SELECT pg_advisory_xact_lock(2026112201)'))
+        settings.create(connection, checkfirst=True)
+        migrations.create(connection, checkfirst=True)
+        applied = connection.scalar(select(migrations.c.name).where(migrations.c.name == migration))
+        if applied:
+            click.echo('Community sharing defaults already applied')
+            return
+
+        updated = connection.execute(
+            settings.update()
+            .where(or_(*(settings.c[field].is_(False) for field in SETTING_FIELDS)))
+            .values({field: True for field in SETTING_FIELDS})
+        ).rowcount
+        connection.execute(migrations.insert().values(name=migration))
+
+    click.echo(f'Community sharing defaults applied to {updated} existing settings rows')

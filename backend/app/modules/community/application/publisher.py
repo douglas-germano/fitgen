@@ -67,7 +67,7 @@ def on_workout_finished(user_id, session):
 def on_streak(user_id, category, days, today):
     if days not in STREAK_MILESTONES:
         return
-    # Water habits are health data: also need the hydration opt-in.
+    # Water milestones require hydration sharing as well as streak sharing.
     if category == 'hydration' and not settings_for(user_id).share_hydration:
         return
     publish(user_id, 'streak', {'category': category, 'days': days}, source_id=f'{category}:{days}:{today.isoformat()}')

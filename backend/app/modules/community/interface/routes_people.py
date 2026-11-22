@@ -12,14 +12,11 @@ from app.modules.identity.domain.models import User
 from app.modules.community.application import graph, metrics, serializers
 from app.modules.community.application.notify import notify
 from app.modules.community.domain.models import (
-    AUTO_HIDE_REPORTS, REPORT_TARGETS, Activity, Block, Comment, CommunityGroup, CommunitySettings, Friendship, GroupMember, Report,
+    AUTO_HIDE_REPORTS, REPORT_TARGETS, SETTING_FIELDS, Activity, Block, Comment, CommunityGroup, CommunitySettings, Friendship, GroupMember, Report,
 )
 from app.modules.community.interface.common import body, clean_text, fail, me
 
 people_bp = Blueprint('community_people', __name__)
-
-SETTING_FIELDS = ('share_workouts', 'share_achievements', 'share_streaks', 'share_challenges', 'share_hydration', 'discoverable')
-
 
 def _settings_json(s):
     return {f: getattr(s, f) for f in SETTING_FIELDS}
@@ -187,7 +184,7 @@ def unfriend(user_id):
 @people_bp.route('/users/search', methods=['GET'])
 @jwt_required()
 def search_users():
-    """Only people who chose to be discoverable (plus people I already know)."""
+    """Find discoverable accounts, including defaults, and existing connections."""
     uid = me()
     q = (request.args.get('q') or '').strip()
     if len(q) < 2:
@@ -195,8 +192,8 @@ def search_users():
     known = graph.friend_ids(uid) | graph.comember_ids(uid)
     pattern = f'%{q.replace("%", "").replace("_", "")}%'
     rows = db.session.query(User.id).outerjoin(CommunitySettings, CommunitySettings.user_id == User.id).filter(
-        User.name.ilike(pattern), User.id != uid,
-        or_(CommunitySettings.discoverable.is_(True), User.id.in_(known or [uid])),
+        User.name.ilike(pattern), User.id != uid, User.is_active.is_(True), User.deleted_at.is_(None),
+        or_(CommunitySettings.discoverable.is_(True), CommunitySettings.user_id.is_(None), User.id.in_(known or [uid])),
     ).limit(20).all()
     blocked = graph.blocked_ids(uid)
     ids = [r[0] for r in rows if r[0] not in blocked]

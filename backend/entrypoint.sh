@@ -33,6 +33,7 @@ python3 -m flask db upgrade || {
 python3 -m flask seed-exercises
 python3 -m flask ensure-outdoor-schema
 python3 -m flask ensure-auth-schema
+python3 -m flask apply-community-sharing-defaults
 
 echo "Starting Gunicorn..."
 echo "Binding to 0.0.0.0:${PORT:-5000}"

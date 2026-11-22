@@ -9,6 +9,7 @@ from app.shared.utils.timezone import now_cuiaba
 
 # No 0/O/1/I/L: codes are read aloud and typed from WhatsApp messages.
 CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+SETTING_FIELDS = ('share_workouts', 'share_achievements', 'share_streaks', 'share_challenges', 'share_hydration', 'discoverable')
 
 
 def new_code(length=8):
@@ -24,13 +25,12 @@ class CommunitySettings(db.Model):
     __tablename__ = 'community_settings'
 
     user_id = db.Column(UUID(as_uuid=True), _user_fk(), primary_key=True)
-    share_workouts = db.Column(db.Boolean, nullable=False, default=False)
-    share_achievements = db.Column(db.Boolean, nullable=False, default=False)
-    share_streaks = db.Column(db.Boolean, nullable=False, default=False)
-    share_challenges = db.Column(db.Boolean, nullable=False, default=False)
-    # Health data stays private unless the user opts in.
-    share_hydration = db.Column(db.Boolean, nullable=False, default=False)
-    discoverable = db.Column(db.Boolean, nullable=False, default=False)
+    share_workouts = db.Column(db.Boolean, nullable=False, default=True)
+    share_achievements = db.Column(db.Boolean, nullable=False, default=True)
+    share_streaks = db.Column(db.Boolean, nullable=False, default=True)
+    share_challenges = db.Column(db.Boolean, nullable=False, default=True)
+    share_hydration = db.Column(db.Boolean, nullable=False, default=True)
+    discoverable = db.Column(db.Boolean, nullable=False, default=True)
     friend_code = db.Column(db.String(12), unique=True, nullable=False, default=new_code)
     updated_at = db.Column(db.DateTime, default=now_cuiaba, onupdate=now_cuiaba)
 
