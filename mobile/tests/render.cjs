@@ -73,6 +73,8 @@ const stubs = {
   'expo-maps': { AppleMaps: { View: () => null, MapColorScheme: { LIGHT: 'LIGHT', DARK: 'DARK' } } },
   'expo-sqlite/kv-store': { SQLiteStorage: class {} }, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0'}}},
+  'expo-apple-authentication':{ isAvailableAsync:async()=>false, AppleAuthenticationButton:()=>null, AppleAuthenticationButtonType:{}, AppleAuthenticationButtonStyle:{}, AppleAuthenticationScope:{} },
+  '@react-native-google-signin/google-signin':{ GoogleSignin:{ configure(){} }, isCancelledResponse:()=>false, isErrorWithCode:()=>false, statusCodes:{} },
   '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>query(options?.queryKey?.[0] === 'outdoor-detail' ? { record: outdoor, pending: false } : options?.queryKey?.[0] === 'outdoor-route' ? outdoor.route : options?.queryKey?.[0] === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : options?.queryKey?.[0] === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}})},
 };
 let cache;

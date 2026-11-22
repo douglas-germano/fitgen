@@ -58,7 +58,8 @@
             ]
           }
         ]
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.douglas.fitgen",
@@ -148,6 +149,13 @@
           "organization": "advantage-negocios-online",
           "project": "fitgen-mobile"
         }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.384376883472-vcuta0k7h9kkfsiuus9c700mj5j2p8dg"
+        }
       ]
     ],
     "experiments": {
@@ -162,7 +170,10 @@
       },
       "eas": {
         "projectId": "92ca68eb-3c9d-4e14-9c27-65f708c5bb20"
-      }
+      },
+      "googleWebClientId": "384376883472-b2gd3d76ij286fcavscal600ling4bil.apps.googleusercontent.com",
+      "googleIosClientId": "384376883472-vcuta0k7h9kkfsiuus9c700mj5j2p8dg.apps.googleusercontent.com",
+      "appleSignIn": true
     },
     "owner": "eudouglasgermano"
   }

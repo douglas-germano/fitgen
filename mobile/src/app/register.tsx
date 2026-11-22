@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { track } from '@/lib/analytics';
+import { SocialSignIn } from '@/components/social-sign-in';
 import { BadgeIcon, Button, Input, LinkText, Page, Text, TopBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { api, errorMessage } from '@/lib/api';
@@ -42,6 +43,7 @@ export default function RegisterScreen() {
         <Text variant="display">Vamos começar.</Text>
         <Text muted>Crie sua conta e configure seus objetivos de treino e alimentação.</Text>
       </View>
+      {!created && <SocialSignIn />}
       <Input label="Nome completo" value={form.name} onChangeText={(v) => change('name', v)} autoComplete="name" editable={!created} />
       <Input label="Email" value={form.email} onChangeText={(v) => change('email', v)} keyboardType="email-address" autoCapitalize="none" autoComplete="email" editable={!created} />
       <Input label="Celular com DDD (opcional)" value={form.phone} onChangeText={(v) => change('phone', v)} keyboardType="phone-pad" editable={!created} />

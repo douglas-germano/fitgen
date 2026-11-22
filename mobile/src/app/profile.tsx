@@ -1,5 +1,5 @@
 import { AppAlert } from '@/lib/feedback';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -234,10 +234,13 @@ function NameDialog({ current, onClose }: { current: string; onClose: () => void
 function PasswordDialog({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ old: '', next: '', confirm: '' });
   const [loading, setLoading] = useState(false);
+  // Accounts created with Google/Apple have no password yet: they set one without the "current" field.
+  const account = useQuery({ queryKey: ['auth-me'], queryFn: () => api<{ has_password: boolean }>('/auth/me') });
+  const hasPassword = account.data?.has_password ?? true;
 
   const save = async () => {
     const validation = passwordError(form.next);
-    if (!form.old || validation) {
+    if ((hasPassword && !form.old) || validation) {
       AppAlert.alert(validation || 'Informe sua senha atual.');
       return;
     }
@@ -250,9 +253,10 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
       await api('/auth/change-password', {
         method: 'POST',
         recoverSession: false,
-        body: { old_password: form.old, new_password: form.next },
+        body: { ...(hasPassword ? { old_password: form.old } : {}), new_password: form.next },
       });
-      AppAlert.alert('Senha alterada com sucesso!');
+      void account.refetch();
+      AppAlert.alert(hasPassword ? 'Senha alterada com sucesso!' : 'Senha criada! Agora você também pode entrar com email e senha.');
       onClose();
     } catch (e) {
       AppAlert.alert('Erro ao alterar senha.', errorMessage(e));
@@ -263,8 +267,14 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
 
   const field = { secureTextEntry: true, autoCapitalize: 'none' as const, autoCorrect: false };
   return (
-    <Dialog visible onClose={onClose} title="Alterar Senha" description="Altere sua senha de acesso.">
-      <Input label="Senha Atual" {...field} textContentType="password" value={form.old} onChangeText={(old) => setForm({ ...form, old })} />
+    <Dialog
+      visible
+      onClose={onClose}
+      title={hasPassword ? 'Alterar Senha' : 'Criar Senha'}
+      description={hasPassword ? 'Altere sua senha de acesso.' : 'Você entra com Google ou Apple. Crie uma senha para também entrar com email.'}>
+      {hasPassword && (
+        <Input label="Senha Atual" {...field} textContentType="password" value={form.old} onChangeText={(old) => setForm({ ...form, old })} />
+      )}
       <Input label="Nova Senha" {...field} textContentType="newPassword" value={form.next} onChangeText={(next) => setForm({ ...form, next })} />
       <Input label="Confirmar Nova Senha" {...field} textContentType="newPassword" value={form.confirm} onChangeText={(confirm) => setForm({ ...form, confirm })} />
       <Row style={{ gap: Spacing.three }}>

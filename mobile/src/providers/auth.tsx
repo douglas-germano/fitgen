@@ -3,6 +3,7 @@ import { createContext, use, useEffect, useState, type PropsWithChildren } from 
 
 import { openPremiumSheet } from '@/lib/premium-sheet';
 import { api, clearTokens, loadTokens, saveTokens, setPremiumRequiredHandler, setSubscriptionRequiredHandler, setUnauthorizedHandler } from '@/lib/api';
+import type { SocialCredential } from '@/lib/social-auth';
 import type { LoginResponse } from '@/types/api';
 
 type Status = 'loading' | 'signedIn' | 'signedOut';
@@ -10,6 +11,7 @@ type Status = 'loading' | 'signedIn' | 'signedOut';
 type AuthContextValue = {
   status: Status;
   signIn: (email: string, password: string) => Promise<LoginResponse>;
+  signInWithProvider: (credential: SocialCredential) => Promise<LoginResponse>;
   signOut: () => Promise<void>;
 };
 
@@ -55,13 +57,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return data;
   };
 
+  const signInWithProvider = async ({ provider, idToken, name }: SocialCredential) => {
+    const data = await api<LoginResponse>('/auth/social', {
+      method: 'POST',
+      body: { provider, id_token: idToken, ...(name ? { name } : {}) },
+      public: true,
+    });
+    await saveTokens(data.access_token, data.refresh_token);
+    setStatus('signedIn');
+    return data;
+  };
+
   const signOut = async () => {
     await clearTokens();
     queryClient.clear();
     setStatus('signedOut');
   };
 
-  return <AuthContext value={{ status, signIn, signOut }}>{children}</AuthContext>;
+  return <AuthContext value={{ status, signIn, signInWithProvider, signOut }}>{children}</AuthContext>;
 }
 
 export function useAuth() {

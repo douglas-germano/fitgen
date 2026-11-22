@@ -7,6 +7,8 @@ export interface LoginResponse {
   access_token: string;
   refresh_token?: string;
   onboarding_completed?: boolean;
+  /** /auth/social only: true when this sign-in created the account. */
+  created?: boolean;
 }
 
 export interface Profile {

@@ -8,7 +8,9 @@ class User(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # NULL for Google/Apple-only accounts
+    google_sub = db.Column(db.String(255), unique=True, nullable=True)
+    apple_sub = db.Column(db.String(255), unique=True, nullable=True)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), default='user')  # 'user' or 'admin'
     is_active = db.Column(db.Boolean, default=True, nullable=False)

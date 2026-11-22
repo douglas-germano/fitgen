@@ -32,6 +32,7 @@ python3 -m flask db upgrade || {
 # Load the official exercise library (idempotent; keeps admin edits)
 python3 -m flask seed-exercises
 python3 -m flask ensure-outdoor-schema
+python3 -m flask ensure-auth-schema
 
 echo "Starting Gunicorn..."
 echo "Binding to 0.0.0.0:${PORT:-5000}"

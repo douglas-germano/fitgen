@@ -9,6 +9,7 @@ from app.shared.extensions import db, limiter
 from app.modules.identity.domain.models import User
 from app.modules.identity.interface.schemas import RegisterSchema, LoginSchema
 from app.shared.utils.password import validate_password_strength
+from app.modules.identity.application.social_auth import SocialAuthError, verify_id_token
 from datetime import datetime, timedelta
 import secrets
 
@@ -145,48 +146,133 @@ def login():
     
     user = User.query.filter_by(email=validated_data['email']).first()
     
-    if not user or not check_password_hash(user.password_hash, validated_data['password']):
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, validated_data['password']):
         current_app.logger.warning(f'Failed login attempt for: {validated_data["email"]}')
         return jsonify({"msg": "Credenciais inválidas"}), 401
-    
+
+    blocked = _blocked_response(user)
+    if blocked:
+        current_app.logger.warning(f'Blocked login attempt for: {validated_data["email"]}')
+        return blocked
+
+    current_app.logger.info(f'User logged in: {user.email}')
+    return jsonify(_session_payload(user)), 200
+
+
+def _blocked_response(user):
+    """403 response when the account can't sign in, else None."""
     if not user.is_active:
-        current_app.logger.warning(f'Login attempt for inactive account: {validated_data["email"]}')
         return jsonify({"msg": "Conta desativada"}), 403
-    
-    # Check subscription status
     if user.subscription_status == 'suspended':
-        current_app.logger.warning(f'Login attempt for suspended account: {validated_data["email"]}')
         return jsonify({
             "msg": "Acesso suspenso. Sua assinatura expirou.",
             "status": "suspended"
         }), 403
-    
-    
-    access_token = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
-    
-    # Update last login timestamp
+    return None
+
+
+def _session_payload(user, **extra):
+    """Issue tokens and build the login response (also stamps last_login)."""
     user.last_login = datetime.utcnow()
     db.session.commit()
-    
-    # Check onboarding status
+
     onboarding_done = user.onboarding_completed
     if user.profile and hasattr(user.profile, 'onboarding_completed'):
         onboarding_done = onboarding_done or user.profile.onboarding_completed
-    
-    current_app.logger.info(f'User logged in: {user.email}')
-    
-    return jsonify({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
+
+    return {
+        "access_token": create_access_token(identity=str(user.id)),
+        "refresh_token": create_refresh_token(identity=str(user.id)),
         "onboarding_completed": onboarding_done,
         "user": {
             "id": str(user.id),
             "email": user.email,
             "name": user.name,
             "role": user.role
-        }
-    }), 200
+        },
+        **extra,
+    }
+
+
+@auth_bp.route('/social', methods=['POST'])
+@limiter.limit("10 per minute")
+def social_login():
+    """
+    Sign in (or sign up) with a Google or Apple id_token
+    ---
+    tags:
+      - Auth
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - provider
+            - id_token
+          properties:
+            provider:
+              type: string
+              enum: [google, apple]
+            id_token:
+              type: string
+            name:
+              type: string
+              description: Apple only sends the name on the first sign-in; the app forwards it
+    responses:
+      200:
+        description: Login successful (created=true when the account is new)
+      401:
+        description: Invalid token
+      403:
+        description: Account suspended or inactive
+    """
+    data = request.get_json(silent=True) or {}
+    provider = data.get('provider')
+    token = data.get('id_token')
+    if provider not in ('google', 'apple') or not token:
+        return jsonify({"msg": "provider e id_token são obrigatórios"}), 400
+
+    try:
+        identity = verify_id_token(provider, token)
+    except SocialAuthError as err:
+        current_app.logger.warning(f'Social login rejected ({provider}): {err}')
+        return jsonify({"msg": str(err)}), 401
+
+    sub_column = User.google_sub if provider == 'google' else User.apple_sub
+    sub_attr = 'google_sub' if provider == 'google' else 'apple_sub'
+    user = User.query.filter(sub_column == identity['sub']).first()
+    created = False
+
+    if not user:
+        email = identity['email']
+        if not email:
+            return jsonify({"msg": "Não recebemos seu email. Tente outro método de login."}), 400
+        user = User.query.filter_by(email=email).first()
+        if user:
+            # Only link to an existing account when the provider vouches for the email.
+            if not identity['email_verified']:
+                return jsonify({"msg": "Email não verificado pelo provedor"}), 409
+            setattr(user, sub_attr, identity['sub'])
+        else:
+            name = (data.get('name') or identity['name'] or '').strip() or email.split('@')[0]
+            user = User(
+                email=email,
+                password_hash=None,
+                name=name[:100],
+                subscription_status='free',
+            )
+            setattr(user, sub_attr, identity['sub'])
+            db.session.add(user)
+            created = True
+        db.session.commit()
+
+    blocked = _blocked_response(user)
+    if blocked:
+        return blocked
+
+    current_app.logger.info(f'User logged in via {provider}: {user.email} (created={created})')
+    return jsonify(_session_payload(user, created=created)), 200
 
 @auth_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
@@ -241,7 +327,8 @@ def me():
         "name": user.name,
         "role": user.role,
         "subscription_status": user.subscription_status,
-        "onboarding_completed": user.onboarding_completed
+        "onboarding_completed": user.onboarding_completed,
+        "has_password": bool(user.password_hash)
     }), 200
 
 @auth_bp.route('/forgot-password', methods=['POST'])
@@ -399,12 +486,13 @@ def change_password():
     old_password = data.get('old_password')
     new_password = data.get('new_password')
     
-    if not old_password or not new_password:
-        return jsonify({"msg": "Senha atual e nova senha são obrigatórias"}), 400
-        
     user = User.query.get(current_user_id)
-    
-    if not check_password_hash(user.password_hash, old_password):
+
+    # Google/Apple-only accounts have no password yet: let them set one.
+    if not new_password or (user.password_hash and not old_password):
+        return jsonify({"msg": "Senha atual e nova senha são obrigatórias"}), 400
+
+    if user.password_hash and not check_password_hash(user.password_hash, old_password):
         return jsonify({"msg": "Senha atual incorreta"}), 401
     
     # Validate new password

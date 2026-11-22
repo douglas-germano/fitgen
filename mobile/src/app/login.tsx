@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { track } from '@/lib/analytics';
 import { BrandLockup } from '@/components/brand';
+import { SocialSignIn } from '@/components/social-sign-in';
 import { Button, Input, LinkText, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
@@ -57,11 +58,12 @@ export default function LoginScreen() {
                 Sua evolução começa aqui.
               </Text>
               <Text muted style={{ fontSize: 15, lineHeight: 22 }}>
-                Digite seu email e senha para acessar sua conta.
+                Entre com Apple, Google ou com seu email e senha.
               </Text>
             </View>
 
             <View style={{ gap: Spacing.four }}>
+              <SocialSignIn />
               <Input
                 label="Email"
                 placeholder="seu@email.com"

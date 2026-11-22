@@ -150,3 +150,24 @@ def ensure_outdoor_schema_command():
     from app.modules.training.domain.models import OutdoorSession
 
     OutdoorSession.__table__.create(db.engine, checkfirst=True)
+
+
+@click.command(name='ensure-auth-schema')
+@with_appcontext
+def ensure_auth_schema_command():
+    """Add Google/Apple sign-in columns and allow password-less users (no Alembic history in prod)."""
+    from sqlalchemy import inspect, text
+
+    with db.engine.begin() as connection:
+        postgres = connection.dialect.name == 'postgresql'
+        columns = {c['name']: c for c in inspect(connection).get_columns('users')}
+        for column in ('google_sub', 'apple_sub'):
+            if column not in columns:
+                guard = ' IF NOT EXISTS' if postgres else ''
+                connection.execute(text(f'ALTER TABLE users ADD COLUMN{guard} {column} VARCHAR(255)'))
+                connection.execute(text(
+                    f'CREATE UNIQUE INDEX IF NOT EXISTS uq_users_{column} ON users ({column})'
+                ))
+        if postgres and not columns['password_hash']['nullable']:
+            connection.execute(text('ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL'))
+    print('Auth schema OK')
