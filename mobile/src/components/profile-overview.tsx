@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarDays, ChevronRight, Droplets, Dumbbell, Flame, Sparkles, Trophy, Users, Utensils, type LucideIcon } from 'lucide-react-native';
+import { BadgeCheck, CalendarDays, ChevronRight, Droplets, Dumbbell, Flame, Trophy, Users, Utensils, type LucideIcon } from 'lucide-react-native';
 import { Children, Fragment, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -58,7 +58,7 @@ export function ProfileTiles({ planTitle, planCaption }: { planTitle: string; pl
       <View style={{ flexDirection: 'row', gap: Spacing.three, alignItems: 'stretch' }}>
         <Tile icon={CalendarDays} color={TILE.week} title="Sua semana" caption={weekCaption} onPress={() => setWeekOpen(true)} />
         <Tile icon={Users} color={TILE.community} title="Comunidade" caption="Pessoas e grupos" onPress={() => router.push('/(tabs)/social')} />
-        <Tile icon={Sparkles} color={TILE.premium} title={planTitle} caption={planCaption} onPress={() => router.push('/paywall')} />
+        <Tile icon={BadgeCheck} color={TILE.premium} title={planTitle} caption={planCaption} onPress={() => router.push('/paywall')} />
       </View>
       {weekOpen && (
         <Dialog visible title="Sua semana" description={range} onClose={() => setWeekOpen(false)}>
