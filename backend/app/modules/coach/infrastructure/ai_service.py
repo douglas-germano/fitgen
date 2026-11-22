@@ -13,6 +13,7 @@ import base64
 import json
 import logging
 import os
+import time
 
 import requests
 
@@ -89,6 +90,19 @@ _AUDIO_FORMATS = {
 
 class AIServiceError(Exception):
     pass
+
+
+class AIDeadlineExceeded(AIServiceError):
+    """The call (or the whole tool loop) ran out of time."""
+
+
+def _gevent_active():
+    """True under gunicorn's gevent worker (sockets patched), where gevent.Timeout can cut a call."""
+    try:
+        from gevent import monkey
+        return monkey.is_module_patched("socket")
+    except ImportError:
+        return False
 
 
 def _clean_mime(mime_type, default):
@@ -168,8 +182,14 @@ class AIService:
 
     # ------------------------------------------------------------------ core
 
-    def chat_completion(self, messages, tools=None, feature="default", **extra):
-        """Calls OpenRouter and returns the first choice's message dict."""
+    def chat_completion(self, messages, tools=None, feature="default", timeout=None, **extra):
+        """Calls OpenRouter and returns the first choice's message dict.
+
+        timeout: seconds for this call (capped by OPENROUTER_TIMEOUT); raises AIDeadlineExceeded.
+        """
+        seconds = self.timeout if timeout is None else min(self.timeout, timeout)
+        if seconds <= 0:
+            raise AIDeadlineExceeded("no time left for the AI call")
         payload = {"model": self.model, "messages": messages, "max_tokens": max_tokens_for(feature)}
         reasoning = reasoning_for(payload["max_tokens"])
         if reasoning:
@@ -177,7 +197,7 @@ class AIService:
         payload.update(extra)
         if tools:
             payload["tools"] = tools
-            payload["tool_choice"] = "auto"
+            payload.setdefault("tool_choice", "auto")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -188,12 +208,19 @@ class AIService:
         if referer:
             headers["HTTP-Referer"] = referer
 
-        resp = requests.post(
-            f"{self.base_url}/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=self.timeout,
-        )
+        # requests' timeout is per socket read, and OpenRouter keeps idle connections alive
+        # with whitespace, so it may never fire. gevent.Timeout bounds the whole call.
+        try:
+            if _gevent_active():
+                import gevent
+                with gevent.Timeout(seconds, AIDeadlineExceeded(f"AI call exceeded {seconds:.0f}s")):
+                    resp = requests.post(f"{self.base_url}/chat/completions", headers=headers,
+                                         json=payload, timeout=seconds)
+            else:
+                resp = requests.post(f"{self.base_url}/chat/completions", headers=headers,
+                                     json=payload, timeout=seconds)
+        except requests.Timeout as e:
+            raise AIDeadlineExceeded(f"AI call exceeded {seconds:.0f}s") from e
         try:
             body = resp.json()
         except ValueError:
@@ -270,7 +297,8 @@ class AIService:
             return None
 
     def generate_with_functions(self, content, tools, function_executor, max_iterations=5,
-                                system_prompt=None, feature="coach"):
+                                system_prompt=None, feature="coach", deadline_seconds=None,
+                                final_answer_seconds=15, timeout_reply=None):
         """
         Runs a tool-calling loop.
 
@@ -280,17 +308,27 @@ class AIService:
             function_executor: callable(name, args_dict) -> JSON-serializable result
             max_iterations: maximum rounds of tool execution
             system_prompt: optional system message
+            deadline_seconds: total time for the whole loop (None = only per-call timeouts)
+            final_answer_seconds: when less than this is left, the next round asks the model to
+                answer with what it has (tool_choice "none") instead of calling more tools
+            timeout_reply: callable(executed_tool_names) -> str, returned when time runs out
 
         Returns:
             Final assistant text, or None on failure.
         """
+        deadline = time.monotonic() + deadline_seconds if deadline_seconds else None
+        executed = []
+
+        def remaining():
+            return None if deadline is None else deadline - time.monotonic()
+
         try:
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": content})
 
-            message = self.chat_completion(messages, tools=tools, feature=feature)
+            message = self.chat_completion(messages, tools=tools, feature=feature, timeout=remaining())
 
             for _ in range(max_iterations):
                 tool_calls = message.get("tool_calls") or []
@@ -312,6 +350,7 @@ class AIService:
                         args = {}
 
                     print(f"🔧 Executing function: {name} with args: {args}")
+                    executed.append(name)
                     try:
                         result = function_executor(name, args)
                     except Exception as e:
@@ -325,10 +364,23 @@ class AIService:
                         "content": json.dumps({"result": result}, ensure_ascii=False, default=str),
                     })
 
-                message = self.chat_completion(messages, tools=tools, feature=feature)
+                left = remaining()
+                if left is not None and left < final_answer_seconds:
+                    # Out of rounds: answer with the tool results already in hand
+                    message = self.chat_completion(messages, tools=tools, feature=feature,
+                                                   timeout=left, tool_choice="none")
+                    break
+                message = self.chat_completion(messages, tools=tools, feature=feature, timeout=left)
 
             final_text = (message.get("content") or "").strip()
             return final_text or "Desculpe, não consegui processar sua solicitação."
+
+        except AIDeadlineExceeded as e:
+            log.warning("AI tool loop out of time (feature=%s, deadline=%ss, tools run=%s): %s",
+                        feature, deadline_seconds, executed, e)
+            if timeout_reply:
+                return timeout_reply(executed)
+            return None
 
         except Exception as e:
             print(f"Error in function calling: {e}")

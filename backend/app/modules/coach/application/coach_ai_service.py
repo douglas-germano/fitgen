@@ -1,8 +1,32 @@
 from app.modules.coach.infrastructure.ai_service import AIService, build_user_content
 from datetime import datetime
+import os
 import time
 
 from app.shared.extensions import release_db_connection
+
+# Tools that save something: if time runs out after one of them, the user must not retry blindly.
+WRITE_TOOLS = {"log_meal", "log_water", "log_exercise_set", "log_body_metric", "start_workout_session"}
+
+
+def coach_deadline_seconds():
+    """Total time for one coach answer (all AI rounds + tools), env COACH_DEADLINE_SECONDS.
+
+    The app's fetch has no timeout of its own, so iOS gives up after ~60 s without data;
+    45 s leaves margin. gunicorn's gevent workers don't kill long requests, so past this
+    the server would keep spending tokens on an answer nobody receives.
+    """
+    try:
+        return max(5.0, float(os.environ.get("COACH_DEADLINE_SECONDS", "45")))
+    except ValueError:
+        return 45.0
+
+
+def coach_timeout_reply(executed_tools):
+    if WRITE_TOOLS.intersection(executed_tools):
+        return ("Já registrei o que você pediu, mas demorei demais para montar a resposta. "
+                "Confira no app antes de pedir de novo, para não registrar em dobro.")
+    return "Demorei demais para responder agora. Pode tentar de novo em instantes?"
 
 class CoachAIService:
     """
@@ -154,6 +178,8 @@ USUÁRIO: {new_message}"""
                 COACH_FUNCTION_DECLARATIONS,
                 function_executor,
                 system_prompt=system_instruction,
+                deadline_seconds=coach_deadline_seconds(),
+                timeout_reply=coach_timeout_reply,
             )
             response_time_ms = int((time.time() - start_time) * 1000)
             
