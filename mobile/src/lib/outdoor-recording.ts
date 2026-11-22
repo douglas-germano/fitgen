@@ -1,6 +1,7 @@
 import type { LocationObject } from 'expo-location';
 
 import { estimatedCalories, MAX_GPS_METERS_PER_SECOND, metersBetween, outdoorName, type OutdoorRoute, type OutdoorType, type RoutePoint } from './outdoor';
+import { endOutdoorLive, publishOutdoorLive } from './outdoor-live';
 import { outdoorStorage } from './outdoor-storage';
 
 export type OutdoorDraft = {
@@ -68,8 +69,10 @@ export function clearPending(owner: string, id: string) {
 }
 
 export function removeDraft(owner: string) {
+  const draft = readDraft(owner);
   outdoorStorage.removeItemSync(draftKey(owner));
   if (outdoorStorage.getItemSync(activeKey) === owner) outdoorStorage.removeItemSync(activeKey);
+  if (draft) endOutdoorLive(draft.id);
 }
 
 export function durationSeconds(draft: OutdoorDraft, now: number) {
@@ -82,6 +85,7 @@ export function pauseDraft(draft: OutdoorDraft, now: number) {
   const activeMs = Math.min(86_400_000, draft.activeMs + Math.max(0, now - draft.runningSince));
   const paused = { ...draft, activeMs, runningSince: null, lastPointAt: null };
   writeDraft(paused);
+  publishOutdoorLive(paused, durationSeconds(paused, now), 'pause');
   return paused;
 }
 
@@ -150,5 +154,9 @@ export function recordLocations(locations: LocationObject[], expectedOwner?: str
     }
     lastPointAt = timestamp;
   }
-  if (lastFix !== draft.lastFix) writeDraft({ ...draft, route, meters, lastFix, lastPointAt });
+  if (lastFix !== draft.lastFix) {
+    const updated = { ...draft, route, meters, lastFix, lastPointAt };
+    writeDraft(updated);
+    publishOutdoorLive(updated, durationSeconds(updated, Date.now()));
+  }
 }

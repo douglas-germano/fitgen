@@ -3,9 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Bell, Camera, FileText, HeartPulse, Link2, Mail, ShieldCheck, Sparkles, Target, User, Users } from 'lucide-react-native';
-import { useState } from 'react';
-import { Linking, Platform, View } from 'react-native';
+import { Bell, Camera, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, FileText, HeartPulse, Link2, Mail, Settings, ShieldCheck, Sparkles, Target, User, Users, type LucideIcon } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
+import { Linking, Platform, Pressable, View } from 'react-native';
 
 import {
   Avatar,
@@ -13,6 +13,7 @@ import {
   Button,
   Card,
   Dialog,
+  IconButton,
   Input,
   LinkText,
   ListItem,
@@ -24,7 +25,7 @@ import {
   Text,
   TopBar,
 } from '@/components/ui';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAppTheme, useColors } from '@/providers/theme';
 import { uploadableFile } from '@/lib/upload';
 import type { Profile } from '@/types/api';
@@ -33,6 +34,7 @@ import { healthProviderName, healthUnavailableReason, isHealthAvailable } from '
 import { useHealthSync } from '@/hooks/use-health-sync';
 import { api, errorMessage } from '@/lib/api';
 import { passwordError } from '@/lib/forms';
+import { ProfileOverview } from '@/components/profile-overview';
 import { ChoiceField } from '@/components/choice-field';
 import { useAuth } from '@/providers/auth';
 import { planSummary } from '@/lib/plan';
@@ -49,6 +51,8 @@ export default function ProfileScreen() {
   const [nameOpen, setNameOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const web = Platform.OS === 'web';
 
   if (isLoading) return <PageSkeleton title="Perfil" back tab={false} />;
   if (error) return <QueryError title="Perfil" back error={error} onRetry={refetch} />;
@@ -83,84 +87,177 @@ export default function ProfileScreen() {
       { text: 'Sair', style: 'destructive', onPress: signOut },
     ]);
 
-  return (
-    <Page tab={false} topBar={<TopBar title="Perfil" back />} refreshing={isRefetching} onRefresh={refetch}>
-      <Card style={{ alignItems: 'center', paddingVertical: Spacing.six, gap: Spacing.two }}>
-        <Avatar name={profile?.name} uri={profile?.profile_picture} size={80} />
-        <Text variant="titleLg" style={{ marginTop: Spacing.two, textAlign: 'center' }}>
-          {profile?.name}
-        </Text>
-        <Text muted>{profile?.email}</Text>
-        <Row style={{ marginTop: Spacing.one }}>
-          {level ? <Badge label={`Nível ${level}`} /> : null}
-          <Badge tone="chip" label={`${streak} ${streak === 1 ? 'dia seguido' : 'dias seguidos'}`} />
-        </Row>
-        <Button size="sm" variant="soft" icon={Camera} title="Alterar foto" loading={uploading} onPress={changePhoto} />
+  const accountPreferences = (
+    <View style={{ gap: Spacing.three }}>
+      <SectionHeader title="Aparência" />
+      <Card>
+        <ChoiceField
+          label="Tema do aplicativo"
+          value={preference}
+          options={[{ label: 'Claro', value: 'light' }, { label: 'Escuro', value: 'dark' }, { label: 'Sistema', value: 'system' }]}
+          onChange={(next) => { void setPreference(next).catch(() => AppAlert.alert('Não foi possível salvar o tema', 'A aparência foi aplicada, mas não pôde ser salva neste dispositivo.')); }}
+        />
+        <Text muted>Em Sistema, o FitGen acompanha a aparência do dispositivo.</Text>
       </Card>
+      <SectionHeader title="Assinatura" />
+      <ListItem icon={Sparkles} iconTone={plan.premium ? 'volt' : 'chip'} title={plan.premium ? 'FitGen Premium' : 'Ver assinatura'} caption={plan.premium ? plan.caption : `${plan.title} · ${plan.caption}`} arrow onPress={() => router.push('/paywall')} />
+      <SectionHeader title={web ? 'Conta' : 'Configurações da Conta:'} />
+      <ListItem icon={Target} title="Minha configuração inicial" caption="Revisar a conversa sobre treino e alimentação" arrow onPress={() => router.push('/onboarding')} />
+      {!web && <ListItem icon={Target} title="Objetivos e dados físicos" caption="Rotina, medidas e preferências de treino" arrow onPress={() => router.push('/profile-edit')} />}
+      {!web && <ListItem icon={User} iconTone="chip" title="Alterar Nome" caption="Seu nome de exibição" arrow onPress={() => setNameOpen(true)} />}
+      <ListItem icon={Mail} iconTone="chip" title="Email" caption={web ? profile?.email : "O email não pode ser alterado"} />
+      <ListItem icon={Link2} iconTone="chip" title="Alterar Senha" caption="Altere sua senha de acesso" arrow onPress={() => setPasswordOpen(true)} />
+      <ListItem icon={Bell} iconTone="chip" title="Notificações" caption="Lembretes de treino, água e metas" arrow onPress={() => router.push('/notifications')} />
+    </View>
+  );
+  const communityPeople = (
+    <ListItem icon={Users} iconTone="chip" title="Pessoas" caption="Buscar pessoas e gerenciar quem você segue" arrow onPress={() => router.push('/community/people')} />
+  );
+  const communityPrivacy = (
+    <ListItem icon={ShieldCheck} iconTone="chip" title="Privacidade da comunidade" caption="Compartilhamento e pessoas bloqueadas" arrow onPress={() => router.push('/community/settings')} />
+  );
+  const support = (
+    <Card style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.five }}>
+      <Text muted style={{ flex: 1 }}>
+        Precisa de ajuda? Entre em contato conosco.
+      </Text>
+      <Button size="sm" variant="soft" title="Enviar Email" onPress={() => Linking.openURL('mailto:suporte@fitgen.com').catch(() => AppAlert.alert('Contato', 'Envie sua mensagem para suporte@fitgen.com.'))} />
+    </Card>
+  );
+  const privacyPolicy = (
+    <ListItem
+      icon={FileText}
+      iconTone="chip"
+      title="Política de Privacidade"
+      arrow
+      onPress={() => router.push('/privacy')}
+    />
+  );
+  const accountActions = (
+    <View style={{ gap: Spacing.four, alignItems: 'center', paddingTop: Spacing.four }}>
+      <Button variant="inverse" size="lg" title="Sair da Conta" onPress={confirmSignOut} style={{ alignSelf: 'stretch' }} />
+      <LinkText
+        title="Excluir Minha Conta"
+        style={{ color: Colors.inkMuted, fontSize: 14 }}
+        onPress={() => router.push('/delete-account')}
+      />
+      <Text variant="caption">FitGen v{Constants.expoConfig?.version}</Text>
+    </View>
+  );
 
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Aparência" />
-        <Card>
-          <ChoiceField
-            label="Tema do aplicativo"
-            value={preference}
-            options={[{ label: 'Claro', value: 'light' }, { label: 'Escuro', value: 'dark' }, { label: 'Sistema', value: 'system' }]}
-            onChange={(next) => { void setPreference(next).catch(() => AppAlert.alert('Não foi possível salvar o tema', 'A aparência foi aplicada, mas não pôde ser salva neste dispositivo.')); }}
-          />
-          <Text muted>Em Sistema, o FitGen acompanha a aparência do dispositivo.</Text>
-        </Card>
-        <SectionHeader title="Assinatura" />
-        <ListItem icon={Sparkles} iconTone={plan.premium ? 'volt' : 'chip'} title={plan.premium ? 'FitGen Premium' : 'Ver assinatura'} caption={plan.premium ? plan.caption : `${plan.title} · ${plan.caption}`} arrow onPress={() => router.push('/paywall')} />
-        <SectionHeader title="Configurações da Conta:" />
-        <ListItem icon={Target} title="Minha configuração inicial" caption="Revisar a conversa sobre treino e alimentação" arrow onPress={() => router.push('/onboarding')} />
-        <ListItem icon={Target} title="Objetivos e dados físicos" caption="Rotina, medidas e preferências de treino" arrow onPress={() => router.push('/profile-edit')} />
-        <ListItem icon={User} iconTone="chip" title="Alterar Nome" caption="Seu nome de exibição" arrow onPress={() => setNameOpen(true)} />
-        <ListItem icon={Mail} iconTone="chip" title="Email" caption="O email não pode ser alterado" />
-        <ListItem icon={Link2} iconTone="chip" title="Alterar Senha" caption="Altere sua senha de acesso" arrow onPress={() => setPasswordOpen(true)} />
-        <ListItem icon={Bell} iconTone="chip" title="Notificações" caption="Lembretes de treino, água e metas" arrow onPress={() => router.push('/notifications')} />
-      </View>
-
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Comunidade" />
-        <ListItem icon={Users} iconTone="chip" title="Pessoas" caption="Buscar pessoas e gerenciar quem você segue" arrow onPress={() => router.push('/community/people')} />
-        <ListItem icon={ShieldCheck} iconTone="chip" title="Privacidade da comunidade" caption="Compartilhamento e pessoas bloqueadas" arrow onPress={() => router.push('/community/settings')} />
-      </View>
-
-      {(Platform.OS === 'ios' || Platform.OS === 'android') && <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Integrações:" />
-        <HealthItem />
-      </View>}
-
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Ajuda e Suporte:" />
-        <Card style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.five }}>
-          <Text muted style={{ flex: 1 }}>
-            Precisa de ajuda? Entre em contato conosco.
-          </Text>
-          <Button size="sm" variant="soft" title="Enviar Email" onPress={() => Linking.openURL('mailto:suporte@fitgen.com').catch(() => AppAlert.alert('Contato', 'Envie sua mensagem para suporte@fitgen.com.'))} />
-        </Card>
-        <ListItem
-          icon={FileText}
-          iconTone="chip"
-          title="Política de Privacidade"
-          arrow
-          onPress={() => router.push('/privacy')}
-        />
-      </View>
-
-      <View style={{ gap: Spacing.four, alignItems: 'center', paddingTop: Spacing.four }}>
-        <Button variant="inverse" size="lg" title="Sair da Conta" onPress={confirmSignOut} style={{ alignSelf: 'stretch' }} />
-        <LinkText
-          title="Excluir Minha Conta"
-          style={{ color: Colors.inkMuted, fontSize: 14 }}
-          onPress={() => router.push('/delete-account')}
-        />
-        <Text variant="caption">FitGen v{Constants.expoConfig?.version}</Text>
-      </View>
+  return (
+    <Page tab={false} topBar={web ? (
+      <Row style={{ width: '100%', maxWidth: 424, alignSelf: 'center' }}>
+        <IconButton icon={ChevronLeft} label="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
+        <Text variant="titleLg" accessibilityRole="header" style={{ flex: 1, fontSize: 27, lineHeight: 33 }}>Perfil</Text>
+        <IconButton icon={Settings} label="Ir às configurações"
+          onPress={() => document.getElementById('profile-settings')?.scrollIntoView({ block: 'center' })} />
+      </Row>
+    ) : <TopBar title="Perfil" back />} refreshing={isRefetching} onRefresh={refetch}
+      contentStyle={web ? { width: '100%', maxWidth: 424, alignSelf: 'center', gap: Spacing.five } : undefined}>
+      {web ? (
+        <>
+          <Pressable accessibilityRole="button" accessibilityLabel="Editar perfil" onPress={() => setEditOpen(true)}
+            style={({ pressed }) => ({
+              flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.three,
+              borderBottomWidth: 1, borderColor: Colors.line, opacity: pressed ? 0.72 : 1,
+            })}>
+            <Avatar name={profile?.name} uri={profile?.profile_picture} size={52} />
+            <View style={{ flex: 1 }}>
+              <Text variant="titleMd">{profile?.name}</Text>
+              <Text variant="caption">Editar perfil</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.inkMuted} />
+          </Pressable>
+          <ProfileOverview />
+          <View nativeID="profile-settings" style={{ gap: Spacing.two }}>
+            <SectionHeader title="Configurações" />
+            <View style={{ borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.line, backgroundColor: Colors.surfaceSunken }}>
+              <ProfileSettingsGroup title="Conta e preferências" icon={User}>
+                {accountPreferences}
+                {communityPeople}
+                {accountActions}
+              </ProfileSettingsGroup>
+              <ProfileSettingsGroup title="Integrações" icon={Link2}>
+                <Text muted>Conecte o Apple Saúde ou o Health Connect pelo aplicativo móvel do FitGen.</Text>
+              </ProfileSettingsGroup>
+              <ProfileSettingsGroup title="Privacidade" icon={ShieldCheck}>
+                {communityPrivacy}
+                {privacyPolicy}
+              </ProfileSettingsGroup>
+              <ProfileSettingsGroup title="Ajuda e suporte" icon={CircleHelp} last>
+                {support}
+              </ProfileSettingsGroup>
+            </View>
+          </View>
+          {editOpen && (
+            <Dialog visible title="Editar perfil" onClose={() => setEditOpen(false)}>
+              <ListItem icon={User} title="Alterar nome" caption={profile?.name} arrow onPress={() => { setEditOpen(false); setNameOpen(true); }} />
+              <ListItem icon={Camera} title={uploading ? 'Enviando foto…' : 'Alterar foto'} arrow onPress={uploading ? undefined : changePhoto} />
+              <ListItem icon={Target} title="Objetivos e dados físicos" arrow onPress={() => { setEditOpen(false); router.push('/profile-edit'); }} />
+            </Dialog>
+          )}
+        </>
+      ) : (
+        <>
+          <Card style={{ alignItems: 'center', paddingVertical: Spacing.six, gap: Spacing.two }}>
+            <Avatar name={profile?.name} uri={profile?.profile_picture} size={80} />
+            <Text variant="titleLg" style={{ marginTop: Spacing.two, textAlign: 'center' }}>
+              {profile?.name}
+            </Text>
+            <Text muted>{profile?.email}</Text>
+            <Row style={{ marginTop: Spacing.one }}>
+              {level ? <Badge label={`Nível ${level}`} /> : null}
+              <Badge tone="chip" label={`${streak} ${streak === 1 ? 'dia seguido' : 'dias seguidos'}`} />
+            </Row>
+            <Button size="sm" variant="soft" icon={Camera} title="Alterar foto" loading={uploading} onPress={changePhoto} />
+          </Card>
+          {accountPreferences}
+          <View style={{ gap: Spacing.three }}>
+            <SectionHeader title="Comunidade" />
+            {communityPeople}
+            {communityPrivacy}
+          </View>
+          {(Platform.OS === 'ios' || Platform.OS === 'android') && <View style={{ gap: Spacing.three }}>
+            <SectionHeader title="Integrações:" />
+            <HealthItem />
+          </View>}
+          <View style={{ gap: Spacing.three }}>
+            <SectionHeader title="Ajuda e Suporte:" />
+            {support}
+            {privacyPolicy}
+          </View>
+          {accountActions}
+        </>
+      )}
 
       {nameOpen && <NameDialog current={profile?.name ?? ''} onClose={() => setNameOpen(false)} />}
       {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
     </Page>
+  );
+}
+
+function ProfileSettingsGroup({ title, icon: Icon, last, children }: {
+  title: string;
+  icon: LucideIcon;
+  last?: boolean;
+  children: ReactNode;
+}) {
+  const colors = useColors();
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ borderBottomWidth: last ? 0 : 1, borderColor: colors.line }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}
+        style={({ pressed }) => ({
+          flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 48, paddingHorizontal: Spacing.three,
+          opacity: pressed ? 0.72 : 1,
+        })}>
+        <Icon size={18} color={colors.inkMuted} />
+        <Text variant="titleSm" style={{ flex: 1 }}>{title}</Text>
+        {open ? <ChevronDown size={15} color={colors.inkMuted} /> : <ChevronRight size={15} color={colors.inkMuted} />}
+      </Pressable>
+      {open && <View style={{ gap: Spacing.three, paddingHorizontal: Spacing.three, paddingBottom: Spacing.three }}>{children}</View>}
+    </View>
   );
 }
 
