@@ -16,6 +16,8 @@ const outdoor = {
 };
 const plan = { id: 'plan', name: 'Plano de teste', is_active: true, created_at: now, days: [{ id: 'day', day_of_week: ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()], name: 'Treino A', exercises: [{ id: 'ex', name: 'Prancha Frontal', sets: 3, reps: '12', rest_seconds: 60, exercise_library_id: 'prancha', animation_url: 'https://example.test/prancha.gif' }] }] };
 const profile = { id: 'user', name: 'Atleta de teste', email: 'test@example.com', onboarding_completed: true, height_cm: 180, current_weight_kg: 80, target_weight_kg: 78, age: 30, gender: 'male' };
+const profilePhoto = 'https://example.test/atleta.jpg';
+const coachMessages = [{role:'user',content:'Qual é o treino de hoje?',created_at:now},{role:'model',content:'Vamos treinar!',created_at:now}];
 const diet = { id: 'diet', weekly_plan: { segunda: { cafe: { nome: 'Ovos', calorias: 300, ingredientes: ['2 ovos'] } } }, macro_targets: { protein: 100, carbs: 200, fats: 60 }, shopping_list: [{ item: 'Ovos', quantidade: '12 unidades', preco_aprox: 10 }] };
 const libraryExercise = {
   id: 'prancha', name: 'Prancha Frontal', category: 'strength', difficulty_level: 'beginner',
@@ -36,12 +38,13 @@ const hooks = new Proxy({}, { get: (_, key) => {
   return (id, enabled) => {
     if (key === 'useActiveWorkoutPlan') return { ...query(plan), plan: mode === 'content' ? plan : undefined };
     if (key === 'useExerciseLibrary') return query([libraryExercise]);
-    if (key === 'useProfile') return query({ ...profile, is_premium: historyPremium });
+    if (key === 'useProfile') return query({ ...profile, profile_picture: profilePhoto, is_premium: historyPremium });
+    if (key === 'useChatHistory') return query(coachMessages);
     if (key === 'useLibraryExerciseHistory') {
       historyEnabled = enabled;
       return query({ pages: [{ sessions: [{ id: 'session', started_at: now, sets: [{ id: 'set', set_number: 1, weight_kg: 15, reps: 12 }] }] }] });
     }
-    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useWorkoutHistory: [{ id:'session', started_at: now, duration_seconds: 900, workout_name:'Treino A', calories:70 }, outdoor], useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useRecentRecords:[{ exercise_library_id: libraryExercise.id, name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }],useChatHistory:[{role:'model',content:'Vamos treinar!',created_at:now}]}[key]));
+    return query(({ useProfile: profile, useDashboard: {}, useDietPlan: diet, useWorkoutPlan: plan, useWorkoutHistory: [{ id:'session', started_at: now, duration_seconds: 900, workout_name:'Treino A', calories:70 }, outdoor], useDailyNutrition: {totals:{calories:300}, meals:[{id:'meal', name:'Ovos', meal_type:'breakfast',calories:300, protein:20,carbs:10,fats:20}]}, useMetricHistory:[{date: now,value:80}], useHydration:{total_intake_ml:500,daily_goal_ml:2500,percentage:20},useHydrationHistory:[{date: now,value:500}],useNotifications:[{id:'n',title:'Lembrete',message:'Beba água',type:'hydration',created_at:now,is_read:false},{id:'follow-notification',title:'Pessoa teste quer seguir você',message:'Aceite ou recuse a solicitação.',type:'social',created_at:now,is_read:false,link_type:'community_follow_request',link_id:'follow-request'}],useUnreadNotifications:[],useAchievements:[{id:'a',name:'Primeiro treino',description:'Treine uma vez',category:'workout',unlocked:true,unlocked_at:now}],useGamificationProgress:{level:1,xp:10,next_level_xp:100,progress_percent:10},useStreaks:{workout_streak:1},useRecentRecords:[{ exercise_library_id: libraryExercise.id, name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }]}[key]));
   };
 } });
 const chain = new Proxy({}, { get: () => () => chain });
@@ -59,13 +62,13 @@ const stubs = {
     if (props.accessibilityLabel?.startsWith('Ver execução de')) exerciseThumbnails.push(props);
     return React.createElement(RN.Pressable, props);
   } },
-  'react-native-reanimated': { __esModule:true, default:{ View:RN.View }, FadeIn:chain, FadeInDown:chain, useReducedMotion:()=>false, useSharedValue:(value)=>({value}), useAnimatedStyle:()=>({}), withTiming:()=>0,withRepeat:()=>0,withDelay:()=>0,Easing:{out:()=>0,quad:0} },
+  'react-native-reanimated': { __esModule:true, default:{ View:RN.View }, FadeIn:chain, FadeInDown:chain, useReducedMotion:()=>false, useSharedValue:(value)=>({value}), useAnimatedRef:()=>React.useRef(null), useAnimatedStyle:()=>({}), withTiming:()=>0,withRepeat:()=>0,withDelay:()=>0,Easing:{out:()=>0,quad:0} },
   'react-native-safe-area-context': {useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})},
   'react-native-svg': svg,
   'lucide-react-native':icons,
   'expo-router':{router:{push:(href)=>pushedRoutes.push(href)},useFocusEffect:()=>{},useLocalSearchParams:()=>({id:'plan',dayId:'day'}),Link:({children})=>children},
   'expo-blur':{BlurView:({children})=>React.createElement('div',null,children)},
-  'expo-image':{Image:({accessibilityLabel,source})=>React.createElement('img',{alt:accessibilityLabel,src:typeof source === 'string' ? source : undefined})},
+  'expo-image':{Image:({accessibilityLabel,source})=>React.createElement('img',{alt:accessibilityLabel,src:typeof source === 'string' ? source : source?.uri})},
   'expo-keep-awake':{useKeepAwake(){}},
   'expo-crypto': {},
   'expo-location': { Accuracy: { High: 4 } },
@@ -143,6 +146,10 @@ try {
         workoutActions = undefined;
         const result=renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
         assert.ok(result.length>0);
+        if (mode === 'content' && file.endsWith('/app/coach.tsx')) {
+          assert.ok(result.includes('Como posso te ajudar hoje?'));
+          assert.ok(result.includes('Qual é o treino de hoje?') && result.includes(profilePhoto));
+        }
         if (['empty', 'content'].includes(mode) && file.endsWith('/app/(tabs)/workouts.tsx')) {
           const title = 'Corrida ou caminhada ao ar livre';
           assert.ok(result.includes('Ações de treino'));
@@ -224,6 +231,11 @@ try {
       assert.ok(!html.includes('undefined') && !html.includes('NaN'));
       onboardingStates = null; count++;
     }
+    onboardingStates = [answers, 0, '', true, false, false, '', '', {workout:false,diet:false}, '', false, false, true];
+    const { AppThemeProvider } = load(path.join(root, 'providers/theme.tsx'));
+    const welcome = renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(path.join(root, 'app/onboarding.tsx')).default)));
+    assert.ok(welcome.includes('Oi, eu sou o Otto!') && welcome.includes('Começar'));
+    onboardingStates = null; count++;
   }
 } finally { console.warn=oldWarn; }
 assert.ok(bellsChecked > 0, 'notification bells were checked');

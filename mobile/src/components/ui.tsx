@@ -934,6 +934,7 @@ export function ScheduleItem({
 export function ListItem({
   icon,
   iconTone = 'volt',
+  leading,
   title,
   caption,
   right,
@@ -942,6 +943,7 @@ export function ListItem({
 }: {
   icon?: LucideIcon;
   iconTone?: 'volt' | 'chip';
+  leading?: ReactNode;
   title: string;
   caption?: string;
   right?: ReactNode;
@@ -965,7 +967,7 @@ export function ListItem({
         borderCurve: 'continuous',
         backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken,
       })}>
-      {icon && <BadgeIcon icon={icon} tone={iconTone} size={iconTone === 'chip' ? 32 : 30} />}
+      {leading ?? (icon && <BadgeIcon icon={icon} tone={iconTone} size={iconTone === 'chip' ? 32 : 30} />)}
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="titleSm">{title}</Text>
         {caption ? <Text variant="caption">{caption}</Text> : null}

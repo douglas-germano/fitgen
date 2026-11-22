@@ -1,13 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronRight, Flame, LogOut, Pencil, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronRight, LogOut, Pencil } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, FadeIn, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type EntryExitAnimationFunction } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { track } from '@/lib/analytics';
-import { Button, Card, IconButton, Input, ProgressBar, Row, Text, PageSkeleton, QueryError } from '@/components/ui';
+import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY } from '@/components/otto';
+import { Avatar, Button, Card, IconButton, Input, ProgressBar, Row, Text, PageSkeleton, QueryError } from '@/components/ui';
 import { useProfile } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
 import { AppAlert } from '@/lib/feedback';
@@ -46,7 +47,7 @@ function TypingDot({ delay }: { delay: number }) {
 function TypingBubble() {
   const Colors = useColors();
   return <Animated.View entering={FadeIn.duration(150)} accessibilityLabel="Digitando" style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 16 }}>
-    <View style={{ width: 28, height: 28, backgroundColor: Colors.voltSoft, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}><Sparkles size={15} color={Colors.voltInk} /></View>
+    <OttoAvatar />
     <View style={{ flexDirection: 'row', gap: 5, paddingVertical: 18, paddingHorizontal: 18, borderRadius: 22, borderBottomLeftRadius: 6, backgroundColor: Colors.surfaceSunken }}>
       <TypingDot delay={0} /><TypingDot delay={150} /><TypingDot delay={300} />
     </View>
@@ -80,6 +81,7 @@ export default function OnboardingScreen() {
   const [reviewAfterEdit, setReviewAfterEdit] = useState(false);
   const accepting = useRef(false);
   const [typing, setTyping] = useState(false), typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [showWelcome, setShowWelcome] = useState(false);
   // The composer's height animates between questions so the chat above slides instead of jumping.
   const composerHeight = useSharedValue(-1), composerStep = useRef<string | undefined>(undefined);
   const composerStyle = useAnimatedStyle(() => (composerHeight.value < 0 ? {} : { height: composerHeight.value }));
@@ -96,6 +98,7 @@ export default function OnboardingScreen() {
       const next = firstUnanswered(restored);
       setAnswers(restored); setIndex(next);
       setValue(restored[onboardingSteps[next]?.key] ?? (onboardingSteps[next]?.kind === 'multi' ? [] : ''));
+      setShowWelcome(!user.onboarding_completed && next <= 1 && Object.keys(draft).length === 0);
       loadedUser.current = id; setReady(true);
     }).catch(() => { if (active) { setReady(true); setStorageError('Não foi possível restaurar o rascunho.'); } });
     return () => { active = false; };
@@ -195,10 +198,24 @@ export default function OnboardingScreen() {
   const header = <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 16, gap: 16, backgroundColor: Colors.surface }}>
     <Row style={{ gap: 12 }}>
       <IconButton icon={index > 0 && !saved ? ArrowLeft : LogOut} label={index > 0 && !saved ? 'Pergunta anterior' : 'Continuar depois'} onPress={() => index > 0 && !saved ? goTo(index - 1) : leave()} disabled={busy || !!generating} />
-      <View style={{ width: 42, height: 42, borderRadius: 16, backgroundColor: Colors.volt, alignItems: 'center', justifyContent: 'center' }}><Flame size={24} color={Colors.onVolt} /></View>
+      <OttoAvatar size={42} />
       <View style={{ flex: 1, gap: 2 }}><Text variant="titleMd">Seu começo no FitGen</Text><Text variant="caption">{saved ? 'Tudo pronto para começar' : reviewing ? 'Confira suas respostas' : `${step.section} · ${index + 1} de ${onboardingSteps.length}`}</Text></View>
     </Row>
     <ProgressBar value={progress * 100} />
+  </View>;
+
+  if (showWelcome) return <View style={{ flex: 1, backgroundColor: Colors.surface }}>
+    {header}
+    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56 }}>
+      <OttoArrival size={94} variant="welcome" />
+      <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(360).delay(OTTO_GREETING_DELAY)} style={{ alignItems: 'center', gap: 8 }}>
+        <Text variant="titleLg" style={{ textAlign: 'center' }}>Oi, eu sou o Otto!</Text>
+        <Text muted style={{ textAlign: 'center', maxWidth: 300 }}>Vou te fazer algumas perguntas para montar um plano de treino e alimentação que caiba na sua rotina.</Text>
+      </Animated.View>
+    </ScrollView>
+    <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
+      <Button title="Começar" icon={ArrowRight} onPress={() => setShowWelcome(false)} />
+    </View>
   </View>;
 
   if (saved) return <View style={{ flex: 1, backgroundColor: Colors.surface }}>{header}<View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 24 }}>
@@ -248,11 +265,12 @@ export default function OnboardingScreen() {
           const mine = item.role === 'user';
           const fresh = !mine && item.index === index, sent = mine && item.index === index - 1;
           return <Animated.View entering={reducedMotion ? undefined : fresh ? riseQuestion : sent ? riseAnswer : undefined} style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 8 }}>
-            {!mine && <View style={{ width: 28, height: 28, backgroundColor: Colors.voltSoft, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}><Sparkles size={15} color={Colors.voltInk} /></View>}
-            <Pressable disabled={!mine} accessibilityRole={mine ? 'button' : undefined} accessibilityLabel={mine ? `Editar: ${item.step.question} ${item.text}` : undefined} onPress={() => edit(item.index)} style={{ maxWidth: '86%', padding: 16, gap: 8, borderRadius: 22, borderBottomLeftRadius: mine ? 22 : 6, borderBottomRightRadius: mine ? 6 : 22, backgroundColor: mine ? Colors.surfaceInverse : Colors.surfaceSunken }}>
+            {!mine && <OttoAvatar />}
+            <Pressable disabled={!mine} accessibilityRole={mine ? 'button' : undefined} accessibilityLabel={mine ? `Editar: ${item.step.question} ${item.text}` : undefined} onPress={() => edit(item.index)} style={{ flexShrink: 1, maxWidth: '86%', padding: 16, gap: 8, borderRadius: 22, borderBottomLeftRadius: mine ? 22 : 6, borderBottomRightRadius: mine ? 6 : 22, backgroundColor: mine ? Colors.surfaceInverse : Colors.surfaceSunken }}>
               <Row style={{ alignItems: 'center' }}><Text color={mine ? Colors.onInverse : Colors.ink} style={{ flexShrink: 1 }}>{item.text}</Text>{mine && <Pencil size={12} color={Colors.onInverse} />}</Row>
               {!mine && item.step.hint && <Text muted>{item.step.hint}</Text>}
             </Pressable>
+            {mine && <Avatar size={28} name={profile.data?.name} uri={profile.data?.profile_picture} />}
           </Animated.View>;
         }} />}
       <Animated.View style={[{ flexShrink: 0, overflow: 'hidden', justifyContent: 'flex-end', borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: Colors.surface }, composerStyle]}>

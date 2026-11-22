@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { Droplets, Flame, Footprints, Heart, MessagesSquare, Trophy, Utensils } from 'lucide-react-native';
+import { Droplets, Flame, Footprints, Heart, Trophy, Utensils } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { View } from 'react-native';
 
 import { HealthWeekCard } from '@/components/health-week';
+import { OttoAvatar } from '@/components/otto';
 import {
   Button,
   Card,
@@ -139,8 +140,7 @@ export function DashboardOverview({ d }: { d: DayDashboard }) {
       />
 
       <ListItem
-        icon={MessagesSquare}
-        iconTone="chip"
+        leading={<OttoAvatar size={32} />}
         title="Converse com o Otto"
         caption="Tire dúvidas sobre seu treino e sua dieta"
         onPress={() => router.push('/coach')}

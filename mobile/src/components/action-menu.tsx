@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, Plus, type LucideIcon } from 'lucide-react-native';
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -60,13 +60,12 @@ export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt' }:
 
 export type ActionMenuItem = {
   key: string;
-  icon: LucideIcon;
   /** `volt` for the main action(s), `chip` for the rest. */
   tone?: 'volt' | 'chip';
   title: string;
   caption?: string;
   onPress: () => void;
-};
+} & ({ icon: LucideIcon; leading?: never } | { leading: ReactNode; icon?: never });
 
 /**
  * Bottom sheet of actions opened by the floating "+".
@@ -117,7 +116,7 @@ export function ActionMenu({ visible, title, items, onClose, compact = false }: 
               borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth, borderColor: Colors.line,
               backgroundColor: pressed ? Colors.surfaceSunken : Colors.surface,
             })}>
-            <item.icon size={21} color={item.tone === 'volt' ? Colors.voltInk : Colors.inkMuted} />
+            {item.leading ?? (item.icon && <item.icon size={21} color={item.tone === 'volt' ? Colors.voltInk : Colors.inkMuted} />)}
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="titleMd">{item.title}</Text>
               {item.caption && <Text variant="label" muted>{item.caption}</Text>}
@@ -128,6 +127,7 @@ export function ActionMenu({ visible, title, items, onClose, compact = false }: 
           <ListItem
             key={item.key}
             icon={item.icon}
+            leading={item.leading}
             iconTone={item.tone ?? 'chip'}
             title={item.title}
             caption={item.caption}

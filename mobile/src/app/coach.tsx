@@ -1,20 +1,21 @@
 import { AppAlert, AppActionSheet } from '@/lib/feedback';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { ArrowUpRight, Bot, Flame } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
+import { ArrowUpRight, Bot } from 'lucide-react-native';
+import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Markdown } from '@/components/markdown';
+import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY, OTTO_KEYBOARD_DELAY } from '@/components/otto';
 import { PremiumLocked } from '@/components/premium-locked';
 import { usePremium } from '@/hooks/use-premium';
-import { BadgeIcon, IconButton, MoreButton, QueryError, Row, Text, TopBar } from '@/components/ui';
+import { Avatar, IconButton, MoreButton, QueryError, Row, Text, TopBar } from '@/components/ui';
 import { Motion } from '@/constants/motion';
 import { fontFor, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
-import { useChatHistory } from '@/hooks/queries';
+import { useChatHistory, useProfile } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
 import { chatMessageKey, localChatMessage } from '@/lib/chat';
 import type { ChatMessage } from '@/types/api';
@@ -51,9 +52,13 @@ function CoachChat() {
   const reducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const { data: history = [], isLoading, error, refetch } = useChatHistory();
+  const { data: profile } = useProfile();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(true);
   const sendingRef = useRef(false);
+  const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const openedKeyboard = useRef(false);
   const messageSequence = useRef(0);
   const listRef = useRef<FlatList<ChatMessage>>(null);
   // Stack screen opened from the home page: only the home indicator sits below the composer.
@@ -62,6 +67,15 @@ function CoachChat() {
   const canSend = !!input.trim() && !sending && !isLoading;
   const latest = history[history.length - 1];
   const latestKey = latest ? chatMessageKey(latest, history.length - 1) : null;
+
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === 'web' || isLoading || error || !showGreeting || openedKeyboard.current) return;
+    const timer = setTimeout(() => {
+      openedKeyboard.current = true;
+      inputRef.current?.focus();
+    }, reducedMotion ? 0 : OTTO_KEYBOARD_DELAY);
+    return () => clearTimeout(timer);
+  }, [error, isLoading, reducedMotion, showGreeting]));
 
   useFocusEffect(useCallback(() => {
     if (isLoading || !latestKey) return;
@@ -75,6 +89,7 @@ function CoachChat() {
     if (!message || sendingRef.current || isLoading || error) return;
     sendingRef.current = true;
     const user = localChatMessage('user', message, ++messageSequence.current);
+    setShowGreeting(false);
     setInput('');
     setSending(true);
     queryClient.setQueryData<ChatMessage[]>(['chat'], (old = []) => [...old, user]);
@@ -135,16 +150,9 @@ function CoachChat() {
             contentContainerStyle={{ paddingHorizontal: Spacing.five, paddingVertical: Spacing.four, gap: Spacing.four, flexGrow: 1 }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, paddingVertical: Spacing.six }}>
-                <BadgeIcon icon={Flame} size={48} />
-                <Text variant="titleLg" style={{ textAlign: 'center' }}>Otto, seu assistente de treino e dieta</Text>
-                <Text muted style={{ textAlign: 'center', maxWidth: 280 }}>Converse sobre exercícios, refeições e seu progresso.</Text>
-              </View>
-            }
             ListHeaderComponent={sending ? (
               <Row style={{ alignItems: 'center', paddingVertical: Spacing.two }} accessibilityLiveRegion="polite">
-                <BadgeIcon icon={Flame} size={28} />
+                <OttoAvatar />
                 <ActivityIndicator size="small" color={Colors.inkMuted} />
                 <Text variant="caption">Preparando resposta…</Text>
               </Row>
@@ -155,14 +163,24 @@ function CoachChat() {
               return (
                 <Animated.View entering={fresh && !reducedMotion ? FadeIn.duration(Motion.message) : undefined}
                   style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: Spacing.two }}>
-                  {!mine && <BadgeIcon icon={Flame} size={28} />}
-                  <View style={{ maxWidth: mine ? '86%' : '88%', backgroundColor: mine ? Colors.surfaceInverse : Colors.surfaceSunken, borderRadius: 20, borderBottomRightRadius: mine ? 6 : 20, borderBottomLeftRadius: mine ? 20 : 6, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three }}>
+                  {!mine && <OttoAvatar />}
+                  <View style={{ flexShrink: 1, maxWidth: '86%', backgroundColor: mine ? Colors.surfaceInverse : Colors.surfaceSunken, borderRadius: 20, borderBottomRightRadius: mine ? 6 : 20, borderBottomLeftRadius: mine ? 20 : 6, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three }}>
                     {mine ? <Text color={Colors.onInverse} style={{ fontSize: 15, lineHeight: 22 }} selectable>{item.content}</Text> : <Markdown content={item.content} />}
                   </View>
+                  {mine && <Avatar size={28} name={profile?.name} uri={profile?.profile_picture} />}
                 </Animated.View>
               );
             }}
           />
+        )}
+        {showGreeting && !isLoading && (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two, paddingHorizontal: Spacing.five, paddingBottom: Spacing.two, zIndex: 2 }}>
+            <OttoArrival size={38} variant="chat" />
+            <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(360).delay(OTTO_GREETING_DELAY)}
+              style={{ flexShrink: 1, backgroundColor: Colors.surfaceSunken, borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three }}>
+              <Text>Como posso te ajudar hoje?</Text>
+            </Animated.View>
+          </View>
         )}
         <View style={{ paddingHorizontal: Spacing.five, paddingTop: Spacing.three, paddingBottom: Spacing.three + bottomInset, gap: Spacing.three, flexShrink: 0, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: Colors.surface }}>
           <Row style={{ gap: Spacing.two }}>
@@ -174,7 +192,7 @@ function CoachChat() {
             ))}
           </Row>
           <Row style={{ gap: Spacing.two, alignItems: 'flex-end' }}>
-            <TextInput value={input} onChangeText={setInput} placeholder="Pergunte sobre treino ou dieta…" placeholderTextColor={Colors.inkMuted}
+            <TextInput ref={inputRef} onFocus={() => { openedKeyboard.current = true; }} value={input} onChangeText={setInput} placeholder="Pergunte sobre treino ou dieta…" placeholderTextColor={Colors.inkMuted}
               selectionColor={Colors.ink} cursorColor={Colors.ink} multiline accessibilityLabel="Mensagem para o Otto"
               style={{ flex: 1, minHeight: 52, maxHeight: 120, backgroundColor: Colors.surfaceChip, color: Colors.ink, borderRadius: 26, paddingHorizontal: Spacing.five, paddingTop: 15, paddingBottom: 15, fontSize: 15, fontFamily: fontFor(400) }} />
             <IconButton icon={ArrowUpRight} label="Enviar mensagem" variant="volt" size="xl" onPress={() => send()} disabled={!canSend} loading={sending} />

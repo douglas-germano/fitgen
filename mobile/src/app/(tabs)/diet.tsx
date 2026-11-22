@@ -19,12 +19,13 @@ import { QueryError ,
 } from '@/components/ui';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ClipboardList, Heart, PencilLine, Sparkles, Utensils } from 'lucide-react-native';
+import { Heart, PencilLine, Utensils } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { MEAL_TYPES, MealLogger } from '@/components/meal-logger';
+import { OttoAvatar } from '@/components/otto';
 import { Spacing } from '@/constants/theme';
 import {
   useDailyNutrition,
@@ -151,13 +152,20 @@ export default function DietScreen() {
       onClose={() => setActionsOpen(false)}
       items={[
         {
-          key: 'plan', icon: ClipboardList,
-          title: plan.data ? 'Ver plano alimentar' : 'Criar plano alimentar',
-          caption: plan.data ? 'Refeições e metas da semana' : 'Monte um plano com IA',
+          key: 'ai',
+          leading: <OttoAvatar size={34} />,
+          title: 'Conte ao Otto o que você comeu',
+          caption: 'Tire uma foto ou descreva a refeição',
+          onPress: () => setLoggerOpen(true),
+        },
+        { key: 'manual', icon: PencilLine, title: 'Adicionar refeição manualmente', caption: 'Informe calorias e macros', onPress: () => setEditing('new') },
+        {
+          key: 'plan',
+          leading: <OttoAvatar size={34} />,
+          title: plan.data ? 'Ver o plano alimentar do Otto' : 'Peça um plano alimentar ao Otto',
+          caption: plan.data ? 'Refeições e metas da semana' : 'O Otto monta o cardápio com base nas suas preferências',
           onPress: () => router.push(plan.data ? '/diet-plan' : '/diet-preferences'),
         },
-        { key: 'ai', icon: Sparkles, tone: 'volt', title: 'Registrar refeição com IA', caption: 'Descreva ou fotografe o que comeu', onPress: () => setLoggerOpen(true) },
-        { key: 'manual', icon: PencilLine, title: 'Adicionar refeição manualmente', caption: 'Informe calorias e macros', onPress: () => setEditing('new') },
       ]}
     />
     </View>
