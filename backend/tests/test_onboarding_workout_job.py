@@ -17,6 +17,7 @@ from uuid import uuid4
 from flask import Flask
 from flask_jwt_extended import JWTManager, create_access_token
 from app.modules.identity.interface.routes import onboarding as routes
+from app.shared.job_state import jobs
 
 
 class OnboardingWorkoutJobTests(unittest.TestCase):
@@ -31,7 +32,9 @@ class OnboardingWorkoutJobTests(unittest.TestCase):
         self.user = SimpleNamespace(id=self.user_id, profile=self.profile, onboarding_completed=False)
         with self.app.app_context():
             self.headers = {'Authorization': 'Bearer ' + create_access_token(identity=str(self.user_id))}
-        routes._workout_jobs.clear()
+        env = patch.dict(os.environ); env.start(); self.addCleanup(env.stop)
+        os.environ.pop('REDIS_URL', None)  # in-memory job state
+        jobs.reset_memory()
         self.release = threading.Event()
         self.patches = [
             patch.object(routes, 'User', MagicMock(query=MagicMock(get=MagicMock(return_value=self.user)))),
@@ -45,15 +48,15 @@ class OnboardingWorkoutJobTests(unittest.TestCase):
         self.release.set()
         for p in self.patches:
             p.stop()
-        routes._workout_jobs.clear()
+        jobs.reset_memory()
 
     def _slow_plan(self, *_):
         self.release.wait(5)
         return SimpleNamespace(id=uuid4(), name='Plano Inicial')
 
     def _wait_job(self):
-        job = routes._workout_jobs[str(self.user_id)]
-        self.assertTrue(job['event'].wait(5))
+        job = jobs.wait(routes._job_key(self.user_id), timeout=5, interval=0.02)
+        self.assertNotEqual(job['status'], 'pending')
         return job
 
     def test_slow_ai_answers_202_within_budget_instead_of_holding_the_worker(self):
@@ -101,6 +104,12 @@ class OnboardingWorkoutJobTests(unittest.TestCase):
         self.release.set()
         self._wait_job()
         self.assertEqual(self.generator.return_value.generate_workout_plan.call_count, 1)
+
+    def test_a_finished_job_can_be_started_again(self):
+        self.generator.return_value.generate_workout_plan.return_value = SimpleNamespace(id=uuid4(), name='P')
+        self.assertEqual(self.client.post('/onboarding/generate-workout', headers=self.headers).status_code, 200)
+        self.assertEqual(self.client.post('/onboarding/generate-workout', headers=self.headers).status_code, 200)
+        self.assertEqual(self.generator.return_value.generate_workout_plan.call_count, 2)
 
     def test_requires_completed_profile(self):
         self.user.profile = None

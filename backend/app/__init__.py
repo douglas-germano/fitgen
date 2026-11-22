@@ -79,14 +79,16 @@ def create_app(config_name='default'):
     
     # PostgreSQL pool, per gunicorn worker. Must be set BEFORE db.init_app (the engine
     # is built there; set afterwards it was silently ignored and the pool stayed 5+10).
-    # With gevent a worker serves many requests at once, so the pool caps how many can
-    # touch the database together; keep workers x (size + overflow) under max_connections.
+    # Budget: replicas x workers x (size + overflow) must stay under Postgres
+    # max_connections (100 on Railway, 3 reserved). Default 5+8 = 13 per worker:
+    # 3 replicas x 2 workers = 78, leaving room for migrations and admin sessions.
+    # AI routes release their connection before calling the AI, so 13 goes a long way.
     if (app.config.get('SQLALCHEMY_DATABASE_URI') or '').startswith('postgresql'):
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_pre_ping': True,
             'pool_recycle': 300,
-            'pool_size': int(os.environ.get('DB_POOL_SIZE', '10')),
-            'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '20')),
+            'pool_size': int(os.environ.get('DB_POOL_SIZE', '5')),
+            'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', '8')),
             'pool_timeout': int(os.environ.get('DB_POOL_TIMEOUT', '10')),
         }
     db.init_app(app)

@@ -4,7 +4,7 @@ import time
 from app.modules.coach.infrastructure.ai_service import AIService
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
 from app.modules.training.domain.exercise_library import ExerciseLibrary
-from app.shared.extensions import db
+from app.shared.extensions import db, release_db_connection
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ class WorkoutGeneratorService:
 
     def generate_workout_plan(self, user, profile):
         prompt, exercise_map = self._build_prompt(profile)
+        release_db_connection()  # don't hold a pooled connection through the AI attempts
         
         ai_response = None
         max_retries = 3

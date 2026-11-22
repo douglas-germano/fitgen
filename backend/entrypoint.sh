@@ -23,7 +23,9 @@ fi
 
 echo "✓ Environment variables verified"
 
-# Run database migrations
+# Migrations and seeds run under a Postgres advisory lock: with several replicas
+# starting together, one runs them while the others wait (scripts/run_locked.py).
+python3 scripts/run_locked.py startup-tasks sh -ec '
 echo "Running database migrations..."
 python3 -m flask db upgrade || {
     echo "WARNING: Database migrations failed or no migrations to run"
@@ -34,6 +36,7 @@ python3 -m flask seed-exercises
 python3 -m flask ensure-outdoor-schema
 python3 -m flask ensure-auth-schema
 python3 -m flask apply-community-sharing-defaults
+'
 
 echo "Starting Gunicorn..."
 echo "Binding to 0.0.0.0:${PORT:-5000}"

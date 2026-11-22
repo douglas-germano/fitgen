@@ -4,6 +4,7 @@ import uuid
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import ai_limit, db
+from app.shared.job_state import jobs
 from app.modules.identity.domain.models import User, UserProfile
 from app.modules.analytics.domain.metrics_calculator import calculate_bmr, calculate_tdee
 from app.modules.training.application.workout_generator import WorkoutGeneratorService
@@ -137,22 +138,29 @@ def save_onboarding_data():
     }), 200
 
 def _wait_seconds() -> float:
-    """How long the request waits for the plan before answering 202.
+    """How long the request waits for the plan before answering 202 (the job keeps going).
 
-    Must stay well below gunicorn's --timeout (120 s): past that the worker is
-    killed mid-request (SystemExit, Sentry FITGEN-BACKEND-7) and the user gets nothing.
+    The app's fetch has no timeout of its own and iOS gives up after ~60 s without data,
+    so stay below that; 202 still counts as success in the app.
     """
-    return float(os.environ.get('ONBOARDING_WORKOUT_WAIT_SECONDS', '75'))
+    return float(os.environ.get('ONBOARDING_WORKOUT_WAIT_SECONDS', '45'))
 
 
-# One generation per user at a time, per gunicorn worker. Kept in memory on purpose:
-# the plan itself is saved in the database, this only tracks the job in flight.
-_workout_jobs: dict[str, dict] = {}
-_workout_jobs_lock = threading.Lock()
+# One generation per user at a time across every worker and replica: the job's state lives
+# in Redis (app/shared/job_state.py). The plan itself is saved in the database.
+# The lock outlives the slowest generation (3 AI attempts); if the process dies mid-job
+# (deploy, crash) it expires and the user can start again.
+WORKOUT_JOB_LOCK_SECONDS = 600
 
 
-def _run_workout_job(app, user_id: uuid.UUID, job: dict) -> None:
-    """Generates the plan outside the request, so a slow AI answer can't kill the worker."""
+def _job_key(user_id) -> str:
+    return f'onboarding-workout:{user_id}'
+
+
+def _run_workout_job(app, user_id: uuid.UUID) -> None:
+    """Generates the plan outside the request, so a slow AI answer can't hold the request."""
+    key = _job_key(user_id)
+    result = {'status': 'failed', 'plan_id': None, 'plan_name': None}
     with app.app_context():
         try:
             user = User.query.get(user_id)
@@ -163,28 +171,24 @@ def _run_workout_job(app, user_id: uuid.UUID, job: dict) -> None:
             user.onboarding_completed = True
             profile.onboarding_completed = True
             db.session.commit()
-            job.update(status='done', plan_id=str(plan.id), plan_name=plan.name)
+            result = {'status': 'done', 'plan_id': str(plan.id), 'plan_name': plan.name}
         except Exception:
             db.session.rollback()
             app.logger.exception('Failed to generate onboarding workout')
-            job['status'] = 'failed'
         finally:
             db.session.remove()
-            job['event'].set()
+            jobs.finish(key, result)
 
 
-def _start_or_join_job(user_id: uuid.UUID) -> dict:
-    key = str(user_id)
-    with _workout_jobs_lock:
-        job = _workout_jobs.get(key)
-        if job and job['status'] == 'pending':
-            return job
-        job = {'status': 'pending', 'event': threading.Event(), 'plan_id': None, 'plan_name': None}
-        _workout_jobs[key] = job
-    app = current_app._get_current_object()
-    threading.Thread(target=_run_workout_job, args=(app, user_id, job), daemon=True,
-                     name=f'onboarding-workout-{key}').start()
-    return job
+def _start_or_join_job(user_id: uuid.UUID) -> str:
+    """Starts the generation unless one is already running for this user (on any replica)."""
+    key = _job_key(user_id)
+    if jobs.claim(key, WORKOUT_JOB_LOCK_SECONDS):
+        jobs.set(key, {'status': 'pending', 'plan_id': None, 'plan_name': None})
+        app = current_app._get_current_object()
+        threading.Thread(target=_run_workout_job, args=(app, user_id), daemon=True,
+                         name=f'onboarding-workout-{user_id}').start()
+    return key
 
 
 def _job_response(job: dict):
@@ -224,8 +228,8 @@ def generate_workout():
     if not user or not user.profile:
         return jsonify({"msg": "Onboarding not completed"}), 400
 
-    job = _start_or_join_job(user_id)
-    job['event'].wait(timeout=_wait_seconds())
+    key = _start_or_join_job(user_id)
+    job = jobs.wait(key, timeout=_wait_seconds()) or {'status': 'pending'}
     return _job_response(job)
 
 
@@ -241,7 +245,7 @@ def generate_workout_status():
       200:
         description: "status: idle, pending, done or failed"
     """
-    job = _workout_jobs.get(get_jwt_identity())
+    job = jobs.get(_job_key(get_jwt_identity()))
     if not job:
         return jsonify({"status": "idle"}), 200
     body, code = _job_response(job)
