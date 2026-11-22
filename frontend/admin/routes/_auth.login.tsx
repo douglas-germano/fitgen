@@ -51,7 +51,7 @@ function LoginPage() {
 
     return (
         <div className="space-y-6">
-            <div className="space-y-1">
+            <div className="space-y-1 text-center">
                 <h1 className="text-[28px] font-bold leading-9 tracking-[-0.02em]">Entrar no painel</h1>
                 <p className="text-sm text-muted-foreground">Acesso exclusivo para administradores.</p>
             </div>

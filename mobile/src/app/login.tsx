@@ -14,6 +14,9 @@ import { Motion } from '@/constants/motion';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/providers/auth';
 
+// The web version (web.fitgen.pro) centers the header; the native app keeps it left-aligned.
+const isWeb = Platform.OS === 'web';
+
 export default function LoginScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
@@ -52,12 +55,14 @@ export default function LoginScreen() {
             paddingBottom: insets.bottom + Spacing.six,
           }}>
           <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(Motion.message)} style={{ gap: Spacing.six }}>
-            <BrandLockup size={52} />
+            <View style={isWeb && { alignSelf: 'center' }}>
+              <BrandLockup size={52} />
+            </View>
             <View style={{ gap: Spacing.three }}>
-              <Text variant="display" accessibilityRole="header">
+              <Text variant="display" accessibilityRole="header" style={isWeb && { textAlign: 'center' }}>
                 Sua evolução começa aqui.
               </Text>
-              <Text muted style={{ fontSize: 15, lineHeight: 22 }}>
+              <Text muted style={[{ fontSize: 15, lineHeight: 22 }, isWeb && { textAlign: 'center' }]}>
                 Entre com Apple, Google ou com seu email e senha.
               </Text>
             </View>
