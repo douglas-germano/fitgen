@@ -157,8 +157,22 @@ def _job_key(user_id) -> str:
     return f'onboarding-workout:{user_id}'
 
 
-def _run_workout_job(app, user_id: uuid.UUID) -> None:
-    """Generates the plan outside the request, so a slow AI answer can't hold the request."""
+def _run_workout_job(app, user_id: uuid.UUID, trace_headers: dict | None = None) -> None:
+    """Generates the plan outside the request, so a slow AI answer can't hold the request.
+
+    Runs in its own Sentry transaction ("ai.*", always sampled), linked to the request's
+    trace: the request may answer 202 long before the AI call ends.
+    """
+    import sentry_sdk
+    with sentry_sdk.isolation_scope():
+        sentry_sdk.set_user({'id': str(user_id)})
+        transaction = sentry_sdk.continue_trace(trace_headers or {}, op='ai.job',
+                                                name='ai.onboarding_workout_job')
+        with sentry_sdk.start_transaction(transaction):
+            _generate_workout(app, user_id)
+
+
+def _generate_workout(app, user_id: uuid.UUID) -> None:
     key = _job_key(user_id)
     result = {'status': 'failed', 'plan_id': None, 'plan_name': None}
     with app.app_context():
@@ -185,8 +199,10 @@ def _start_or_join_job(user_id: uuid.UUID) -> str:
     key = _job_key(user_id)
     if jobs.claim(key, WORKOUT_JOB_LOCK_SECONDS):
         jobs.set(key, {'status': 'pending', 'plan_id': None, 'plan_name': None})
+        import sentry_sdk
         app = current_app._get_current_object()
-        threading.Thread(target=_run_workout_job, args=(app, user_id), daemon=True,
+        trace_headers = {'sentry-trace': sentry_sdk.get_traceparent() or '', 'baggage': sentry_sdk.get_baggage() or ''}
+        threading.Thread(target=_run_workout_job, args=(app, user_id, trace_headers), daemon=True,
                          name=f'onboarding-workout-{user_id}').start()
     return key
 

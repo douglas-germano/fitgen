@@ -193,7 +193,8 @@ USUÁRIO: {new_message}"""
             
             return {
                 "response": response_text,
-                "tokens_used": None,
+                # All AI rounds of this answer (OpenRouter usage); 0 if the provider sent none
+                "tokens_used": ai.usage["input_tokens"] + ai.usage["output_tokens"],
                 "response_time_ms": response_time_ms
             }
             

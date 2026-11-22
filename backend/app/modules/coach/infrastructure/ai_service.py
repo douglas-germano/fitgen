@@ -16,6 +16,7 @@ import os
 import time
 
 import requests
+import sentry_sdk
 
 log = logging.getLogger(__name__)
 
@@ -179,6 +180,8 @@ class AIService:
         self.model = model or os.environ.get("OPENROUTER_MODEL") or DEFAULT_MODEL
         self.base_url = (os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         self.timeout = float(os.environ.get("OPENROUTER_TIMEOUT", "120"))
+        # Totals for every call made through this instance (e.g. all rounds of one coach answer)
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0, "cost_usd": 0.0}
 
     # ------------------------------------------------------------------ core
 
@@ -199,6 +202,43 @@ class AIService:
             payload["tools"] = tools
             payload.setdefault("tool_choice", "auto")
 
+        # OpenRouter usage accounting: the response's usage then carries the call's cost (USD)
+        payload.setdefault("usage", {"include": True})
+
+        # One Sentry span per AI call (no-op without SENTRY_DSN). Only counts and names go to
+        # Sentry, never the prompt or the answer. gen_ai.* names feed Sentry's AI monitoring.
+        with sentry_sdk.start_span(op="gen_ai.chat", name=f"chat {self.model}") as span:
+            span.set_data("gen_ai.operation.name", "chat")
+            span.set_data("gen_ai.system", "openrouter")
+            span.set_data("gen_ai.request.model", self.model)
+            span.set_data("gen_ai.request.max_tokens", payload["max_tokens"])
+            span.set_data("fitgen.ai.feature", feature)
+            span.set_data("fitgen.ai.tools", bool(tools))
+            started = time.monotonic()
+            error = None
+            try:
+                body = self._post(payload, seconds)
+            except Exception as e:
+                # Raised after the span closes: an exception leaving the `with` would
+                # overwrite the status with a generic internal_error.
+                error = e
+                span.set_data("fitgen.ai.error", type(e).__name__)
+                span.set_status("deadline_exceeded" if isinstance(e, AIDeadlineExceeded) else "internal_error")
+            span.set_data("fitgen.ai.seconds", round(time.monotonic() - started, 2))
+            if error is None:
+                choice = body["choices"][0]
+                self._record_usage(span, body, choice.get("finish_reason"))
+        if error is not None:
+            raise error
+
+        if choice.get("finish_reason") == "length":
+            # Answer cut at max_tokens: JSON will likely fail to parse. Raise AI_MAX_TOKENS_<FEATURE>.
+            log.warning("AI answer truncated at max_tokens=%s (feature=%s, model=%s, usage=%s)",
+                        payload["max_tokens"], feature, self.model, body.get("usage"))
+        return choice.get("message") or {}
+
+    def _post(self, payload, seconds):
+        """POSTs to OpenRouter within `seconds`; returns the parsed body or raises AIServiceError."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -231,14 +271,33 @@ class AIService:
             msg = err.get("message", err) if isinstance(err, dict) else err
             raise AIServiceError(f"OpenRouter HTTP {resp.status_code}: {msg}")
 
-        choices = body.get("choices") or []
-        if not choices:
+        if not body.get("choices"):
             raise AIServiceError("OpenRouter returned no choices")
-        if choices[0].get("finish_reason") == "length":
-            # Answer cut at max_tokens: JSON will likely fail to parse. Raise AI_MAX_TOKENS_<FEATURE>.
-            log.warning("AI answer truncated at max_tokens=%s (feature=%s, model=%s, usage=%s)",
-                        payload["max_tokens"], feature, self.model, body.get("usage"))
-        return choices[0].get("message") or {}
+        return body
+
+    def _record_usage(self, span, body, finish_reason):
+        usage = body.get("usage") or {}
+        input_tokens = usage.get("prompt_tokens") or 0
+        output_tokens = usage.get("completion_tokens") or 0
+        reasoning_tokens = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0
+        cached_tokens = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+        cost = usage.get("cost")
+
+        span.set_data("gen_ai.response.model", body.get("model") or self.model)
+        span.set_data("gen_ai.response.finish_reasons", [finish_reason] if finish_reason else [])
+        span.set_data("gen_ai.usage.input_tokens", input_tokens)
+        span.set_data("gen_ai.usage.input_tokens.cached", cached_tokens)
+        span.set_data("gen_ai.usage.output_tokens", output_tokens)
+        span.set_data("gen_ai.usage.output_tokens.reasoning", reasoning_tokens)
+        span.set_data("gen_ai.usage.total_tokens", usage.get("total_tokens") or input_tokens + output_tokens)
+        if cost is not None:
+            span.set_data("gen_ai.usage.cost", cost)
+
+        self.usage["calls"] += 1
+        self.usage["input_tokens"] += input_tokens
+        self.usage["output_tokens"] += output_tokens
+        self.usage["reasoning_tokens"] += reasoning_tokens
+        self.usage["cost_usd"] += float(cost or 0)
 
     def _complete_text(self, content, feature="default"):
         message = self.chat_completion([{"role": "user", "content": content}], feature=feature)
