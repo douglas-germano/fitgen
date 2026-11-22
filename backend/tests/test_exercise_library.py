@@ -100,6 +100,34 @@ class ExerciseLibraryTests(unittest.TestCase):
                 routes_workouts.exercise_fields({**base, 'exercise_library_id': bad})
 
     @patch.dict(os.environ, {'SUBSCRIPTION_REQUIRED': 'true', 'FREEMIUM': 'true'})
+    def test_plan_and_workout_can_be_renamed_by_their_owner_only(self):
+        user = User(name='Atleta', email='renomeia@example.test', password_hash='unused')
+        other = User(name='Outra pessoa', email='intrusa@example.test', password_hash='unused')
+        db.session.add_all([user, other])
+        db.session.flush()
+        plan = WorkoutPlan(name='Plano IA', user_id=user.id)
+        db.session.add(plan)
+        db.session.flush()
+        day = WorkoutDay(workout_plan_id=plan.id, user_id=user.id, name='Treino A')
+        db.session.add(day)
+        db.session.commit()
+        mine = {'Authorization': 'Bearer ' + create_access_token(identity=str(user.id))}
+        theirs = {'Authorization': 'Bearer ' + create_access_token(identity=str(other.id))}
+
+        response = self.client.put(f'/workouts/day/{day.id}', json={'name': '  Peito   e tríceps '}, headers=mine)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(db.session.get(WorkoutDay, day.id).name, 'Peito e tríceps')
+        response = self.client.put(f'/workouts/{plan.id}', json={'name': 'Meu plano'}, headers=mine)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(db.session.get(WorkoutPlan, plan.id).name, 'Meu plano')
+
+        for body in ({'name': '   '}, {'name': 'x' * 81}, {}, None):
+            self.assertEqual(self.client.put(f'/workouts/day/{day.id}', json=body, headers=mine).status_code, 400)
+        self.assertEqual(self.client.put(f'/workouts/day/{day.id}', json={'name': 'Invasão'}, headers=theirs).status_code, 404)
+        self.assertEqual(self.client.put(f'/workouts/{plan.id}', json={'name': 'Invasão'}, headers=theirs).status_code, 404)
+        self.assertEqual(db.session.get(WorkoutDay, day.id).name, 'Peito e tríceps')
+        self.assertEqual(db.session.get(WorkoutPlan, plan.id).name, 'Meu plano')
+
     def test_replacement_reuses_the_plan_row_and_keeps_premium_history(self):
         seed_exercise_library()
         original = ExerciseLibrary.query.filter_by(name='Prancha Frontal').one()
