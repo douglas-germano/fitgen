@@ -49,12 +49,13 @@ export const useDashboard = () =>
 // ---------- Workouts ----------
 
 /** The whole exercise library; it changes rarely, so it stays cached for a day. */
-export const useExerciseLibrary = () =>
+export const useExerciseLibrary = (enabled = true) =>
   useQuery({
     queryKey: ['exercise-library'],
     queryFn: () => api<LibraryExercise[]>('/exercises/library'),
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
+    enabled,
   });
 
 export const useLibraryExerciseHistory = (id: string | undefined, enabled: boolean) =>

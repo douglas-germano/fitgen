@@ -23,6 +23,7 @@ import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useWorkoutPlan } from '@/hooks/queries';
+import { useExercisePicker } from '@/hooks/use-exercise-picker';
 import { api, errorMessage } from '@/lib/api';
 import {
   exerciseLine,
@@ -54,8 +55,9 @@ export default function WorkoutPlanScreen() {
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: plan, isLoading, refetch, isRefetching, error } = useWorkoutPlan(id);
+  const picker = useExercisePicker(id, 'plan');
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Exercise | 'new' | null>(null);
+  const [editing, setEditing] = useState<Exercise | null>(null);
 
   if (isLoading) return <PageSkeleton title="Plano" back tab={false} />;
   if (error) return <QueryError title="Plano" back error={error} onRetry={refetch} />;
@@ -69,7 +71,8 @@ export default function WorkoutPlanScreen() {
 
   const days = sortedDays(plan);
   // Open on today's workout when the plan has one.
-  const activeDay = days.find((d) => d.id === activeDayId) ?? days.find(isToday) ?? days[0];
+  const activeDay = days.find((d) => d.id === (picker.addition?.dayId ?? activeDayId)) ?? days.find(isToday) ?? days[0];
+  const addition = picker.addition?.dayId === activeDay?.id ? picker.addition : null;
   const reload = () => queryClient.invalidateQueries({ queryKey: ['workout', id] });
 
   const remove = (ex: Exercise) =>
@@ -182,14 +185,27 @@ export default function WorkoutPlanScreen() {
             </Card>
           )}
 
-          <Button variant="soft" size="lg" icon={Plus} title="Adicionar Exercício" onPress={() => setEditing('new')} />
+          <Button variant="soft" size="lg" icon={Plus} title="Adicionar Exercício" onPress={() => picker.open(activeDay.id)} />
         </>
       ) : (
         <EmptyState icon={Dumbbell} message="Este plano ainda não tem treinos." />
       )}
 
-      {editing && activeDay && (
-        <ExerciseFormSheet dayId={activeDay.id} exercise={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={reload} />
+      {(editing || addition) && activeDay && (
+        <ExerciseFormSheet
+          key={editing?.id ?? addition?.entry?.id ?? 'custom'}
+          dayId={activeDay.id}
+          exercise={editing}
+          libraryExercise={addition?.entry}
+          onClose={() => {
+            if (addition) {
+              setActiveDayId(addition.dayId);
+              picker.clear();
+            }
+            setEditing(null);
+          }}
+          onSaved={reload}
+        />
       )}
     </Page>
   );

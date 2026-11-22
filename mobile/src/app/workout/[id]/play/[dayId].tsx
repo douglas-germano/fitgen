@@ -31,6 +31,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { Motion } from '@/constants/motion';
 import { useActiveSession, useStreaks, useWorkoutPlan } from '@/hooks/queries';
+import { useExercisePicker } from '@/hooks/use-exercise-picker';
 import { saveWorkoutToHealth } from '@/lib/health';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { exerciseLine, formatInt, workoutMinutes, workoutTitle } from '@/lib/workout';
@@ -57,13 +58,15 @@ export default function WorkoutScreen() {
   const { data: plan, isLoading, error, refetch } = useWorkoutPlan(id);
   const active = useActiveSession();
   const day = plan?.days?.find((d) => d.id === dayId);
+  const picker = useExercisePicker(id, 'session');
+  const addition = picker.addition?.dayId === dayId ? picker.addition : null;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, SetEntry[]>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** Index of an already finished set being corrected (in the open exercise), or null. */
   const [editing, setEditing] = useState<number | null>(null);
-  const [formFor, setFormFor] = useState<Exercise | 'new' | null>(null);
+  const [formFor, setFormFor] = useState<Exercise | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [restLeft, setRestLeft] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -346,7 +349,7 @@ export default function WorkoutScreen() {
               <Button size="sm" variant="soft" title="Finalizar" onPress={confirmFinish} disabled={finishing} />
             ) : (
               // The list is only editable before starting: set counts are fixed once a session is open.
-              <IconButton icon={Plus} label="Adicionar exercício" variant="volt" onPress={() => setFormFor('new')} />
+              <IconButton icon={Plus} label="Adicionar exercício" variant="volt" onPress={() => picker.open(day.id)} />
             )
           }
         />
@@ -456,7 +459,19 @@ export default function WorkoutScreen() {
         />
       )}
 
-      {formFor && <ExerciseFormSheet dayId={day.id} exercise={formFor === 'new' ? null : formFor} onClose={() => setFormFor(null)} onSaved={reload} />}
+      {(formFor || addition) && (
+        <ExerciseFormSheet
+          key={formFor?.id ?? addition?.entry?.id ?? 'custom'}
+          dayId={day.id}
+          exercise={formFor}
+          libraryExercise={addition?.entry}
+          onClose={() => {
+            if (addition) picker.clear();
+            setFormFor(null);
+          }}
+          onSaved={reload}
+        />
+      )}
     </View>
   );
 }

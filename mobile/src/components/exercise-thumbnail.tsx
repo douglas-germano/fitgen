@@ -8,18 +8,21 @@ import { Radius } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import type { Exercise } from '@/types/api';
 
-export function ExerciseThumbnail({ exercise, size = 52 }: { exercise: Exercise; size?: number }) {
+export function ExerciseThumbnailImage({ url, size = 52 }: { url?: string | null; size?: number }) {
   const Colors = useColors();
   const [failedUrl, setFailedUrl] = useState<string>();
-  const url = exercise.animation_url;
-  const libraryId = exercise.exercise_library_id;
-  const content = (
+  return (
     <View style={{ width: size, height: size, borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Colors.surfaceChip, alignItems: 'center', justifyContent: 'center' }}>
       {url && failedUrl !== url ? (
         <Image source={url} autoplay={false} contentFit="contain" style={{ width: '100%', height: '100%', backgroundColor: '#fff' }} onError={() => setFailedUrl(url)} />
       ) : <Dumbbell size={size > 40 ? 22 : 16} color={Colors.inkMuted} />}
     </View>
   );
+}
+
+export function ExerciseThumbnail({ exercise, size = 52 }: { exercise: Exercise; size?: number }) {
+  const libraryId = exercise.exercise_library_id;
+  const content = <ExerciseThumbnailImage url={exercise.animation_url} size={size} />;
   if (!libraryId) return content;
 
   return (

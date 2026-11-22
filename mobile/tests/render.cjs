@@ -55,18 +55,27 @@ let bellsChecked = 0;
 const scrollViews = [];
 const notificationButtons = [];
 const exerciseThumbnails = [];
+const exerciseAddButtons = [];
+const dismissedRoutes = [];
+let catalogList;
+let exerciseSheet;
+let exerciseRouteParams;
 let workoutActions;
 const stubs = {
-  'react-native': { ...RN, ScrollView: (props) => { scrollViews.push(props); return React.createElement(RN.ScrollView, props); }, useColorScheme: () => theme, Pressable: (props) => {
+  'react-native': { ...RN, FlatList: (props) => {
+    if (props.data?.[0] === libraryExercise) catalogList = props;
+    return React.createElement(RN.FlatList, props);
+  }, ScrollView: (props) => { scrollViews.push(props); return React.createElement(RN.ScrollView, props); }, useColorScheme: () => theme, Pressable: (props) => {
     if (props.accessibilityHint === 'Abre a tela de notificações') notificationButtons.push(props);
     if (props.accessibilityLabel?.startsWith('Ver execução de')) exerciseThumbnails.push(props);
+    if (props.accessibilityLabel?.toLowerCase() === 'adicionar exercício') exerciseAddButtons.push(props);
     return React.createElement(RN.Pressable, props);
   } },
   'react-native-reanimated': { __esModule:true, default:{ View:RN.View }, FadeIn:chain, FadeInDown:chain, useReducedMotion:()=>false, useSharedValue:(value)=>({value}), useAnimatedRef:()=>React.useRef(null), useAnimatedStyle:()=>({}), withTiming:()=>0,withRepeat:()=>0,withDelay:()=>0,Easing:{out:()=>0,quad:0} },
   'react-native-safe-area-context': {useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})},
   'react-native-svg': svg,
   'lucide-react-native':icons,
-  'expo-router':{router:{push:(href)=>pushedRoutes.push(href)},useFocusEffect:()=>{},useLocalSearchParams:()=>({id:'plan',dayId:'day'}),Link:({children})=>children},
+  'expo-router':{router:{push:(href)=>pushedRoutes.push(href),dismissTo:(href)=>dismissedRoutes.push(href)},useFocusEffect:()=>{},useLocalSearchParams:()=>exerciseRouteParams ?? {id:'plan',dayId:'day'},Link:({children})=>children},
   'expo-blur':{BlurView:({children})=>React.createElement('div',null,children)},
   'expo-image':{Image:({accessibilityLabel,source})=>React.createElement('img',{alt:accessibilityLabel,src:typeof source === 'string' ? source : source?.uri})},
   'expo-keep-awake':{useKeepAwake(){}},
@@ -99,6 +108,9 @@ function load(file) {
     }
     if (id === 'expo-router' && file.endsWith('/app/exercises/[id].tsx')) return {
       ...stubs[id], useLocalSearchParams: () => ({ id: libraryExercise.id }),
+    };
+    if (id === '@/components/exercise-form-sheet' && exerciseRouteParams) return {
+      ExerciseFormSheet: (props) => { exerciseSheet = props; return null; },
     };
     // Render each conversation state with the real controls, without running effects,
     // touching device storage, posting profile data or contacting an AI provider.
@@ -167,7 +179,9 @@ try {
           for (const text of ['Trajeto GPS', '1,20 km', '96 kcal', '8:20 /km']) assert.ok(result.includes(text));
         }
         if (mode === 'content' && file.endsWith('/app/exercises/index.tsx')) {
-          for (const text of ['Prancha Frontal', 'Buscar exercício', 'Dá pra fazer em casa']) assert.ok(result.includes(text));
+          for (const text of ['Prancha Frontal', 'Buscar exercício', 'Dá pra fazer em casa', libraryExercise.animation_url]) assert.ok(result.includes(text));
+          catalogList.renderItem({ item: libraryExercise }).props.children.props.onPress();
+          assert.deepEqual(pushedRoutes.pop(), { pathname: '/exercises/[id]', params: { id: libraryExercise.id } });
         }
         if (mode === 'content' && file.endsWith('/app/exercises/[id].tsx')) {
           for (const text of ['Prancha Frontal', 'Abdômen', libraryExercise.animation_url, '15 kg', ...libraryExercise.instructions, ...libraryExercise.tips, ...libraryExercise.common_mistakes]) {
@@ -237,6 +251,32 @@ try {
     assert.ok(welcome.includes('Oi, eu sou o Otto!') && welcome.includes('Começar'));
     onboardingStates = null; count++;
   }
+  mode = 'content'; cache = new Map();
+  const { AppThemeProvider } = load(path.join(root, 'providers/theme.tsx'));
+  const renderPickerRoute = (route) => renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(path.join(root, 'app', route)).default)));
+  for (const [source, route, pathname] of [
+    ['plan', 'workout/[id]/index.tsx', '/workout/[id]'],
+    ['session', 'workout/[id]/play/[dayId].tsx', '/workout/[id]/play/[dayId]'],
+  ]) {
+    exerciseRouteParams = { id: plan.id, dayId: plan.days[0].id };
+    exerciseAddButtons.length = 0;
+    renderPickerRoute(route);
+    exerciseAddButtons[0].onPress();
+    const catalog = pushedRoutes.pop();
+    assert.deepEqual(catalog, { pathname: '/exercises', params: { workoutId: plan.id, workoutDay: plan.days[0].id, source } });
+    exerciseRouteParams = catalog.params;
+    assert.ok(renderPickerRoute('exercises/index.tsx').includes('Selecionar exercício'));
+    catalogList.renderItem({ item: libraryExercise }).props.children.props.onPress();
+    const returned = dismissedRoutes.pop();
+    assert.equal(returned.pathname, pathname);
+    exerciseRouteParams = returned.params;
+    exerciseSheet = undefined;
+    renderPickerRoute(route);
+    assert.equal(exerciseSheet.dayId, plan.days[0].id);
+    assert.equal(exerciseSheet.libraryExercise, libraryExercise);
+    assert.equal(exerciseSheet.exercise, null);
+  }
+  exerciseRouteParams = undefined;
 } finally { console.warn=oldWarn; }
 assert.ok(bellsChecked > 0, 'notification bells were checked');
 console.log(`${count} smoke renders passed: ${pages.length} pages in both themes and query states, plus every onboarding question, review and completion. Native APIs mocked; device layout and gestures require iPhone validation.`);

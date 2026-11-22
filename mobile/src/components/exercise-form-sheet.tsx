@@ -10,30 +10,32 @@ import { useExerciseLibrary } from '@/hooks/queries';
 import { exerciseCaption, filterLibrary } from '@/lib/exercise-library';
 import { api, errorMessage } from '@/lib/api';
 import { decimal } from '@/lib/forms';
-import type { Exercise } from '@/types/api';
+import type { Exercise, LibraryExercise } from '@/types/api';
 
 /** Add / edit an exercise — bottom sheet with steppers for sets and rest. */
 export function ExerciseFormSheet({
   dayId,
   exercise,
+  libraryExercise,
   onClose,
   onSaved,
 }: {
   dayId: string;
   exercise: Exercise | null;
+  libraryExercise?: LibraryExercise | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const sheet = useRef<DialogHandle>(null);
   const [form, setForm] = useState({
-    name: exercise?.name ?? '',
+    name: exercise?.name ?? libraryExercise?.name ?? '',
     sets: String(exercise?.sets ?? 3),
     reps: exercise?.reps ?? '12',
     rest: String(exercise?.rest_seconds ?? 60),
     notes: exercise?.notes ?? '',
   });
   const [saving, setSaving] = useState(false);
-  const [libraryId, setLibraryId] = useState<string | null>(exercise?.exercise_library_id ?? null);
+  const [libraryId, setLibraryId] = useState<string | null>(exercise?.exercise_library_id ?? libraryExercise?.id ?? null);
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState('');
   const library = useExerciseLibrary();
@@ -97,6 +99,8 @@ export function ExerciseFormSheet({
               </>
             ) : <Button variant="soft" icon={ArrowLeftRight} title="Trocar exercício" onPress={() => { setQuery(''); setPicking(true); }} />}
           </>
+        ) : libraryExercise ? (
+          <Text variant="titleSm">{form.name}</Text>
         ) : (
           <Input label="Nome do Exercício" placeholder="Ex: Supino reto" value={form.name}
             onChangeText={(name) => { setForm({ ...form, name }); setLibraryId(null); }} autoCapitalize="sentences" />
