@@ -82,7 +82,6 @@ export default function ProfileScreen() {
     <Page tab={false} topBar={
       <Row style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}>
         <IconButton icon={ChevronLeft} label="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
-        <Text accessibilityRole="header" style={{ flex: 1, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.5 }}>Perfil</Text>
       </Row>
     } refreshing={isRefetching} onRefresh={refetch}
       contentStyle={{ width: '100%', maxWidth: 480, alignSelf: 'center', gap: Spacing.four }}>
