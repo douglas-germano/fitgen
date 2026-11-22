@@ -14,9 +14,6 @@ import { Motion } from '@/constants/motion';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/providers/auth';
 
-// The web version (web.fitgen.pro) centers the header; the native app keeps it left-aligned.
-const isWeb = Platform.OS === 'web';
-
 export default function LoginScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
@@ -55,20 +52,19 @@ export default function LoginScreen() {
             paddingBottom: insets.bottom + Spacing.six,
           }}>
           <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(Motion.message)} style={{ gap: Spacing.six }}>
-            <View style={isWeb && { alignSelf: 'center' }}>
+            <View style={{ alignSelf: 'center' }}>
               <BrandLockup size={52} />
             </View>
             <View style={{ gap: Spacing.three }}>
-              <Text variant="display" accessibilityRole="header" style={isWeb && { textAlign: 'center' }}>
+              <Text variant="display" accessibilityRole="header" style={{ textAlign: 'center' }}>
                 Sua evolução começa aqui.
               </Text>
-              <Text muted style={[{ fontSize: 15, lineHeight: 22 }, isWeb && { textAlign: 'center' }]}>
-                Entre com Apple, Google ou com seu email e senha.
+              <Text muted style={{ fontSize: 15, lineHeight: 22, textAlign: 'center' }}>
+                Entre na sua conta para continuar.
               </Text>
             </View>
 
             <View style={{ gap: Spacing.four }}>
-              <SocialSignIn />
               <Input
                 label="Email"
                 placeholder="seu@email.com"
@@ -115,6 +111,8 @@ export default function LoginScreen() {
               />
               <Button size="lg" title="Entrar" onPress={handleSubmit} loading={loading} disabled={!email || !password} />
             </View>
+
+            <SocialSignIn />
           </Animated.View>
 
           <View style={{ flex: 1, minHeight: Spacing.eight }} />

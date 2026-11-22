@@ -43,7 +43,6 @@ export default function RegisterScreen() {
         <Text variant="display">Vamos começar.</Text>
         <Text muted>Crie sua conta e configure seus objetivos de treino e alimentação.</Text>
       </View>
-      {!created && <SocialSignIn />}
       <Input label="Nome completo" value={form.name} onChangeText={(v) => change('name', v)} autoComplete="name" editable={!created} />
       <Input label="Email" value={form.email} onChangeText={(v) => change('email', v)} keyboardType="email-address" autoCapitalize="none" autoComplete="email" editable={!created} />
       <Input label="Celular com DDD (opcional)" value={form.phone} onChangeText={(v) => change('phone', v)} keyboardType="phone-pad" editable={!created} />
@@ -53,6 +52,7 @@ export default function RegisterScreen() {
       {!!error && <Text accessibilityRole="alert">{error}</Text>}
       {created && <Text muted>Conta criada. Entre com sua senha para continuar.</Text>}
       <Button size="lg" title={created ? 'Entrar na conta' : 'Criar conta'} onPress={submit} loading={busy} />
+      {!created && <SocialSignIn />}
       <LinkText title="Já tenho conta" onPress={() => router.replace('/login')} />
     </Page>
   );

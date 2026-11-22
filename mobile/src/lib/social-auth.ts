@@ -6,6 +6,18 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 export type SocialProvider = 'google' | 'apple';
+
+/** A sign-in failure whose message is already written for the user. */
+export class SocialSignInError extends Error {
+  name = 'SocialSignInError';
+}
+
+// Android GoogleSignInStatusCodes / CommonStatusCodes that point at setup, network or the account.
+const GOOGLE_ERRORS: Record<string, string> = {
+  '10': 'Este app não está autorizado a usar o login do Google. Tente outro método de login.',
+  '7': 'Sem conexão com o Google. Verifique a rede e tente novamente.',
+  '12500': 'O Google não conseguiu concluir o login. Tente novamente.',
+};
 export type SocialCredential = { provider: SocialProvider; idToken: string; name?: string };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as {
@@ -39,14 +51,16 @@ export async function googleCredential(): Promise<SocialCredential | null> {
     const response = await GoogleSignin.signIn();
     if (isCancelledResponse(response)) return null;
     const { idToken, user } = response.data;
-    if (!idToken) throw new Error('O Google não retornou o token de login.');
+    if (!idToken) throw new SocialSignInError('O Google não retornou o token de login.');
     return { provider: 'google', idToken, name: user.name ?? undefined };
   } catch (e) {
     if (isErrorWithCode(e)) {
-      if (e.code === statusCodes.IN_PROGRESS) return null;
+      if (e.code === statusCodes.IN_PROGRESS || e.code === statusCodes.SIGN_IN_CANCELLED) return null;
       if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        throw new Error('Atualize o Google Play Services para entrar com o Google.');
+        throw new SocialSignInError('Atualize o Google Play Services para entrar com o Google.');
       }
+      const message = GOOGLE_ERRORS[String(e.code)];
+      if (message) throw new SocialSignInError(message);
     }
     throw e;
   }
@@ -60,7 +74,7 @@ export async function appleCredential(): Promise<SocialCredential | null> {
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
     });
-    if (!credential.identityToken) throw new Error('A Apple não retornou o token de login.');
+    if (!credential.identityToken) throw new SocialSignInError('A Apple não retornou o token de login.');
     // Apple only shares the name on the very first sign-in, so forward it to the backend.
     const name = credential.fullName
       ? AppleAuthentication.formatFullName(credential.fullName).trim() || undefined
