@@ -1,6 +1,6 @@
 import type { LocationObject } from 'expo-location';
 
-import { estimatedCalories, metersBetween, outdoorName, type OutdoorRoute, type OutdoorType, type RoutePoint } from './outdoor';
+import { estimatedCalories, MAX_GPS_METERS_PER_SECOND, metersBetween, outdoorName, type OutdoorRoute, type OutdoorType, type RoutePoint } from './outdoor';
 import { outdoorStorage } from './outdoor-storage';
 
 export type OutdoorDraft = {
@@ -95,15 +95,17 @@ export function recoverOutdoorDraft() {
 }
 
 export function finishDraft(draft: OutdoorDraft, now: number): OutdoorRecord {
+  const seconds = durationSeconds(draft, now);
+  const distance = Math.round(draft.meters * 10) / 10;
   const record = {
     id: draft.id,
     outdoor_type: draft.type,
     workout_name: outdoorName(draft.type),
     started_at: new Date(draft.started).toISOString(),
     completed_at: new Date(now).toISOString(),
-    duration_seconds: durationSeconds(draft, now),
-    distance_meters: Math.round(draft.meters * 10) / 10,
-    calories: estimatedCalories(draft.type, draft.meters, draft.weight),
+    duration_seconds: seconds,
+    distance_meters: distance,
+    calories: estimatedCalories(draft.type, distance, draft.weight, seconds),
     route: draft.route,
   };
   const pending = readPending(draft.owner).filter((item) => item.id !== record.id);
@@ -142,7 +144,7 @@ export function recordLocations(locations: LocationObject[], expectedOwner?: str
     } else {
       if (sincePoint < 3_000) continue;
       const delta = metersBetween(previous, point);
-      if (delta < Math.max(5, accuracy / 2) || delta / (sincePoint / 1000) > 11) continue;
+      if (delta < Math.max(5, accuracy / 2) || delta / (sincePoint / 1000) > MAX_GPS_METERS_PER_SECOND[draft.type]) continue;
       route[route.length - 1] = [...route[route.length - 1], point];
       meters += delta;
     }

@@ -53,7 +53,8 @@ export default function OutdoorDetailScreen() {
         <Text variant="label" muted>{date}</Text>
       </View>
 
-      <OutdoorStats summary seconds={record.duration_seconds} meters={record.distance_meters} calories={record.calories} />
+      <OutdoorStats summary type={record.outdoor_type} seconds={record.duration_seconds}
+        meters={record.distance_meters} calories={record.calories} />
       <OutdoorMap route={record.route} emptyMessage="Nenhum ponto de GPS foi registrado nesta sessão." />
       {pending && (
         <Card style={{ gap: Spacing.two }}>

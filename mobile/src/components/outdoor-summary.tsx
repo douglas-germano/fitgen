@@ -3,10 +3,11 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { Row, SectionHeader, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { distanceLabel, elapsedLabel, paceLabel, type OutdoorRoute } from '@/lib/outdoor';
+import { distanceLabel, elapsedLabel, paceLabel, type OutdoorRoute, type OutdoorType } from '@/lib/outdoor';
 import { useColors } from '@/providers/theme';
 
-export function OutdoorStats({ seconds, meters, calories, summary = false }: {
+export function OutdoorStats({ type, seconds, meters, calories, summary = false }: {
+  type: OutdoorType;
   seconds: number;
   meters: number;
   calories: number | null;
@@ -18,7 +19,7 @@ export function OutdoorStats({ seconds, meters, calories, summary = false }: {
   const speed = seconds && meters ? (meters * 3.6 / seconds).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km/h' : '—';
   const stats = [
     { label: summary ? 'Tempo ativo' : 'Distância', value: summary ? elapsedLabel(seconds) : distanceLabel(meters) },
-    { label: 'Ritmo médio', value: paceLabel(seconds, meters) },
+    ...(type === 'bike' ? [] : [{ label: 'Ritmo médio', value: paceLabel(seconds, meters) }]),
     { label: 'Calorias estimadas', value: calories === null ? '—' : `${calories} kcal` },
     { label: 'Velocidade média', value: speed },
   ];

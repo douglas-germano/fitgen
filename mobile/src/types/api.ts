@@ -1,3 +1,5 @@
+import type { OutdoorType } from '@/lib/outdoor';
+
 /**
  * Shapes returned by the FitGen Flask API, as consumed by the web frontend.
  * Fields are optional where the backend is known to omit them.
@@ -135,7 +137,7 @@ export interface WorkoutPlan {
 export interface ExerciseSessionSummary {
   source?: string;
   from_health?: boolean;
-  outdoor_type?: 'run' | 'walk';
+  outdoor_type?: OutdoorType;
   distance_meters?: number;
   id: string;
   started_at: string;

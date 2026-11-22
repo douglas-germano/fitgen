@@ -13,7 +13,8 @@ from app.shared.extensions import db
 
 outdoor_bp = Blueprint('outdoor', __name__)
 
-ACTIVITIES = {'run': 'Corrida ao ar livre', 'walk': 'Caminhada ao ar livre'}
+ACTIVITIES = {'run': 'Corrida ao ar livre', 'walk': 'Caminhada ao ar livre', 'bike': 'Pedal ao ar livre'}
+MAX_METERS_PER_SECOND = {'run': 12, 'walk': 12, 'bike': 31}
 
 
 def meters_between(first, second):
@@ -45,7 +46,7 @@ def parse_activity(data):
     activity = data.get('activity_type')
     duration = data.get('duration_seconds')
     route = data.get('route')
-    if activity not in ('run', 'walk') or type(duration) is not int or not 1 <= duration <= 86400:
+    if not isinstance(activity, str) or activity not in ACTIVITIES or type(duration) is not int or not 1 <= duration <= 86400:
         raise ValueError
     if not isinstance(route, list) or len(route) > 35000:
         raise ValueError
@@ -76,10 +77,24 @@ def parse_activity(data):
             ):
                 raise ValueError
         distance += sum(meters_between(a, b) for a, b in zip(segment, segment[1:]))
-    if distance > duration * 12:
+    # The cycling recorder checks each fix in milliseconds and submits whole active seconds.
+    speed_window = duration + 1 if activity == 'bike' else duration
+    if distance > speed_window * MAX_METERS_PER_SECOND[activity]:
         raise ValueError
 
     return activity, duration, start, end, route, round(distance, 1)
+
+
+def estimated_calories(activity, duration, distance, weight):
+    if not weight or not isfinite(weight) or weight <= 0 or not distance:
+        return None
+    if activity == 'bike':
+        # Adult Compendium, 2024. Use average speed as an effort proxy and subtract resting MET.
+        mph = distance / duration * 3600 / 1609.344
+        met = next((met for upper, met in ((10, 4), (12, 6.8), (14, 8), (16, 10)) if mph < upper), 12)
+        return int((met - 1) * weight * duration / 3600 + 0.5)
+    # ACSM horizontal energy cost above rest (kcal per kg per km).
+    return round(weight * distance / 1000 * (1 if activity == 'run' else 0.5))
 
 
 @outdoor_bp.put('/<uuid:activity_id>')
@@ -107,9 +122,7 @@ def save_outdoor(activity_id):
     if user is None:
         return jsonify(message='Conta não encontrada.'), 404
     weight = user.profile.current_weight_kg if user.profile else None
-    # ACSM horizontal energy cost above rest (kcal per kg per km).
-    cost = 1 if activity == 'run' else 0.5
-    calories = round(weight * distance / 1000 * cost) if weight and isfinite(weight) and weight > 0 and distance else None
+    calories = estimated_calories(activity, duration, distance, weight)
     session = OutdoorSession(
         id=activity_id, user_id=user_id, activity_type=activity,
         started_at=start, completed_at=end, duration_seconds=duration,

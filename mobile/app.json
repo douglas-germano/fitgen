@@ -95,8 +95,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O FitGen usa sua localização para medir a distância e desenhar o trajeto das corridas e caminhadas.",
-          "locationAlwaysAndWhenInUsePermission": "O FitGen usa sua localização durante a corrida ou caminhada que você iniciou, inclusive com a tela bloqueada.",
+          "locationWhenInUsePermission": "O FitGen usa sua localização para medir a distância e desenhar o trajeto de corridas, caminhadas e pedais.",
+          "locationAlwaysAndWhenInUsePermission": "O FitGen usa sua localização durante a atividade ao ar livre que você iniciou, inclusive com a tela bloqueada.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
