@@ -29,6 +29,8 @@ class Config:
         CACHE_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
         CACHE_REDIS_DB = 0
     CACHE_DEFAULT_TIMEOUT = 300
+    # Fail fast if Redis is down or slow (cache_delete() in extensions ignores the error)
+    CACHE_OPTIONS = {'socket_connect_timeout': 1, 'socket_timeout': 1}
 
 class DevelopmentConfig(Config):
     DEBUG = True

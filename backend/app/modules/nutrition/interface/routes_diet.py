@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.shared.extensions import ai_limit, db, cache, release_db_connection
+from app.shared.extensions import ai_limit, db, cache_delete, release_db_connection
 from app.modules.nutrition.domain.diet import DietPreference, DietPlan
 from app.modules.coach.infrastructure.ai_service import AIService
 from datetime import datetime
@@ -294,7 +294,7 @@ Retorne APENAS um JSON válido com esta estrutura:
         DietPlan.query.filter_by(user_id=user_id, is_active=True).update({'is_active': False})
         
         # Invalidate cache
-        cache.delete(f"diet_plan:{user_id}")
+        cache_delete(f"diet_plan:{user_id}")
         
         # Save new plan
         new_plan = DietPlan(
@@ -466,7 +466,7 @@ def regenerate_day_plan():
             plan.weekly_plan = current_weekly
             
             # Invalidate cache
-            cache.delete(f"diet_plan:{user_id}")
+            cache_delete(f"diet_plan:{user_id}")
             
             # db.session.add(plan) # Not strictly needed if object is attached, but safe
             db.session.commit()
@@ -526,7 +526,7 @@ def update_shopping_list():
     plan.shopping_list = shopping_list
     
     # Invalidate cache
-    cache.delete(f"diet_plan:{user_id}")
+    cache_delete(f"diet_plan:{user_id}")
     
     db.session.commit()
 

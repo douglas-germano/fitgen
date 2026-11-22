@@ -45,3 +45,16 @@ def ai_limit(name, default):
     Put it BELOW @jwt_required() so the user is known when the limit is checked.
     """
     return limiter.limit(lambda: os.environ.get(f"AI_LIMIT_{name.upper()}", default), key_func=user_or_ip_key)
+
+
+def cache_delete(key):
+    """Deletes a cache entry; a Redis outage only logs (the data is already saved in Postgres).
+
+    The cache is called after db.session.commit(), so raising here answered 500 for a change
+    that had been saved.
+    """
+    try:
+        cache.delete(key)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning('cache delete failed for %s: %s', key, exc)

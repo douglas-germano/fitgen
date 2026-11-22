@@ -30,7 +30,7 @@ def redis_client():
         return None
     if _client is None or _client_url != url:
         import redis
-        _client = redis.Redis.from_url(url, socket_timeout=5, socket_connect_timeout=5, health_check_interval=30)
+        _client = redis.Redis.from_url(url, socket_timeout=2, socket_connect_timeout=1, health_check_interval=30)
         _client_url = url
     return _client
 
@@ -89,27 +89,37 @@ class JobState:
     def __init__(self):
         self._memory = _MemoryBackend()
 
-    def _backend(self):
+    def _call(self, op, *args, **kwargs):
+        """Runs op on Redis; if Redis is unreachable, on this process's memory instead.
+
+        Degraded but working: during an outage another replica can't see this job, so a
+        second tap there may start a duplicate generation. Better than failing onboarding.
+        """
         client = redis_client()
-        return _RedisBackend(client) if client is not None else self._memory
+        if client is not None:
+            try:
+                return getattr(_RedisBackend(client), op)(*args, **kwargs)
+            except Exception as exc:
+                log.warning('job state: Redis unavailable (%s), using process memory', exc)
+        return getattr(self._memory, op)(*args, **kwargs)
 
     def claim(self, key, ttl):
         """Takes the job's lock; True for one caller only until finish() or the ttl runs out.
 
         The ttl is the safety net if the process running the job dies (deploy, crash).
         """
-        return self._backend().set(self.PREFIX + key + ':lock', '1', ttl, only_if_absent=True)
+        return self._call('set', self.PREFIX + key + ':lock', '1', ttl, only_if_absent=True)
 
     def set(self, key, data, ttl=86400):
-        self._backend().set(self.PREFIX + key, json.dumps(data), ttl)
+        self._call('set', self.PREFIX + key, json.dumps(data), ttl)
 
     def get(self, key):
-        raw = self._backend().get(self.PREFIX + key)
+        raw = self._call('get', self.PREFIX + key)
         return json.loads(raw) if raw else None
 
     def finish(self, key, data, ttl=86400):
         self.set(key, data, ttl)
-        self._backend().delete(self.PREFIX + key + ':lock')
+        self._call('delete', self.PREFIX + key + ':lock')
 
     def wait(self, key, timeout, interval=0.5):
         """Polls until the job leaves 'pending' or the timeout passes; returns the last state.

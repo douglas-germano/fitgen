@@ -70,6 +70,14 @@ def create_app(config_name='default'):
         app.config['RATELIMIT_STRATEGY'] = "fixed-window"
         app.logger.info("Using in-memory storage for rate limiting")
     
+    # Redis down or slow must not take the API with it: answer within 1 s, then count
+    # in this process's memory until Redis is back (flask-limiter checks it periodically).
+    # Without this every request failed with 500 while Redis was unreachable.
+    app.config['RATELIMIT_SWALLOW_ERRORS'] = True
+    app.config['RATELIMIT_IN_MEMORY_FALLBACK_ENABLED'] = True
+    if app.config['RATELIMIT_STORAGE_URI'].startswith('redis'):
+        app.config['RATELIMIT_STORAGE_OPTIONS'] = {'socket_connect_timeout': 1, 'socket_timeout': 1}
+
     # RATELIMIT_ENABLED=false switches every limit off (e.g. during a load test)
     app.config.setdefault('RATELIMIT_ENABLED', os.environ.get('RATELIMIT_ENABLED', 'true').lower() not in ('false', '0', 'no', 'off'))
     limiter.init_app(app)
