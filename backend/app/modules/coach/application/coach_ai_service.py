@@ -2,6 +2,8 @@ from app.modules.coach.infrastructure.ai_service import AIService, build_user_co
 from datetime import datetime
 import time
 
+from app.shared.extensions import release_db_connection
+
 class CoachAIService:
     """
     Serviço específico para o Coach Virtual (LLM via OpenRouter)
@@ -137,7 +139,11 @@ USUÁRIO: {new_message}"""
                 # Get the function from CoachFunctions class
                 if hasattr(CoachFunctions, function_name):
                     func = getattr(CoachFunctions, function_name)
-                    return func(**args)
+                    try:
+                        return func(**args)
+                    finally:
+                        # Free the DB connection before the next AI round trip
+                        release_db_connection()
                 else:
                     return {"success": False, "error": f"Function {function_name} not found"}
             
