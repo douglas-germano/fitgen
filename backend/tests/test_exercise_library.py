@@ -30,7 +30,7 @@ class ExerciseLibraryTests(unittest.TestCase):
         self.ctx = self.app.app_context()
         self.ctx.push()
         self.tables = [model.__table__ for model in (User, ExerciseLibrary, WorkoutPlan, WorkoutDay, Exercise, WorkoutSession, ExerciseLog)]
-        db.metadata.create_all(db.engine, tables=self.tables)
+        db.metadata.create_all(db.engine, tables=[*self.tables, db.metadata.tables["referral_rewards"]])
         self.headers = {'Authorization': 'Bearer ' + create_access_token(identity=str(uuid4()))}
         self.client = self.app.test_client()
 

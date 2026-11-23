@@ -120,6 +120,7 @@ export default function ProfileScreen() {
         <ProfileRow icon={Bell} title="Notificações" onPress={() => router.push('/notifications')} />
         <ProfileRow icon={SunMoon} title="Aparência" value={THEME_LABEL[preference]} onPress={() => setThemeOpen(true)} />
         <ProfileRow icon={BadgeCheck} title="Assinatura" value={plan.premium ? 'Premium' : plan.title} onPress={() => router.push('/paywall')} />
+        <ProfileRow icon={Users} title="Indique e Ganhe" onPress={() => router.push('./referrals')} />
       </ProfileGroup>
 
       <ProfileGroup title="Outros">

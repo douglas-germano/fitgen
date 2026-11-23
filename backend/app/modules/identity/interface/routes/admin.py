@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
@@ -19,7 +21,10 @@ def check_admin():
     verify_jwt_in_request()
     
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    try:
+        user = db.session.get(User, uuid.UUID(user_id))
+    except (ValueError, TypeError):
+        user = None
     print(f"Admin Access Check: User {user.email if user else 'None'} ({user_id}), Role: {user.role if user else 'None'}")
     if not user or user.role != 'admin':
         print("Admin access denied.")
@@ -857,3 +862,73 @@ def grant_achievement_to_user(user_id, achievement_id):
     db.session.commit()
     
     return jsonify({"msg": "Achievement granted"}), 201
+
+
+@admin_bp.route("/referral-partners", methods=["GET", "POST"])
+def referral_partners():
+    from app.modules.identity.application.referrals import new_code, program_summary
+    from app.modules.identity.domain.referral import ReferralCode
+
+    if request.method == "GET":
+        rows = (db.session.query(ReferralCode, User.email).join(User, User.id == ReferralCode.owner_id)
+                .filter(ReferralCode.program == "partner").order_by(User.email).all())
+        return jsonify([{"owner_id": str(row.owner_id), "email": email, **program_summary(row)} for row, email in rows])
+    data = request.get_json(silent=True) or {}
+    email, enabled = data.get("email"), data.get("enabled", True)
+    if not isinstance(email, str) or not isinstance(enabled, bool):
+        return jsonify({"msg": "Informe o email e o estado do parceiro."}), 400
+    user = User.query.filter_by(email=email.strip().lower()).first_or_404()
+    row = new_code(user, "partner")
+    row.enabled = enabled
+    db.session.flush()
+    payload = {"owner_id": str(user.id), **program_summary(row)}
+    db.session.commit()
+    return jsonify(payload)
+
+
+@admin_bp.route("/referral-commissions", methods=["GET"])
+def referral_commissions():
+    from app.modules.identity.application.referrals import commission_payload
+    from app.modules.identity.domain.referral import PartnerCommission, Referral, ReferralCode
+
+    rows = (db.session.query(PartnerCommission, User.email).join(Referral, Referral.user_id == PartnerCommission.user_id)
+            .join(ReferralCode, ReferralCode.code == Referral.code)
+            .join(User, User.id == ReferralCode.owner_id))
+    status = request.args.get("status")
+    if status:
+        rows = rows.filter(PartnerCommission.status == status)
+    page = rows.order_by(PartnerCommission.created_at.desc()).paginate(per_page=25, max_per_page=25, error_out=False)
+    return jsonify({"items": [{**commission_payload(row), "partner_email": email} for row, email in page.items],
+                    "pages": page.pages})
+
+
+@admin_bp.route("/referral-commissions/<uuid:commission_id>", methods=["PATCH"])
+def update_referral_commission(commission_id):
+    from app.modules.identity.application.referrals import commission_amount, commission_payload
+    from app.modules.identity.domain.referral import PartnerCommission
+
+    row = db.session.get(PartnerCommission, commission_id, with_for_update=True)
+    if row is None:
+        return jsonify({"msg": "Comissão não encontrada."}), 404
+    data = request.get_json(silent=True) or {}
+    action = data.get("status")
+    transitions = {"pending": ("approved", "void"), "approved": ("paid", "void"), "paid": ("reversed",)}
+    if action not in transitions.get(row.status, ()):
+        return jsonify({"msg": "Transição de comissão inválida."}), 409
+    if action == "approved":
+        try:
+            received = Decimal(str(data.get("received_amount")))
+            if not received.is_finite() or not 0 < received <= row.payment_amount or received != received.quantize(Decimal("0.01")):
+                raise ValueError
+        except (InvalidOperation, ValueError):
+            return jsonify({"msg": "Informe o valor líquido recebido, na moeda da cobrança."}), 400
+        row.received_amount = received
+        row.amount = commission_amount(received)
+    if action == "paid":
+        reference = data.get("payout_reference")
+        if not isinstance(reference, str) or not 0 < len(reference.strip()) <= 255:
+            return jsonify({"msg": "Informe a referência do repasse."}), 400
+        row.payout_reference = reference.strip()
+    row.status = action
+    db.session.commit()
+    return jsonify(commission_payload(row))

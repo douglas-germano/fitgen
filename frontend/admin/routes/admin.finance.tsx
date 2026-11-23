@@ -1,3 +1,4 @@
+import { ReferralPrograms } from "@admin/ReferralPrograms";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -457,6 +458,7 @@ function FinancePage() {
                     {!loadingPayments && payments.length > 0 ? <Pager page={page} pages={pages} total={total} noun="pagamentos" onChange={setPage} /> : null}
                 </div>
             </section>
+            <ReferralPrograms />
         </>
     );
 }

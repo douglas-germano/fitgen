@@ -108,6 +108,11 @@ const stubs = {
   '@react-native-google-signin/google-signin':{ GoogleSignin:{ configure(){} }, isCancelledResponse:()=>false, isErrorWithCode:()=>false, statusCodes:{} },
   '@tanstack/react-query': {useQueryClient:()=>({refetchQueries:async()=>{}}),useQuery:options=>{
     const key = options?.queryKey?.[0];
+    if (key === 'referrals') {
+      return query(options.queryKey[1] === 'friends'
+        ? { code: 'AMIGO', progress: 2, earned_days: 30 }
+        : { code: 'PARCEIRO', signups: 3, qualified: 1, commissions: [], pages: 1, enabled: true });
+    }
     if (key === 'nutrition-history' && mode === 'empty') return { ...query(undefined), data: { data: [] } };
     return query(key === 'outdoor-detail' ? { record: outdoorDetail, pending: false } : key === 'outdoor-route' ? outdoor.route : key === 'recent-records' ? [{ exercise_library_id: 'lib', name: 'Supino', weight_kg: 32, previous_kg: 30, achieved_at: now }] : key === 'health-summary-weight' ? [] : {data:[],summary:{avg_calories:0}});
   }},
@@ -276,6 +281,7 @@ try {
         const palette = theme === 'dark' ? DarkColors : LightColors;
         const rgb = (hex) => `rgba(${[1,3,5].map((i) => parseInt(hex.slice(i,i+2),16)).join(',')},1.00)`;
         if (mode === 'content') assert.ok(result.includes(`color:${rgb(palette.ink)}`), `${theme}: page has themed text`);
+        if (mode === 'content' && file.endsWith('/app/referrals.tsx')) assert.ok(result.includes('30 dias Premium conquistados') && result.includes('FitGen Parceiros'), 'referrals show earned days and approved partner dashboard');
         if (mode === 'content' && file.endsWith('/app/notifications.tsx')) assert.ok(result.includes('Aceitar') && result.includes('Recusar'), 'pending follow request has both actions');
         if (mode === 'content' && file.endsWith('/app/community/people.tsx')) assert.ok(!result.includes('Código do amigo') && !result.includes('Seu código'), 'follow flow does not ask for a friend code');
         assert.ok(result.includes(`background-color:${rgb(palette.surface)}`), `${theme}: page has themed background`);

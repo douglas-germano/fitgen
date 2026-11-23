@@ -32,7 +32,7 @@ class RevenueCatWebhookTests(unittest.TestCase):
         self.addCleanup(self.ctx.pop)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)
-        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ['users', 'subscriptions', 'payment_history']])
+        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ['users', 'subscriptions', 'payment_history', "referral_codes", "referrals", "referral_rewards", "partner_commissions"]])
         self.user = User(name='Ana', email='ana@test.invalid', password_hash='x', subscription_status='active')
         db.session.add(self.user); db.session.commit()
         self.client = self.app.test_client()

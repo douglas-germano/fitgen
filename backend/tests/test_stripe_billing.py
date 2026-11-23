@@ -49,7 +49,7 @@ class StripeWebhookTests(unittest.TestCase):
         self.addCleanup(self.ctx.pop)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)
-        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ['users', 'subscriptions', 'payment_history']])
+        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ['users', 'subscriptions', 'payment_history', "referral_codes", "referrals", "referral_rewards", "partner_commissions"]])
         self.user = User(name='Ana', email='ana@test.invalid', password_hash='x', subscription_status='free')
         db.session.add(self.user); db.session.commit()
         db.session.add(Subscription(user_id=self.user.id, plan_type='free', status='incomplete', stripe_customer_id='cus_1'))

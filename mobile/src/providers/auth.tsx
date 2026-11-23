@@ -11,7 +11,7 @@ type Status = 'loading' | 'signedIn' | 'signedOut';
 type AuthContextValue = {
   status: Status;
   signIn: (email: string, password: string) => Promise<LoginResponse>;
-  signInWithProvider: (credential: SocialCredential) => Promise<LoginResponse>;
+  signInWithProvider: (credential: SocialCredential, referralCode?: string) => Promise<LoginResponse>;
   signOut: () => Promise<void>;
 };
 
@@ -57,10 +57,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return data;
   };
 
-  const signInWithProvider = async ({ provider, idToken, name }: SocialCredential) => {
+  const signInWithProvider = async ({ provider, idToken, name }: SocialCredential, referralCode?: string) => {
     const data = await api<LoginResponse>('/auth/social', {
       method: 'POST',
-      body: { provider, id_token: idToken, ...(name ? { name } : {}) },
+      body: { provider, id_token: idToken, referral_code: referralCode, ...(name ? { name } : {}) },
       public: true,
     });
     await saveTokens(data.access_token, data.refresh_token);

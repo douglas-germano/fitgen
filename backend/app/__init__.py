@@ -143,6 +143,7 @@ def create_app(config_name='default'):
     app.cli.add_command(apply_community_sharing_defaults_command)
 
     from app.modules.identity.interface.routes.auth import auth_bp
+    from app.modules.identity.interface.routes.referrals import referrals_bp
     from app.modules.identity.interface.routes.onboarding import onboarding_bp
     from app.modules.training.interface.routes_workouts import workouts_bp
     from app.modules.training.interface.routes_exercises import exercises_bp
@@ -168,6 +169,7 @@ def create_app(config_name='default'):
     from app.modules.community.interface.routes_people import people_bp as community_people_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(referrals_bp, url_prefix='/api/referrals')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
     app.register_blueprint(workouts_bp, url_prefix='/api/workouts')
     app.register_blueprint(exercises_bp, url_prefix='/api/exercises')

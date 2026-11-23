@@ -90,7 +90,7 @@ class SubscriptionGateTests(unittest.TestCase):
         self.addCleanup(self.ctx.pop)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)
-        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ('users', 'workout_plans', 'subscriptions')])
+        db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in ('users', 'workout_plans', 'subscriptions', "referral_codes", "referrals", "referral_rewards", "partner_commissions")])
         self.client = self.app.test_client()
         self.counter = 0
 

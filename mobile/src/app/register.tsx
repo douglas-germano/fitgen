@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -13,7 +13,8 @@ import { useAuth } from '@/providers/auth';
 
 export default function RegisterScreen() {
   const { signIn } = useAuth();
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '' });
+  const { ref } = useLocalSearchParams<{ ref?: string }>();
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '', referral: ref ?? '' });
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState(false);
   const [error, setError] = useState('');
@@ -27,7 +28,7 @@ export default function RegisterScreen() {
     setError('');
     try {
       if (!created) {
-        await api('/auth/register', { public: true, method: 'POST', body: { name: form.name.trim(), email: form.email.trim().toLowerCase(), password: form.password, ...(form.phone ? { phone: form.phone.replace(/\D/g, '') } : {}) } });
+        await api('/auth/register', { public: true, method: 'POST', body: { name: form.name.trim(), email: form.email.trim().toLowerCase(), password: form.password, referral_code: form.referral.trim(), ...(form.phone ? { phone: form.phone.replace(/\D/g, '') } : {}) } });
         setCreated(true);
         track('signed_up');
       }
@@ -49,10 +50,11 @@ export default function RegisterScreen() {
       <Input label="Senha" value={form.password} onChangeText={(v) => change('password', v)} secureTextEntry autoCapitalize="none" autoCorrect={false} textContentType="newPassword" />
       <Text variant="caption">Pelo menos 8 caracteres, com maiúscula, minúscula e número.</Text>
       <Input label="Confirmar senha" value={form.confirm} onChangeText={(v) => change('confirm', v)} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+      <Input label="Código de indicação (opcional)" value={form.referral} onChangeText={(v) => change('referral', v)} autoCapitalize="characters" autoCorrect={false} maxLength={24} editable={!created} />
       {!!error && <Text accessibilityRole="alert">{error}</Text>}
       {created && <Text muted>Conta criada. Entre com sua senha para continuar.</Text>}
       <Button size="lg" title={created ? 'Entrar na conta' : 'Criar conta'} onPress={submit} loading={busy} />
-      {!created && <SocialSignIn />}
+      {!created && <SocialSignIn referralCode={form.referral.trim()} />}
       <LinkText title="Já tenho conta" onPress={() => router.replace('/login')} />
     </Page>
   );

@@ -4,6 +4,7 @@
 # Identity
 from app.modules.identity.domain.models import User, UserProfile
 from app.modules.identity.domain.subscription import Subscription
+from app.modules.identity.domain.referral import PartnerCommission, Referral, ReferralCode, ReferralReward
 
 # Training
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise, WorkoutSession, ExerciseLog, OutdoorSession

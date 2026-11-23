@@ -30,10 +30,12 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import UUID
 
 import stripe
 from flask import current_app
 
+from app.modules.identity.application.referrals import preserve_bonus, record_referral_payment
 from app.modules.identity.application.billing_recorder import safe_record
 from app.modules.identity.domain.models import User
 from app.modules.identity.domain.subscription import Subscription
@@ -208,7 +210,7 @@ def create_pix_checkout_session(user, plan: str = "monthly") -> str:
     return client.v1.checkout.sessions.create(params=params).url
 
 
-def _grant_pix_prepaid(session) -> str:
+def _grant_pix_prepaid(session, *, live=True) -> str:
     """Extends access for a paid Pix prepaid Checkout session (idempotent per session)."""
     from app.modules.identity.domain.subscription import PaymentHistory
 
@@ -222,7 +224,8 @@ def _grant_pix_prepaid(session) -> str:
         return "pix:duplicate"
     days = int(_get(_get(session, "metadata", {}), "days", 30))
     now = datetime.utcnow()
-    start = max(now, user.subscription_expires_at or now)
+    previous_expiry = user.subscription_expires_at
+    start = max(now, previous_expiry or now)
     expires = start + timedelta(days=days)
     user.subscription_status = "active"
     user.subscription_expires_at = expires
@@ -230,6 +233,10 @@ def _grant_pix_prepaid(session) -> str:
                 amount=Decimal(_get(session, "amount_total", 0)) / 100,
                 currency=(_get(session, "currency") or "brl").upper(), external_id=session_id,
                 paid_at=now, next_billing=expires, period="yearly" if days >= 300 else "monthly")
+    preserve_bonus(user, previous_expiry)
+    if live:
+        record_referral_payment(user, session_id, Decimal(_get(session, "amount_total") or 0) / 100,
+                                (_get(session, "currency") or "BRL").upper(), source="stripe")
     return f"pix:+{days}d"
 
 
@@ -256,11 +263,12 @@ def construct_event(payload: bytes, signature: str):
 
 def _user_for(obj) -> User | None:
     meta = _get(obj, "metadata", {}) or {}
-    for candidate in (_get(obj, "client_reference_id"), _get(meta, "user_id")):
+    invoice_meta = _get(_get(_get(obj, "parent", {}), "subscription_details", {}), "metadata", {})
+    for candidate in (_get(obj, "client_reference_id"), _get(meta, "user_id"), _get(invoice_meta, "user_id")):
         if candidate:
             try:
-                user = db.session.get(User, candidate)
-            except Exception:
+                user = db.session.get(User, UUID(str(candidate)))
+            except (ValueError, TypeError):
                 user = None
             if user:
                 return user
@@ -301,19 +309,23 @@ def _apply_subscription(user, subscription) -> str:
     common = dict(gateway=GATEWAY, method=_method(subscription), subscription_external_id=_get(subscription, "id"))
 
     if status in ACTIVE:
+        previous_expiry = user.subscription_expires_at
         canceling = bool(_get(subscription, "cancel_at_period_end") or _get(subscription, "cancel_at"))
         user.subscription_status = "canceled" if canceling else "active"  # canceled keeps access until expiry
         user.subscription_expires_at = expires or user.subscription_expires_at
         safe_record(user, kind="canceled" if canceling else "paid", next_billing=expires, record_payment=False, **common)
+        preserve_bonus(user, previous_expiry)
         return "canceling" if canceling else status
     if status == "past_due":
         user.subscription_status = "past_due"
         safe_record(user, kind="late", **common)
         return "past_due"
     if status in ENDED:
+        previous_expiry = user.subscription_expires_at
         user.subscription_status = "canceled"
         user.subscription_expires_at = _dt(_get(subscription, "ended_at")) or datetime.utcnow()
         safe_record(user, kind="expired", **common)
+        preserve_bonus(user, previous_expiry)
         return "ended"
     return f"ignored-status:{status}"  # incomplete, paused…
 
@@ -324,7 +336,7 @@ def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
 
     if etype in ("checkout.session.completed", "checkout.session.async_payment_succeeded") and \
             _get(_get(obj, "metadata", {}), "kind") == "pix_prepaid":
-        return _grant_pix_prepaid(obj)
+        return _grant_pix_prepaid(obj, live=_get(event, "livemode") is not False)
     if etype == "checkout.session.async_payment_failed":
         return "pix:payment-failed"  # QR code expired / not paid: nothing was granted
 
@@ -372,6 +384,7 @@ def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
             except Exception:  # ledger detail only; never fail the webhook for it
                 pass
         expires = _dt(period_end)
+        previous_expiry = user.subscription_expires_at
         user.subscription_status = "active"
         if expires and expires > (user.subscription_expires_at or datetime.min):
             user.subscription_expires_at = expires
@@ -379,6 +392,10 @@ def apply_stripe_event(event, client: stripe.StripeClient | None = None) -> str:
                     currency=(_get(obj, "currency") or "brl").upper(), external_id=_get(obj, "id"),
                     subscription_external_id=sub_id, paid_at=_dt(_get(_get(obj, "status_transitions", {}), "paid_at")),
                     next_billing=expires, period=period)
+        preserve_bonus(user, previous_expiry)
+        if sub_id and _get(event, "livemode") is not False:
+            record_referral_payment(user, _get(obj, "id"), amount,
+                                    (_get(obj, "currency") or "BRL").upper(), source="stripe")
         return "paid"
 
     if etype == "invoice.payment_failed":

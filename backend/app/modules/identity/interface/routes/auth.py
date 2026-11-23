@@ -8,6 +8,7 @@ from marshmallow import ValidationError
 from app.shared.extensions import db, limiter
 from app.modules.identity.domain.models import User
 from app.modules.identity.interface.schemas import RegisterSchema, LoginSchema
+from app.modules.identity.application.referrals import attribute_signup, lookup_code
 from app.shared.utils.password import validate_password_strength
 from app.modules.identity.application.social_auth import SocialAuthError, verify_id_token
 from datetime import datetime, timedelta
@@ -51,6 +52,11 @@ def register():
     data = request.get_json()
     
     # Validate request data
+    code = None
+    if isinstance(data, dict) and (raw_code := data.pop("referral_code", None)):
+        code = lookup_code(raw_code)
+        if code is None:
+            return jsonify({"msg": "Código de indicação inválido."}), 400
     schema = RegisterSchema()
     try:
         validated_data = schema.load(data)
@@ -93,6 +99,7 @@ def register():
     )
     
     db.session.add(new_user)
+    attribute_signup(new_user, code)
     db.session.commit()
     
     current_app.logger.info(f'New user registered: {new_user.email}')
@@ -264,6 +271,11 @@ def social_login():
             )
             setattr(user, sub_attr, identity['sub'])
             db.session.add(user)
+            raw_code = data.get("referral_code")
+            code = lookup_code(raw_code) if raw_code else None
+            if raw_code and code is None:
+                return jsonify({"msg": "Código de indicação inválido."}), 400
+            attribute_signup(user, code)
             created = True
         db.session.commit()
 

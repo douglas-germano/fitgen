@@ -45,7 +45,7 @@ class CommunityTests(unittest.TestCase):
         self.ctx = self.app.app_context(); self.ctx.push()
         self.addCleanup(self.ctx.pop)
         # Legacy analytics constraints use PG-specific casts; this suite only needs these tables.
-        needed = ['users', 'user_profiles', 'workout_sessions', 'meals', 'hydration_logs', 'hydration_goals', 'user_streaks', 'achievements', 'user_achievements', 'workout_plans', 'workout_days', 'notifications', 'audit_logs']
+        needed = ['users', 'user_profiles', 'workout_sessions', 'meals', 'hydration_logs', 'hydration_goals', 'user_streaks', 'achievements', 'user_achievements', 'workout_plans', 'workout_days', 'notifications', 'audit_logs', 'referral_rewards']
         db.metadata.create_all(db.engine, tables=[db.metadata.tables[n] for n in needed] + ALL_TABLES)
         self.addCleanup(db.engine.dispose)
         self.addCleanup(db.session.remove)

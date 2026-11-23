@@ -33,7 +33,7 @@ ACCESS_STATUSES = {"active", "canceled", "past_due"}
 # Hard-gate mode only: reachable without a subscription (auth, payment webhooks, subscription
 # endpoints to buy / restore / sync, the admin API with its own admin check, docs/static).
 EXEMPT_PREFIXES = (
-    "/api/auth/", "/api/webhooks/", "/api/subscriptions/", "/api/admin/",
+    "/api/auth/", "/api/referrals/", "/api/webhooks/", "/api/subscriptions/", "/api/admin/",
     "/api/static/", "/api/docs", "/apidocs", "/flasgger_static", "/apispec",
 )
 # The app reads its own profile to learn whether it is locked.
@@ -65,7 +65,14 @@ def user_has_access(user, now: datetime | None = None) -> bool:
         return True
     now = now or datetime.utcnow()
     expires = user.subscription_expires_at
-    return bool(expires and expires > now and user.subscription_status in ACCESS_STATUSES)
+    if expires and expires > now and user.subscription_status in ACCESS_STATUSES:
+        return True
+    if user.subscription_status == "suspended":
+        return False
+    from app.modules.identity.domain.referral import ReferralReward
+
+    reward = db.session.get(ReferralReward, user.id)
+    return bool(reward and reward.starts_at <= now < reward.ends_at)
 
 
 is_premium = user_has_access

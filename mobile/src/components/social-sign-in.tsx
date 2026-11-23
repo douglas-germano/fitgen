@@ -19,7 +19,7 @@ import { useAuth } from '@/providers/auth';
 import { useColors } from '@/providers/theme';
 
 /** "ou continue com" divider + Apple / Google buttons. Renders nothing when neither provider is available. */
-export function SocialSignIn() {
+export function SocialSignIn({ referralCode }: { referralCode?: string }) {
   const Colors = useColors();
   const { signInWithProvider } = useAuth();
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -40,7 +40,7 @@ export function SocialSignIn() {
       const credential = await getCredential();
       if (!credential) return; // user cancelled
       // On success the auth guard swaps the stack (onboarding or tabs) automatically.
-      const data = await signInWithProvider(credential);
+      const data = await signInWithProvider(credential, referralCode);
       track(data.created ? 'signed_up' : 'logged_in', { method: provider });
     } catch (e) {
       console.warn(`[social-sign-in] ${provider}`, e);

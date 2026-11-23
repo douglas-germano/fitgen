@@ -88,7 +88,7 @@ export default function SubscribeFlow() {
   const [step, setStep] = useState<Step>("account");
   const [plan, setPlan] = useState<Plan>("yearly");
   const [mode, setMode] = useState<"register" | "login">("register");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", referral: "" });
   const [session, setSession] = useState<Session | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [paid, setPaid] = useState(false);
@@ -127,6 +127,8 @@ export default function SubscribeFlow() {
   // Coming back from Stripe Checkout.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const referral = params.get("ref");
+    if (referral) setForm((current) => ({ ...current, referral: referral.slice(0, 24) }));
     const result = params.get("checkout");
     // Older success URLs: the confirmation page doesn't depend on the stored session.
     if (result === "sucesso") {
@@ -161,7 +163,7 @@ export default function SubscribeFlow() {
     setBusy(true);
     try {
       if (mode === "register") {
-        await call("/auth/register", { method: "POST", body: JSON.stringify({ name: form.name.trim(), email, password: form.password }) });
+        await call("/auth/register", { method: "POST", body: JSON.stringify({ name: form.name.trim(), email, password: form.password, referral_code: form.referral.trim() }) });
       }
       const login = await call<{ access_token: string; user: { email: string } }>("/auth/login", {
         method: "POST",
@@ -260,6 +262,7 @@ export default function SubscribeFlow() {
                 <input type="password" value={form.password} onChange={change("password")} autoComplete={mode === "register" ? "new-password" : "current-password"} required />
                 {mode === "register" && <small>Mínimo de 8 caracteres, com maiúscula, minúscula e número.</small>}
               </label>
+              {mode === "register" && <label>Código de indicação (opcional)<input value={form.referral} onChange={change("referral")} maxLength={24} /></label>}
               {error && <p className={styles.error} role="alert">{error}</p>}
               <button className={site.button} type="submit" disabled={busy}>
                 {busy && <Loader2 size={16} className={styles.spin} aria-hidden="true" />}

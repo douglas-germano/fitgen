@@ -22,6 +22,7 @@ from decimal import Decimal
 
 from flask import current_app
 
+from app.modules.identity.application.referrals import preserve_bonus, record_referral_payment
 from app.modules.identity.application.billing_recorder import safe_record, to_decimal
 from app.modules.identity.domain.models import User
 
@@ -91,11 +92,14 @@ def apply_revenuecat_event(event: dict) -> str:
     method = STORE_METHOD.get(event.get("store"), None)
 
     currency = (event.get("currency") or "BRL").upper()
-    amount = to_decimal(event.get("price_in_purchased_currency"))
+    local_price = event.get("price_in_purchased_currency")
+    amount = to_decimal(local_price)
+    positive_amount = amount
     if amount is None and event.get("price") is not None:
-        amount, currency = to_decimal(abs(Decimal(str(event["price"])))), "USD"
-    if amount is not None:
-        amount = abs(amount)
+        price = Decimal(str(event["price"]))
+        amount, currency = to_decimal(abs(price)), "USD"
+        if local_price is None:
+            positive_amount = to_decimal(price)
 
     common = dict(
         gateway=STORE_GATEWAY.get(event.get("store")) or (event.get("store") or "revenuecat").lower(),
@@ -111,27 +115,35 @@ def apply_revenuecat_event(event: dict) -> str:
         is_trial = event.get("period_type") == "TRIAL"
         # PRODUCT_CHANGE and free trials only move the subscription window; no money changed hands.
         record_payment = event_type != "PRODUCT_CHANGE" and not is_trial
+        previous_expiry = user.subscription_expires_at
         user.subscription_status = "active"
         user.subscription_expires_at = expires or user.subscription_expires_at
         record(user, kind="paid", amount=amount, paid_at=purchased, next_billing=expires,
                     record_payment=record_payment, **common)
+        preserve_bonus(user, previous_expiry)
+        if not sandbox and not is_trial and event_type in {"INITIAL_PURCHASE", "RENEWAL", "NON_RENEWING_PURCHASE"} and method in {"app_store", "play_store"}:
+            record_referral_payment(user, event.get("transaction_id"), positive_amount, currency, source=method)
         return ("paid" if record_payment else "trial-or-change") + ("" if ledger else ":sandbox-no-ledger")
 
+    previous_expiry = user.subscription_expires_at
     if event_type == "CANCELLATION":
         if event.get("cancel_reason") == "CUSTOMER_SUPPORT":  # refunded by Apple/Google
             user.subscription_status = "canceled"
             user.subscription_expires_at = datetime.utcnow()
             record(user, kind="refunded", amount=amount, paid_at=_dt(event.get("event_timestamp_ms")), **common)
+            preserve_bonus(user, previous_expiry)
             return "refunded"
         user.subscription_status = "canceled"  # keeps access until `expiration_at_ms`
         user.subscription_expires_at = expires or user.subscription_expires_at
         record(user, kind="canceled", amount=None, **common)
+        preserve_bonus(user, previous_expiry)
         return "canceled"
 
     if event_type == "EXPIRATION":
         user.subscription_status = "canceled"
         user.subscription_expires_at = expires or datetime.utcnow()
         record(user, kind="expired", amount=None, **common)
+        preserve_bonus(user, previous_expiry)
         return "expired"
 
     if event_type == "BILLING_ISSUE":
@@ -186,6 +198,8 @@ def sync_user_access(user) -> dict:
     else:
         status = "canceled"
     if expires > (user.subscription_expires_at or datetime.min):
+        previous_expiry = user.subscription_expires_at
         user.subscription_status = status
         user.subscription_expires_at = expires
+        preserve_bonus(user, previous_expiry)
     return {"entitled": expires > now, "expires_at": expires.isoformat(), "status": status}
