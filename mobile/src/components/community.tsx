@@ -205,14 +205,34 @@ export function ActivityCard({ activity: a, showGroup = true, detail = false }: 
   );
 }
 
-export function ChallengeCard({ challenge: c, onPress }: { challenge: Challenge; onPress?: () => void }) {
+export function ChallengeCard({ challenge: c, onPress, largeCover = false }: {
+  challenge: Challenge;
+  onPress?: () => void;
+  largeCover?: boolean;
+}) {
   const Colors = useColors();
+  const cover = useQuery({
+    queryKey: ['community', 'challenge-image', c.id, c.cover_image],
+    queryFn: () => api<ImagePayload>(`/community/challenges/${c.id}/image`),
+    enabled: !!c.cover_image,
+    ...imageQueryOptions,
+  });
+  const uri = imageUri(cover.data);
   const progress = c.my_progress ?? 0;
   const pct = c.target ? (progress / c.target) * 100 : 0;
   return (
     <Card onPress={onPress ?? (() => router.push(`/community/challenge/${c.id}`))} accessibilityLabel={`Desafio ${c.title}`}>
+      {uri && largeCover && (
+        <Image source={{ uri }} contentFit="cover" cachePolicy={cover.data?.url ? 'disk' : 'none'}
+          style={{ width: '100%', aspectRatio: 1.8, borderRadius: Radius.md }} />
+      )}
       <Row style={{ gap: Spacing.three }}>
-        <BadgeIcon icon={c.completed ? Trophy : c.is_public ? Globe : Users} size={36} tone={c.completed || c.joined ? 'volt' : 'chip'} />
+        {uri && !largeCover ? (
+          <Image source={{ uri }} contentFit="cover" cachePolicy={cover.data?.url ? 'disk' : 'none'}
+            style={{ width: 44, height: 44, borderRadius: Radius.sm }} />
+        ) : (
+          <BadgeIcon icon={c.completed ? Trophy : c.is_public ? Globe : Users} size={36} tone={c.completed || c.joined ? 'volt' : 'chip'} />
+        )}
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="titleSm" numberOfLines={1}>{c.title}</Text>
           <Text variant="caption" numberOfLines={1}>

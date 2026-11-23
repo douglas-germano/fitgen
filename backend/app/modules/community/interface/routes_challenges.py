@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
+from app.shared import storage
 from app.shared.extensions import db, limiter
 from app.shared.utils.timezone import get_today_cuiaba
 from app.modules.identity.domain.models import User
@@ -170,6 +171,20 @@ def get_challenge(challenge_id):
     return jsonify(data), 200
 
 
+@challenges_bp.route('/challenges/<challenge_id>/image', methods=['GET'])
+@jwt_required()
+def get_challenge_image(challenge_id):
+    challenge = _visible(challenge_id, me())
+    if not challenge or not challenge.cover_image:
+        return fail('Capa não encontrada.', 404)
+    payload = storage.image_payload('challenges', challenge.cover_image)
+    if payload is None:
+        return fail('Capa não encontrada.', 404)
+    response = jsonify(payload)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 @challenges_bp.route('/challenges/<challenge_id>/join', methods=['POST'])
 @jwt_required()
 def join_challenge(challenge_id):
@@ -215,6 +230,8 @@ def delete_challenge(challenge_id):
     member = graph.membership(challenge.group_id, uid) if challenge.group_id else None
     if challenge.creator_id != uid and not (member and member.role == 'admin'):
         return fail('Só quem criou o desafio pode excluí-lo.', 403)
+    cover = challenge.cover_image
     db.session.delete(challenge)
     db.session.commit()
+    storage.remove('challenges', cover)
     return jsonify({'msg': 'Desafio excluído.'}), 200

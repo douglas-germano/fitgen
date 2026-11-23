@@ -133,6 +133,7 @@ class Challenge(db.Model):
     creator_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='SET NULL'))
     title = db.Column(db.String(80), nullable=False)
     description = db.Column(db.String(280))
+    cover_image = db.Column(db.String(500))
     metric = db.Column(db.String(20), nullable=False)
     target = db.Column(db.Integer, nullable=False)
     start_date = db.Column(db.Date, nullable=False)

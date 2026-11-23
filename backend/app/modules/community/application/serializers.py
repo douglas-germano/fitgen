@@ -95,7 +95,7 @@ def challenge(c, viewer_id, progress=None, groups_by_id=None):
         progress = challenge_service.progress_by_user(c, only=viewer_id) if me else {}
     group_obj = (groups_by_id or {}).get(c.group_id)
     return {
-        'id': str(c.id), 'title': c.title, 'description': c.description,
+        'id': str(c.id), 'title': c.title, 'description': c.description, 'cover_image': c.cover_image,
         'metric': c.metric, 'metric_label': CHALLENGE_METRICS.get(c.metric, c.metric), 'target': c.target,
         'start_date': iso(c.start_date), 'end_date': iso(c.end_date), 'status': challenge_service.status(c),
         'is_public': c.is_public,

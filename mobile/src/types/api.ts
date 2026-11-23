@@ -349,6 +349,7 @@ export interface Challenge {
   id: string;
   title: string;
   description: string | null;
+  cover_image?: string | null;
   metric: ChallengeMetric;
   metric_label: string;
   target: number;

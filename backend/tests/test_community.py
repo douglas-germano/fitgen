@@ -234,6 +234,27 @@ class CommunityTests(unittest.TestCase):
             award.assert_called_once()
         self.assertIsNotNone(challenge.participants[0].completed_at)
 
+    def test_challenge_cover_is_only_available_to_visible_viewers(self):
+        group = self.group()
+        self.join(group)
+        challenge = self.request('/challenges', method='post', json={
+            'title': 'Treinar', 'metric': 'workouts', 'target': 1, 'duration_days': 7, 'group_id': group['id'],
+        }).json
+        path = '/challenges/' + challenge['id']
+        self.assertIsNone(challenge['cover_image'])
+        self.assertEqual(self.request(path + '/image').status_code, 404)
+
+        row = db.session.get(Challenge, graph.as_uuid(challenge['id']))
+        row.cover_image = 'r2:challenges/test.jpg'
+        db.session.commit()
+        self.assertEqual(self.request(path, 1).json['cover_image'], row.cover_image)
+        with patch('app.shared.storage.signed_url', return_value='https://example.invalid/signed.jpg'):
+            image = self.request(path + '/image', 1)
+            self.assertEqual(image.status_code, 200)
+            self.assertEqual(image.json['url'], 'https://example.invalid/signed.jpg')
+            self.assertEqual(image.headers['Cache-Control'], 'no-store')
+            self.assertEqual(self.request(path + '/image', 2).status_code, 404)
+
     def test_logged_workout_updates_progress_awards_once_and_respects_ranking_privacy(self):
         from app.modules.training.domain.models import WorkoutSession, WorkoutPlan, WorkoutDay
         from app.modules.identity.domain.models import UserProfile

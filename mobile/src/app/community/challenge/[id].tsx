@@ -12,7 +12,7 @@ export default function ChallengeScreen() {
   if (query.error || !query.data) return <QueryError title="Desafio" back error={query.error} onRetry={query.refetch} />;
   const c = query.data;
   return <Page topBar={<TopBar title="Desafio" back />} refreshing={query.isRefetching} onRefresh={query.refetch}>
-    <ChallengeCard challenge={c} onPress={() => {}} /><Text>{c.description}</Text>
+    <ChallengeCard challenge={c} largeCover onPress={() => {}} /><Text>{c.description}</Text>
     <Text muted>{c.start_date} até {c.end_date}. Progresso calculado pelos registros do FitGen. Ao participar, seu progresso fica visível aos participantes.</Text>
     {(!c.completed && (c.joined || c.status !== 'ended')) && <Button title={c.joined ? 'Sair do desafio' : 'Participar'} variant={c.joined ? 'soft' : 'primary'} loading={join.isPending} onPress={() => {
       const run = () => join.mutate({ id, join: !c.joined }, { onError: error });
