@@ -1,7 +1,7 @@
 const apiModules = new Set([
   'auth', 'chat', 'community', 'diet', 'exercises', 'gamification', 'health',
   'hydration', 'metrics', 'notifications', 'nutrition', 'onboarding', 'profile',
-  'subscriptions', 'workouts',
+  'referrals', 'subscriptions', 'workouts',
 ]);
 
 export default {
