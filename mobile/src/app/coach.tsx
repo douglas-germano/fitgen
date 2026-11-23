@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CoachA2uiDemo } from '@/components/coach-a2ui-demo';
 import { Markdown } from '@/components/markdown';
 import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY, OTTO_KEYBOARD_DELAY } from '@/components/otto';
 import { PremiumLocked } from '@/components/premium-locked';
@@ -132,6 +133,7 @@ function CoachChat() {
     <View style={{ flex: 1, backgroundColor: Colors.surface, paddingTop: insets.top + Spacing.three }}>
       <View style={{ paddingHorizontal: Spacing.five, paddingBottom: Spacing.three }}>
         <TopBar title="Otto" back action={<MoreButton onPress={openMenu} />} />
+        <CoachA2uiDemo />
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1, minHeight: 0 }}
