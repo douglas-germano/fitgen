@@ -1,3 +1,4 @@
+import { Copy } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Platform, Share } from 'react-native';
@@ -16,13 +17,30 @@ const labels: Record<string, string> = {
   pending: 'Estimativa pendente de conferência', approved: 'Aprovada', paid: 'Paga', void: 'Anulada', reversed: 'Estornada',
 };
 
-function Invite({ code, url }: { code: string; url: string }) {
+function Invite({ code, url, program }: { code: string; url: string; program: string }) {
   const [error, setError] = useState('');
+  const [copiedUrl, setCopiedUrl] = useState('');
+
+  const copyLink = async () => {
+    setError('');
+    setCopiedUrl('');
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+    } catch {
+      setError('Não foi possível copiar. Selecione o link acima e copie manualmente.');
+    }
+  };
   return (
     <>
       <Text selectable>Código {code}</Text>
       <Text selectable>{url}</Text>
-      {Platform.OS !== 'web' && (
+      {Platform.OS === 'web' ? (
+        <>
+          <Button title="Copiar link" accessibilityLabel={`Copiar link do ${program}`} icon={Copy} variant="soft" onPress={copyLink} />
+          {copiedUrl === url && <Text muted variant="caption" accessibilityLiveRegion="polite">Link copiado.</Text>}
+        </>
+      ) : (
         <Button title="Compartilhar convite" onPress={async () => {
           try {
             await Share.share({ message: `Use o código ${code} para entrar no FitGen. ${url}` });
@@ -66,7 +84,7 @@ export default function ReferralsScreen() {
             <Text>{friends.data.earned_days} dias Premium conquistados</Text>
             {friends.data.ends_at && new Date(friends.data.ends_at) > new Date() &&
               <Text muted>Bônus disponível até {new Date(friends.data.ends_at).toLocaleDateString('pt-BR')}.</Text>}
-            <Invite code={friends.data.code} url={`https://web.fitgen.pro/register?ref=${friends.data.code}`} />
+            <Invite program="Indique e Ganhe" code={friends.data.code} url={`https://web.fitgen.pro/register?ref=${friends.data.code}`} />
           </>
         )}
       </Card>
@@ -77,7 +95,7 @@ export default function ReferralsScreen() {
           <Text muted>30% do valor líquido recebido em cada pagamento da assinatura indicada.</Text>
           <Text>{partner.data.signups} cadastros · {partner.data.qualified} assinantes com pagamento</Text>
           {partner.data.enabled
-            ? <Invite code={partner.data.code} url={`https://fitgen.pro/assinar?ref=${partner.data.code}`} />
+            ? <Invite program="FitGen Parceiros" code={partner.data.code} url={`https://fitgen.pro/assinar?ref=${partner.data.code}`} />
             : <Text muted>Convite desativado.</Text>}
           {partner.data.commissions.map((row) => (
             <Text key={row.id}>
