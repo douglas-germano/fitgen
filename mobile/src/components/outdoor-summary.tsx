@@ -85,7 +85,7 @@ export function OutdoorTrace({ route, emptyMessage }: { route: OutdoorRoute; emp
   );
 }
 
-function projectRoute(route: OutdoorRoute, width = 320, height = 192, pad = 18) {
+export function projectRoute(route: OutdoorRoute, width = 320, height = 192, pad = 18) {
   const nonempty = route.filter((segment) => segment.length > 0);
   const origin = nonempty[0]?.[0];
   if (!origin) return [];
