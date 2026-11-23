@@ -64,6 +64,7 @@
     },
     "android": {
       "package": "com.douglas.fitgen",
+      "versionCode": 8,
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
