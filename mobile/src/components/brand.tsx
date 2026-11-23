@@ -4,13 +4,13 @@ import { View } from 'react-native';
 import { Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 
-const MARK = require('../../assets/images/logo-mark.png');
+export const BRAND_MARK_ASSET = require('../../assets/images/logo-mark.png');
 /** Mark artwork is 717×690. */
 const MARK_RATIO = 690 / 717;
 
 /** The FitGen "F" mark (transparent, works on light and dark surfaces). */
 export function BrandMark({ size = 56 }: { size?: number }) {
-  return <Image source={MARK} style={{ width: size, height: size * MARK_RATIO }} contentFit="contain" accessibilityLabel="FitGen" />;
+  return <Image source={BRAND_MARK_ASSET} style={{ width: size, height: size * MARK_RATIO }} contentFit="contain" accessibilityLabel="FitGen" />;
 }
 
 /** Mark + name. The wordmark is live text so it follows the light/dark theme. */

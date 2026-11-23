@@ -102,7 +102,7 @@ const stubs = {
     getItemSync(key) { return this.items.get(key) ?? null; }
     setItemSync(key, value) { this.items.set(key, value); }
     removeItemSync(key) { this.items.delete(key); }
-  } }, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
+  } }, 'expo':{}, 'expo-sharing':{}, 'expo-asset':{}, 'expo-image-picker':{}, 'expo-image-manipulator':{ ImageManipulator:{}, SaveFormat:{ JPEG:'jpeg' } }, 'expo-file-system':{ File: class File { constructor(uri) { this.uri = uri; } } }, 'expo-haptics':{}, 'expo-web-browser':{}, 'expo-secure-store':{},
   'expo-constants':{__esModule:true,default:{expoConfig:{version:'1.0.0'}}},
   'expo-apple-authentication':{ isAvailableAsync:async()=>false, AppleAuthenticationButton:()=>null, AppleAuthenticationButtonType:{}, AppleAuthenticationButtonStyle:{}, AppleAuthenticationScope:{} },
   '@react-native-google-signin/google-signin':{ GoogleSignin:{ configure(){} }, isCancelledResponse:()=>false, isErrorWithCode:()=>false, statusCodes:{} },
@@ -230,7 +230,7 @@ try {
           for (const text of ['Treino A', 'Corrida ao ar livre', '1,20 km', 'Pedal ao ar livre', '4,00 km']) assert.ok(result.includes(text));
         }
         if (mode === 'content' && file.endsWith('/app/outdoor/[id].tsx')) {
-          for (const text of ['Trajeto GPS', '1,20 km', '96 kcal', '8:20 /km']) assert.ok(result.includes(text));
+          for (const text of ['Trajeto GPS', '1,20 km', '96 kcal', '8:20 /km', 'Compartilhar atividade']) assert.ok(result.includes(text));
           outdoorDetail = bike;
           const bikeResult = renderToStaticMarkup(React.createElement(AppThemeProvider, null, React.createElement(load(file).default)));
           outdoorDetail = outdoor;

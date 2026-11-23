@@ -92,6 +92,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-sharing",
       "expo-router",
       "./plugins/with-outdoor-live",
       [

@@ -3,6 +3,13 @@ plugins {
   id 'expo-module-gradle-plugin'
 }
 
+group = 'expo.modules.outdoorlive'
+version = '1.0.0'
+
 android {
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
   namespace 'expo.modules.outdoorlive'
 }

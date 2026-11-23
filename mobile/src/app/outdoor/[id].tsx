@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 
 import { OutdoorMap } from '@/components/outdoor-map';
+import { OutdoorShare } from '@/components/outdoor-share';
 import { OutdoorStats } from '@/components/outdoor-summary';
 import { Button, Card, Page, PageSkeleton, QueryError, Text, TopBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -56,6 +57,7 @@ export default function OutdoorDetailScreen() {
       <OutdoorStats summary type={record.outdoor_type} seconds={record.duration_seconds}
         meters={record.distance_meters} calories={record.calories} />
       <OutdoorMap route={record.route} emptyMessage="Nenhum ponto de GPS foi registrado nesta sessão." />
+      <OutdoorShare key={record.id} record={record} />
       {pending && (
         <Card style={{ gap: Spacing.two }}>
           <Text variant="titleMd">Sincronização pendente</Text>
