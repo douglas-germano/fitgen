@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 import time
 from app.modules.coach.infrastructure.ai_service import AIService
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise
@@ -8,6 +9,16 @@ from app.shared.extensions import db
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+# Espera entre tentativas da IA: base, 2x base (padrão 2 s e 4 s), dentro dos 75 s que a
+# rota de onboarding aguarda antes de responder 202. Ajustável por variável de ambiente.
+RETRY_BASE_SECONDS = float(os.environ.get("WORKOUT_AI_RETRY_BASE_SECONDS", "2"))
+RETRY_MAX_SECONDS = 20.0
+
+
+def _retry_delay(attempt):
+    return min(RETRY_BASE_SECONDS * (2 ** attempt), RETRY_MAX_SECONDS)
+
 
 class WorkoutGeneratorService:
     def __init__(self):
@@ -18,16 +29,20 @@ class WorkoutGeneratorService:
         
         ai_response = None
         max_retries = 3
-        
+
         for attempt in range(max_retries):
             try:
                 ai_response = self.ai.generate_json(prompt)
                 if ai_response:
                     break
+                # generate_json engole o erro (ex.: HTTP 429 do OpenRouter) e devolve None.
+                # Sem esperar aqui, as 3 tentativas saíam em ~200 ms e batiam no mesmo limite.
+                logger.warning("Attempt %s returned no plan", attempt + 1)
             except Exception as e:
                 logger.error(f"Attempt {attempt + 1} failed: {e}")
-                time.sleep(1) # Backoff
-        
+            if attempt < max_retries - 1:
+                time.sleep(_retry_delay(attempt))
+
         if not ai_response:
             logger.error("Failed to generate workout plan from AI after retries")
             raise Exception("Failed to generate workout plan from AI")
