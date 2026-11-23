@@ -7,7 +7,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CoachA2uiDemo } from '@/components/coach-a2ui-demo';
+import { CoachExerciseSwap } from '@/components/coach-exercise-swap';
 import { Markdown } from '@/components/markdown';
 import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY, OTTO_KEYBOARD_DELAY } from '@/components/otto';
 import { PremiumLocked } from '@/components/premium-locked';
@@ -54,6 +54,7 @@ function CoachChat() {
   const queryClient = useQueryClient();
   const { data: history = [], isLoading, error, refetch } = useChatHistory();
   const { data: profile } = useProfile();
+  const [showExerciseSwap, setShowExerciseSwap] = useState(false);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [showGreeting, setShowGreeting] = useState(true);
@@ -133,7 +134,6 @@ function CoachChat() {
     <View style={{ flex: 1, backgroundColor: Colors.surface, paddingTop: insets.top + Spacing.three }}>
       <View style={{ paddingHorizontal: Spacing.five, paddingBottom: Spacing.three }}>
         <TopBar title="Otto" back action={<MoreButton onPress={openMenu} />} />
-        <CoachA2uiDemo />
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1, minHeight: 0 }}
@@ -158,7 +158,7 @@ function CoachChat() {
                 <ActivityIndicator size="small" color={Colors.inkMuted} />
                 <Text variant="caption">Preparando resposta…</Text>
               </Row>
-            ) : undefined}
+            ) : showExerciseSwap ? <CoachExerciseSwap /> : undefined}
             renderItem={({ item }) => {
               const mine = item.role === 'user';
               const fresh = item.id?.startsWith('local-');
@@ -187,7 +187,15 @@ function CoachChat() {
         <View style={{ paddingHorizontal: Spacing.five, paddingTop: Spacing.three, paddingBottom: Spacing.three + bottomInset, gap: Spacing.three, flexShrink: 0, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: Colors.surface }}>
           <Row style={{ gap: Spacing.two }}>
             {QUICK_PROMPTS.map((prompt) => (
-              <Pressable key={prompt.label} onPress={() => send(prompt.message)} disabled={sending || isLoading} accessibilityRole="button"
+              <Pressable key={prompt.label} onPress={() => {
+                if (Platform.OS === 'web' && prompt.label === 'Trocar exercício') {
+                  setShowGreeting(false);
+                  setShowExerciseSwap((visible) => !visible);
+                  listRef.current?.scrollToOffset({ offset: 0, animated: false });
+                  return;
+                }
+                void send(prompt.message);
+              }} disabled={sending || isLoading} accessibilityRole="button"
                 style={({ pressed }) => ({ flex: 1, minHeight: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two, backgroundColor: pressed ? Colors.line : Colors.surfaceChip, opacity: sending ? 0.6 : 1 })}>
                 <Text variant="label" muted numberOfLines={1} adjustsFontSizeToFit>{prompt.label}</Text>
               </Pressable>
