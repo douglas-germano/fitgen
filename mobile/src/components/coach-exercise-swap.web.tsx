@@ -2,13 +2,14 @@ import { A2uiSurface } from '@a2ui/react';
 import { MessageProcessor } from '@a2ui/web_core';
 import { basicCatalog } from '@a2ui/web_core/catalogs/basic/v1';
 import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeftRight, Check, ChevronDown } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { fontFor } from '@/constants/theme';
 import { useActiveWorkoutPlan, useExerciseLibrary } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
 import { muscleLabel } from '@/lib/exercise-library';
-import { useColors } from '@/providers/theme';
+import { useAppTheme } from '@/providers/theme';
 import type { Exercise, LibraryExercise } from '@/types/api';
 
 const surfaceId = 'exercise-swap';
@@ -36,6 +37,7 @@ function SwapOptions({ exercise, alternatives, planId, onSaved }: {
               id: 'alternatives',
               component: 'ChoicePicker',
               label: 'Alternativas da biblioteca',
+              displayStyle: 'chips',
               options: alternatives.map(({ id, name, equipment_needed }) => ({
                 value: id,
                 label: [name, equipment_needed.join(', ')].filter(Boolean).join(' · '),
@@ -47,6 +49,10 @@ function SwapOptions({ exercise, alternatives, planId, onSaved }: {
               id: 'confirm',
               component: 'Button',
               variant: 'primary',
+              '@checks': [{
+                condition: { '@call': 'required', args: { value: { '@path': '/selection' } } },
+                message: 'Escolha uma alternativa para continuar.',
+              }],
               child: 'confirmLabel',
               action: { event: { name: 'save_exercise_swap', context: { selection: { '@path': '/selection' } } } },
             },
@@ -97,7 +103,7 @@ function SwapOptions({ exercise, alternatives, planId, onSaved }: {
   return surface ? (
     <>
       <A2uiSurface surface={surface} />
-      <div role="status">{status}</div>
+      <div role="status" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--swap-muted)' }}>{status}</div>
     </>
   ) : <p role="alert">Não foi possível carregar as alternativas.</p>;
 }
@@ -107,7 +113,7 @@ function normalize(value: string) {
 }
 
 export function CoachExerciseSwap() {
-  const colors = useColors();
+  const { colors, scheme } = useAppTheme();
   const { plan, isLoading, error, refetch } = useActiveWorkoutPlan();
   const library = useExerciseLibrary();
   const [dayId, setDayId] = useState('');
@@ -137,30 +143,63 @@ export function CoachExerciseSwap() {
   const style = {
     background: colors.surfaceSunken,
     color: colors.ink,
-    borderRadius: 20,
-    padding: 16,
+    border: `1px solid ${colors.line}`,
+    borderRadius: 24,
+    padding: 'clamp(14px, 4vw, 22px)',
+    width: '100%',
+    maxWidth: 540,
+    boxSizing: 'border-box',
     fontFamily: fontFor(400),
+    fontSize: 14,
+    lineHeight: 1.5,
+    colorScheme: scheme,
     display: 'grid',
-    gap: 12,
+    gap: 16,
+    '--swap-muted': colors.inkMuted,
     '--a2ui-color-primary': colors.volt,
-    '--a2ui-color-primary-hover': colors.volt,
+    '--a2ui-color-primary-hover': colors.voltStrong,
     '--a2ui-color-on-primary': colors.onVolt,
     '--a2ui-color-on-background': colors.ink,
     '--a2ui-color-on-surface': colors.ink,
     '--a2ui-color-border': colors.line,
     '--a2ui-color-on-input': colors.ink,
     '--a2ui-color-input': colors.surface,
-    '--a2ui-button-border-radius': '24px',
+    '--a2ui-button-border-radius': '14px',
+    '--a2ui-button-margin': '0',
+    '--a2ui-button-padding': '14px 18px',
+    '--a2ui-button-font-weight': '700',
+    '--a2ui-choicepicker-gap': '8px',
+    '--a2ui-choicepicker-label-font-size': '13px',
+    '--a2ui-choicepicker-chip-background': colors.surface,
+    '--a2ui-choicepicker-chip-background-selected': colors.volt,
+    '--a2ui-choicepicker-chip-border-radius': '12px',
+    '--a2ui-choicepicker-chip-font-size': '13px',
+    '--a2ui-choicepicker-chip-padding': '12px 14px',
+    '--a2ui-column-gap': '16px',
   } as CSSProperties;
+  const labelStyle: CSSProperties = { display: 'grid', gap: 6, fontFamily: fontFor(600), fontSize: 13 };
   const selectStyle: CSSProperties = {
-    display: 'block', boxSizing: 'border-box', width: '100%', marginTop: 6, padding: 10,
-    font: 'inherit', color: colors.ink, background: colors.surface, border: `1px solid ${colors.line}`, borderRadius: 10,
+    display: 'block', boxSizing: 'border-box', width: '100%', minHeight: 48, padding: '10px 34px 10px 12px',
+    font: 'inherit', color: colors.ink, background: colors.surface, border: `1px solid ${colors.line}`,
+    borderRadius: 12, appearance: 'none', outlineOffset: 2,
   };
+  const chevron = (
+    <span aria-hidden style={{ position: 'absolute', insetInlineEnd: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+      <ChevronDown color={colors.inkMuted} size={16} />
+    </span>
+  );
 
   return (
     <section aria-label="Trocar exercício na ficha" style={style}>
-      <strong>Trocar exercício na ficha</strong>
-      {saved ? <div role="status">{saved} foi salvo na sua ficha.</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span aria-hidden style={{ display: 'grid', placeItems: 'center', flexShrink: 0, width: 42, height: 42, borderRadius: 14, background: colors.voltSoft }}>
+          {saved ? <Check size={20} color={colors.voltInk} /> : <ArrowLeftRight size={20} color={colors.voltInk} />}
+        </span>
+        <h2 style={{ margin: 0, fontFamily: fontFor(700), fontSize: 18, lineHeight: 1.3 }}>
+          {saved ? 'Ficha atualizada' : 'Trocar exercício'}
+        </h2>
+      </div>
+      {saved ? <div role="status" style={{ color: colors.inkMuted }}>{saved} foi salvo na sua ficha.</div>
         : error || library.error ? (
           <>
             <div role="alert">{errorMessage(error ?? library.error)}</div>
@@ -170,22 +209,35 @@ export function CoachExerciseSwap() {
           : !plan || !day ? <div>Ative uma ficha com treinos para trocar um exercício.</div>
             : (
               <>
-                <label>
-                  Treino
-                  <select style={selectStyle} value={day.id} onChange={(event) => {
-                    setDayId(event.target.value);
-                    setExerciseId('');
-                  }}>
-                    {days.map((item) => <option key={item.id} value={item.id}>{item.name || item.day_of_week}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Exercício atual
-                  <select style={selectStyle} value={exercise?.id ?? ''} onChange={(event) => setExerciseId(event.target.value)}>
-                    <option value="">Selecione um exercício</option>
-                    {day.exercises.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                  </select>
-                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 156px), 1fr))', gap: 12 }}>
+                  <label style={labelStyle}>
+                    Treino
+                    <span style={{ position: 'relative' }}>
+                      <select style={selectStyle} value={day.id} onChange={(event) => {
+                        setDayId(event.target.value);
+                        setExerciseId('');
+                        }}>
+                        {days.map((item) => <option key={item.id} value={item.id}>{item.name || item.day_of_week}</option>)}
+                      </select>
+                      {chevron}
+                    </span>
+                  </label>
+                  <label style={labelStyle}>
+                    Exercício atual
+                    <span style={{ position: 'relative' }}>
+                      <select style={selectStyle} value={exercise?.id ?? ''} onChange={(event) => setExerciseId(event.target.value)}>
+                        <option value="">Selecione um exercício</option>
+                        {day.exercises.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                      </select>
+                      {chevron}
+                    </span>
+                  </label>
+                </div>
+                {exercise && (
+                  <div style={{ color: colors.inkMuted, fontSize: 13, borderTop: `1px solid ${colors.line}`, paddingTop: 12 }}>
+                    {exercise.sets} séries · {exercise.reps} repetições · {exercise.rest_seconds ?? 60} s de descanso
+                  </div>
+                )}
                 {exercise && (alternatives.length ? (
                   <SwapOptions key={exercise.id} exercise={exercise} alternatives={alternatives} planId={plan.id} onSaved={setSaved} />
                 ) : <div>Nenhuma alternativa do mesmo grupo muscular foi encontrada para este exercício.</div>)}
