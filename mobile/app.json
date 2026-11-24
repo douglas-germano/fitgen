@@ -60,7 +60,8 @@
           }
         ]
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "appleTeamId": "5APN3M5HCC"
     },
     "android": {
       "package": "com.douglas.fitgen",

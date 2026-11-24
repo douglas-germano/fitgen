@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import ai_limit, db
 from app.shared.job_state import jobs
+from app.modules.identity.application.onboarding import CHOICES, MULTI
 from app.modules.identity.domain.models import User, UserProfile
 from app.modules.analytics.domain.metrics_calculator import calculate_bmr, calculate_tdee
 from app.modules.training.application.workout_generator import WorkoutGeneratorService
@@ -157,7 +158,7 @@ def _job_key(user_id) -> str:
     return f'onboarding-workout:{user_id}'
 
 
-def _run_workout_job(app, user_id: uuid.UUID, trace_headers: dict | None = None) -> None:
+def _run_workout_job(app, user_id: uuid.UUID, trace_headers: dict | None = None, preferences=None) -> None:
     """Generates the plan outside the request, so a slow AI answer can't hold the request.
 
     Runs in its own Sentry transaction ("ai.*", always sampled), linked to the request's
@@ -169,23 +170,26 @@ def _run_workout_job(app, user_id: uuid.UUID, trace_headers: dict | None = None)
         transaction = sentry_sdk.continue_trace(trace_headers or {}, op='ai.job',
                                                 name='ai.onboarding_workout_job')
         with sentry_sdk.start_transaction(transaction):
-            _generate_workout(app, user_id)
+            _generate_workout(app, user_id, preferences=preferences)
 
 
-def _generate_workout(app, user_id: uuid.UUID) -> None:
+def _generate_workout(app, user_id: uuid.UUID, *, preferences=None) -> None:
     key = _job_key(user_id)
-    result = {'status': 'failed', 'plan_id': None, 'plan_name': None}
+    draft = preferences is not None
+    result = {'status': 'failed', 'plan_id': None, 'plan_name': None, 'draft': draft, 'preferences': preferences}
     with app.app_context():
         try:
             user = User.query.get(user_id)
             profile = user.profile if user else None
             if not profile:
                 raise ValueError('Onboarding not completed')
-            plan = WorkoutGeneratorService().generate_workout_plan(user, profile)
+            generator = WorkoutGeneratorService()
+            plan = (generator.generate_workout_plan(user, profile, preferences=preferences)
+                    if draft else generator.generate_workout_plan(user, profile))
             user.onboarding_completed = True
             profile.onboarding_completed = True
             db.session.commit()
-            result = {'status': 'done', 'plan_id': str(plan.id), 'plan_name': plan.name}
+            result = {'status': 'done', 'plan_id': str(plan.id), 'plan_name': plan.name, 'draft': draft, 'preferences': preferences}
         except Exception:
             db.session.rollback()
             app.logger.exception('Failed to generate onboarding workout')
@@ -194,15 +198,16 @@ def _generate_workout(app, user_id: uuid.UUID) -> None:
             jobs.finish(key, result)
 
 
-def _start_or_join_job(user_id: uuid.UUID) -> str:
+def _start_or_join_job(user_id: uuid.UUID, *, preferences=None) -> str:
     """Starts the generation unless one is already running for this user (on any replica)."""
     key = _job_key(user_id)
     if jobs.claim(key, WORKOUT_JOB_LOCK_SECONDS):
-        jobs.set(key, {'status': 'pending', 'plan_id': None, 'plan_name': None})
+        jobs.set(key, {'status': 'pending', 'plan_id': None, 'plan_name': None,
+                       'draft': preferences is not None, 'preferences': preferences})
         import sentry_sdk
         app = current_app._get_current_object()
         trace_headers = {'sentry-trace': sentry_sdk.get_traceparent() or '', 'baggage': sentry_sdk.get_baggage() or ''}
-        threading.Thread(target=_run_workout_job, args=(app, user_id, trace_headers), daemon=True,
+        threading.Thread(target=_run_workout_job, args=(app, user_id, trace_headers, preferences), daemon=True,
                          name=f'onboarding-workout-{user_id}').start()
     return key
 
@@ -214,10 +219,12 @@ def _job_response(job: dict):
             "status": "done",
             "plan_id": job['plan_id'],
             "plan_name": job['plan_name'],
+            "draft": job.get("draft", False),
+            "preferences": job.get("preferences"),
         }), 200
     if job['status'] == 'failed':
         return jsonify({"msg": "Failed to generate workout plan", "status": "failed"}), 500
-    return jsonify({"msg": "Workout plan is being generated", "status": "pending"}), 202
+    return jsonify({"msg": "Workout plan is being generated", "status": "pending", "draft": job.get("draft", False), "preferences": job.get("preferences")}), 202
 
 
 @onboarding_bp.route('/generate-workout', methods=['POST'])
@@ -244,8 +251,18 @@ def generate_workout():
     if not user or not user.profile:
         return jsonify({"msg": "Onboarding not completed"}), 400
 
-    key = _start_or_join_job(user_id)
-    job = jobs.wait(key, timeout=_wait_seconds()) or {'status': 'pending'}
+    data = request.get_json(silent=True)
+    draft = isinstance(data, dict) and data.get('draft') is True
+    preferences = None
+    if draft:
+        days, location = data.get('days'), data.get('location')
+        if not isinstance(days, list) or not days or any(day not in MULTI['days'][2] for day in days) or location not in CHOICES['location']:
+            return jsonify({'msg': 'Selecione dias e equipamentos válidos.'}), 400
+        preferences = {'days': [day for day in MULTI['days'][2] if day in days], 'location': location}
+    key = _start_or_join_job(user_id, preferences=preferences) if draft else _start_or_join_job(user_id)
+    job = jobs.wait(key, timeout=_wait_seconds()) or jobs.get(key) or {'status': 'pending', 'draft': draft, 'preferences': preferences}
+    if bool(job.get('draft')) != draft or job.get('preferences') != preferences:
+        return jsonify({'msg': 'Já existe outra geração de ficha em andamento. Tente novamente em instantes.'}), 409
     return _job_response(job)
 
 

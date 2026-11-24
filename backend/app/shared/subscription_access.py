@@ -110,7 +110,7 @@ def access_payload(user) -> dict:
 
 def _first_workout_plan_is_free(user) -> bool:
     from app.modules.training.domain.models import WorkoutPlan
-    return WorkoutPlan.query.filter_by(user_id=user.id).first() is None
+    return WorkoutPlan.query.filter_by(user_id=user.id).filter(~WorkoutPlan.draft_filter()).first() is None
 
 
 def _current_user():

@@ -7,6 +7,7 @@ import Animated, { Easing, FadeIn, useAnimatedStyle, useReducedMotion, useShared
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { track } from '@/lib/analytics';
+import { OnboardingWorkoutReview } from '@/components/onboarding-workout-review';
 import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY } from '@/components/otto';
 import { Avatar, Button, Card, IconButton, Input, ProgressBar, Row, Text, PageSkeleton, QueryError } from '@/components/ui';
 import { useProfile } from '@/hooks/queries';
@@ -168,7 +169,7 @@ export default function OnboardingScreen() {
     if (generating) return;
     setError('');
     try {
-      if (!generation.workout) {
+      if (Platform.OS !== 'web' && !generation.workout) {
         setGenerating('Criando seu treino…');
         await api('/onboarding/generate-workout', { method: 'POST' });
         setGeneration(g => ({ ...g, workout: true }));
@@ -218,16 +219,18 @@ export default function OnboardingScreen() {
     </View>
   </View>;
 
-  if (saved) return <View style={{ flex: 1, backgroundColor: Colors.surface }}>{header}<View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 24 }}>
+  if (saved) return <View style={{ flex: 1, backgroundColor: Colors.surface }}>{header}<ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center', gap: 24 }}>
     <View style={{ width: 72, height: 72, borderRadius: 26, backgroundColor: Colors.volt, justifyContent: 'center', alignItems: 'center' }}><CheckCheck size={34} color={Colors.onVolt} /></View>
     <Text variant="display">Agora o FitGen{`\n`}conhece sua rotina.</Text>
     <Text muted>Seu perfil, seus objetivos e suas preferências foram salvos. Quer criar o primeiro treino e o cardápio da semana com IA?</Text>
     <Card style={{ gap: 12 }}><Row><Check size={18} color={Colors.voltInk} /><Text>Perfil e preferências salvos</Text></Row><Text muted>{generation.workout ? '✓ Treino criado' : 'Treino ainda não gerado'}</Text><Text muted>{generation.diet ? '✓ Plano alimentar criado' : 'Plano alimentar ainda não gerado'}</Text></Card>
     {!!error && <Text accessibilityRole="alert" color={Colors.danger}>{error}</Text>}
-    {!(generation.workout && generation.diet) && <Button title={generating || (error ? 'Tentar gerar novamente' : 'Criar meus planos com IA')} onPress={generate} loading={!!generating} />}
+    {Platform.OS === 'web' && <OnboardingWorkoutReview answers={answers} onActivated={() => setGeneration(g => ({ ...g, workout: true }))} />}
+    {(Platform.OS === 'web' ? !generation.diet && !locked('diet_plan') : !(generation.workout && generation.diet)) &&
+      <Button title={generating || (error ? 'Tentar gerar novamente' : Platform.OS === 'web' ? 'Criar plano alimentar' : 'Criar meus planos com IA')} onPress={generate} loading={!!generating} />}
     {!!generating && <Text variant="caption">{generating} Isso pode levar um pouco. Mantenha esta tela aberta.</Text>}
     <Button title="Ir para o painel" variant={generation.diet && generation.workout ? 'primary' : 'soft'} disabled={!!generating} onPress={() => router.replace('/(tabs)')} />
-  </View></View>;
+  </ScrollView></View>;
 
   const responseInput = !reviewing && usesKeyboard(step) ? <Input
     label={step.unit ? `Sua resposta em ${step.unit}` : step.kind === 'date' ? 'Data de nascimento' : step.kind === 'time' ? 'Horário do treino' : 'Sua resposta'}

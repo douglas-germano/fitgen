@@ -24,8 +24,8 @@ class WorkoutGeneratorService:
     def __init__(self):
         self.ai = AIService()
 
-    def generate_workout_plan(self, user, profile):
-        prompt, exercise_map = self._build_prompt(profile)
+    def generate_workout_plan(self, user, profile, *, preferences=None):
+        prompt, exercise_map = self._build_prompt(profile, preferences=preferences)
         release_db_connection()  # don't hold a pooled connection through the AI attempts
         
         ai_response = None
@@ -34,12 +34,19 @@ class WorkoutGeneratorService:
         for attempt in range(max_retries):
             try:
                 ai_response = self.ai.generate_json(prompt, feature="workout_plan")
+                if ai_response and preferences:
+                    proposed = ai_response.get('workout_days', [])
+                    if (not proposed or sorted(day['day_of_week'] for day in proposed) != sorted(preferences['days'])
+                            or any(not day.get('exercises') or any(ex.get('exercise_id') not in exercise_map for ex in day['exercises']) for day in proposed)):
+                        ai_response = None
+                        continue
                 if ai_response:
                     break
                 # generate_json engole o erro (ex.: HTTP 429 do OpenRouter) e devolve None.
                 # Sem esperar aqui, as 3 tentativas saíam em ~200 ms e batiam no mesmo limite.
                 logger.warning("Attempt %s returned no plan", attempt + 1)
             except Exception as e:
+                ai_response = None
                 logger.error(f"Attempt {attempt + 1} failed: {e}")
             if attempt < max_retries - 1:
                 time.sleep(_retry_delay(attempt))
@@ -48,9 +55,9 @@ class WorkoutGeneratorService:
             logger.error("Failed to generate workout plan from AI after retries")
             raise Exception("Failed to generate workout plan from AI")
             
-        return self._save_plan_to_db(user, ai_response, exercise_map)
+        return self._save_plan_to_db(user, ai_response, exercise_map, draft=preferences is not None)
 
-    def _build_prompt(self, profile):
+    def _build_prompt(self, profile, *, preferences=None):
         # Filter exercises based on profile (basic filtering for now, can be expanded)
         # For simplicity and context limit, we might want to prioritize exercises
         # But for now let's just use all active ones to ensure variety, but mapped by ID
@@ -61,6 +68,20 @@ class WorkoutGeneratorService:
         #     query = query.filter(ExerciseLibrary.difficulty_level != 'advanced')
             
         available_exercises = query.all()
+        days = preferences['days'] if preferences else profile.available_days
+        equipment = profile.equipment_available
+        if preferences:
+            location = preferences['location']
+            if location == 'gym':
+                equipment = 'Academia completa'
+            else:
+                equipment = ['bodyweight', 'dumbbells'] if location == 'home' else ['bodyweight']
+                available_exercises = [
+                    exercise for exercise in available_exercises
+                    if exercise.equipment_needed and set(exercise.equipment_needed) <= set(equipment)
+                ]
+            if not available_exercises:
+                raise ValueError('Nenhum exercício disponível para os equipamentos selecionados')
         
         # Create a map of Index -> (ID, Name) to send to AI
         exercise_map = {}
@@ -91,9 +112,9 @@ class WorkoutGeneratorService:
         - Peso meta: {profile.target_weight_kg} kg
         - Nível de atividade: {profile.activity_level}
         - Objetivo: {profile.fitness_goal}
-        - Dias disponíveis: {profile.available_days}
+        - Dias disponíveis: {days}
         - Duração por treino: {profile.workout_duration_minutes} minutos
-        - Equipamentos disponíveis: {profile.equipment_available}
+        - Equipamentos disponíveis: {equipment}
         - Nível de Experiência: {profile.experience_level or "Não informado (assuma Iniciante)"}
         - Lesões/Limitações: {profile.injuries_limitations or "Nenhuma"}
 
@@ -102,7 +123,7 @@ class WorkoutGeneratorService:
 
         INSTRUÇÕES:
         1. Crie um plano de treino semanal otimizado para o objetivo do aluno
-        2. Distribua os grupos musculares de forma equilibrada nos dias disponíveis
+        2. Distribua os grupos musculares de forma equilibrada. Gere um treino por dia disponível, usando exatamente as chaves de dias acima.
         3. Para cada exercício, especifique: ID da lista, séries, repetições, tempo de descanso
         4. Considere as limitações físicas mencionadas
         5. Adapte ao equipamento disponível
@@ -137,11 +158,11 @@ class WorkoutGeneratorService:
         }}
         """, exercise_map
 
-    def _save_plan_to_db(self, user, data, exercise_map):
-        # Deactivate old plans
-        old_plans = WorkoutPlan.query.filter_by(user_id=user.id, is_active=True).all()
-        for p in old_plans:
-            p.is_active = False
+    def _save_plan_to_db(self, user, data, exercise_map, *, draft=False):
+        if not draft:
+            old_plans = WorkoutPlan.query.filter_by(user_id=user.id, is_active=True).all()
+            for plan in old_plans:
+                plan.is_active = False
             
         # Create new plan
         new_plan = WorkoutPlan(
@@ -149,9 +170,9 @@ class WorkoutGeneratorService:
             name=data.get('plan_name', 'Meu Plano de Treino')[:100],
             description=data.get('plan_description', '') + f"\n\nRecomendações: {data.get('recommendations', '')}",
             generated_by_ai=True,
-            is_active=True,
-            start_date=datetime.utcnow().date(),
-            end_date=datetime.utcnow().date() + timedelta(weeks=12) # 12 week plan default
+            is_active=not draft,
+            start_date=None if draft else datetime.utcnow().date(),
+            end_date=None if draft else datetime.utcnow().date() + timedelta(weeks=12) # 12 week plan default
         )
         db.session.add(new_plan)
         db.session.flush() # Get ID

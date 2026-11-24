@@ -1,5 +1,6 @@
 from datetime import datetime
 import uuid
+from sqlalchemy import and_
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from app.shared.extensions import db
 
@@ -21,6 +22,12 @@ class WorkoutPlan(db.Model):
 
     # Relationships
     days = db.relationship('WorkoutDay', backref='workout_plan', cascade='all, delete-orphan', order_by='WorkoutDay.order')
+
+    @classmethod
+    def draft_filter(cls):
+        # Generated previews receive their plan dates only upon first activation.
+        return and_(cls.generated_by_ai.is_(True), cls.is_active.is_(False),
+                    cls.start_date.is_(None), cls.end_date.is_(None))
 
 class WorkoutDay(db.Model):
     __tablename__ = 'workout_days'

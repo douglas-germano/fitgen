@@ -531,3 +531,30 @@ def update_shopping_list():
     db.session.commit()
 
     return jsonify({"msg": "Shopping list updated"}), 200
+
+
+@diet_bp.route('/plan/<uuid:plan_id>/meal-swap', methods=['PUT'])
+@jwt_required()
+def swap_planned_meal(plan_id):
+    """Copy an existing meal of the same type into the selected day."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'msg': 'Selecione uma alternativa do plano.'}), 400
+    day, source_day, slot = (data.get(key) for key in ('day', 'source_day', 'slot'))
+    if not all(isinstance(value, str) for value in (day, source_day, slot)) or day == source_day:
+        return jsonify({'msg': 'Selecione uma alternativa de outro dia.'}), 400
+    user_id = uuid.UUID(get_jwt_identity())
+    plan = DietPlan.query.filter_by(id=plan_id, user_id=user_id, is_active=True).with_for_update().first()
+    if not plan:
+        return jsonify({'msg': 'Plano alimentar ativo não encontrado.'}), 404
+    weekly = plan.weekly_plan or {}
+    target = weekly.get(day) or {}
+    replacement = (weekly.get(source_day) or {}).get(slot)
+    if not isinstance(target.get(slot), dict) or not isinstance(replacement, dict):
+        return jsonify({'msg': 'O cardápio mudou. Atualize o plano e revise a troca.'}), 409
+    if target[slot] != data.get('expected_current') or replacement != data.get('expected_meal'):
+        return jsonify({'msg': 'A alternativa mudou. Atualize o plano e revise a troca.'}), 409
+    plan.weekly_plan = {**weekly, day: {**target, slot: replacement}}
+    db.session.commit()
+    cache_delete(f'diet_plan:{user_id}')
+    return jsonify({'msg': 'Refeição atualizada.'})

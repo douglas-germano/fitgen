@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CoachTools } from '@/components/coach-tools';
 import { CoachExerciseSwap } from '@/components/coach-exercise-swap';
 import { Markdown } from '@/components/markdown';
 import { OttoArrival, OttoAvatar, OTTO_GREETING_DELAY, OTTO_KEYBOARD_DELAY } from '@/components/otto';
@@ -18,6 +19,7 @@ import { fontFor, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useChatHistory, useProfile } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
+import { coachToolForMessage, type CoachTool, type CoachToolRequest } from '@/lib/coach-tools';
 import { chatMessageKey, localChatMessage } from '@/lib/chat';
 import type { ChatMessage } from '@/types/api';
 
@@ -25,6 +27,11 @@ const QUICK_PROMPTS = [
   { label: 'Ajustar dieta', message: 'Quero ajustar minha dieta. O que você sugere com base no meu progresso?' },
   { label: 'Trocar exercício', message: 'Quero trocar um exercício do meu treino de hoje. Quais alternativas você sugere?' },
   { label: 'Dor muscular', message: 'Estou com dor muscular. Devo treinar hoje ou descansar?' },
+];
+const WEB_TOOLS: { label: string; tool: CoachTool }[] = [
+  { label: 'Adaptar treino', tool: 'adapt' },
+  { label: 'Revisar semana', tool: 'week' },
+  { label: 'Ajustar refeição', tool: 'diet' },
 ];
 const ANCHOR = { minIndexForVisible: 0 };
 
@@ -54,7 +61,7 @@ function CoachChat() {
   const queryClient = useQueryClient();
   const { data: history = [], isLoading, error, refetch } = useChatHistory();
   const { data: profile } = useProfile();
-  const [showExerciseSwap, setShowExerciseSwap] = useState(false);
+  const [activeTool, setActiveTool] = useState<CoachToolRequest | 'swap' | null>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [showGreeting, setShowGreeting] = useState(true);
@@ -89,6 +96,14 @@ function CoachChat() {
   const send = async (text?: string) => {
     const message = (text ?? input).trim();
     if (!message || sendingRef.current || isLoading || error) return;
+    const tool = Platform.OS === 'web' ? coachToolForMessage(message) : undefined;
+    if (tool) {
+      setActiveTool(tool);
+      setShowGreeting(false);
+      setInput('');
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      return;
+    }
     sendingRef.current = true;
     const user = localChatMessage('user', message, ++messageSequence.current);
     setShowGreeting(false);
@@ -158,7 +173,7 @@ function CoachChat() {
                 <ActivityIndicator size="small" color={Colors.inkMuted} />
                 <Text variant="caption">Preparando resposta…</Text>
               </Row>
-            ) : showExerciseSwap ? <CoachExerciseSwap /> : undefined}
+            ) : activeTool === 'swap' ? <CoachExerciseSwap /> : activeTool ? <CoachTools key={JSON.stringify(activeTool)} request={activeTool} /> : undefined}
             renderItem={({ item }) => {
               const mine = item.role === 'user';
               const fresh = item.id?.startsWith('local-');
@@ -190,7 +205,7 @@ function CoachChat() {
               <Pressable key={prompt.label} onPress={() => {
                 if (Platform.OS === 'web' && prompt.label === 'Trocar exercício') {
                   setShowGreeting(false);
-                  setShowExerciseSwap((visible) => !visible);
+                  setActiveTool((current) => current === 'swap' ? null : 'swap');
                   listRef.current?.scrollToOffset({ offset: 0, animated: false });
                   return;
                 }
@@ -201,6 +216,21 @@ function CoachChat() {
               </Pressable>
             ))}
           </Row>
+          {Platform.OS === 'web' && (
+            <Row style={{ gap: Spacing.two, flexWrap: 'wrap' }}>
+              {WEB_TOOLS.map(({ label, tool }) => (
+                <Pressable key={tool} accessibilityRole="button" accessibilityState={{ selected: activeTool !== 'swap' && activeTool?.tool === tool }}
+                  disabled={sending || isLoading} onPress={() => {
+                    setShowGreeting(false);
+                    setActiveTool((current) => current !== 'swap' && current?.tool === tool ? null : { tool });
+                    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+                  }}
+                  style={{ minHeight: 36, paddingHorizontal: Spacing.three, borderRadius: 18, justifyContent: 'center', backgroundColor: activeTool !== 'swap' && activeTool?.tool === tool ? Colors.voltSoft : Colors.surfaceChip }}>
+                  <Text variant="label" color={activeTool !== 'swap' && activeTool?.tool === tool ? Colors.voltInk : Colors.inkMuted}>{label}</Text>
+                </Pressable>
+              ))}
+            </Row>
+          )}
           <Row style={{ gap: Spacing.two, alignItems: 'flex-end' }}>
             <TextInput ref={inputRef} onFocus={() => { openedKeyboard.current = true; }} value={input} onChangeText={setInput} placeholder="Pergunte sobre treino ou dieta…" placeholderTextColor={Colors.inkMuted}
               selectionColor={Colors.ink} cursorColor={Colors.ink} multiline accessibilityLabel="Mensagem para o Otto"

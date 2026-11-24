@@ -2,11 +2,13 @@ import uuid
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.shared.extensions import db
+from app.shared.utils.timezone import now_cuiaba
+from app.modules.identity.domain.models import User
 from app.modules.training.application.exercise_animations import exercise_animation_url
 from app.modules.training.domain.exercise_library import ExerciseLibrary
 from app.modules.training.domain.models import WorkoutPlan, WorkoutDay, Exercise, ExerciseLog, WorkoutSession
 from sqlalchemy.orm import joinedload
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def exercise_fields(data):
@@ -167,7 +169,7 @@ def get_workouts():
                 type: boolean
     """
     user_id = uuid.UUID(get_jwt_identity())
-    plans = WorkoutPlan.query.filter_by(user_id=user_id).order_by(WorkoutPlan.created_at.desc()).all()
+    plans = WorkoutPlan.query.filter_by(user_id=user_id).filter(~WorkoutPlan.draft_filter()).order_by(WorkoutPlan.created_at.desc()).all()
     
     result = []
     for p in plans:
@@ -315,10 +317,69 @@ def activate_workout(plan_id):
     if not plan:
         return jsonify({"msg": "Plan not found"}), 404
         
-    # Deactivate others
+    # Deactivate others and date a generated preview on first activation.
     WorkoutPlan.query.filter_by(user_id=user_id, is_active=True).update({"is_active": False})
-    
+    if plan.generated_by_ai and not plan.start_date and not plan.end_date:
+        plan.start_date = datetime.utcnow().date()
+        plan.end_date = plan.start_date + timedelta(weeks=12)
     plan.is_active = True
     db.session.commit()
     
     return jsonify({"msg": "Plan activated"}), 200
+
+
+@workouts_bp.route('/day/<uuid:day_id>/adaptation', methods=['POST'])
+@jwt_required()
+def create_adapted_workout(day_id):
+    """Save a single-session copy while keeping the active weekly plan intact."""
+    user_id = uuid.UUID(get_jwt_identity())
+    User.query.filter_by(id=user_id).with_for_update().one()
+    if WorkoutSession.query.filter_by(user_id=user_id, status='in_progress').first():
+        return jsonify({'msg': 'Finalize a sessão em andamento antes de iniciar outra.'}), 409
+    day = WorkoutDay.query.filter_by(id=day_id, user_id=user_id).with_for_update().first()
+    if not day or not day.workout_plan.is_active:
+        return jsonify({'msg': 'Treino da ficha ativa não encontrado.'}), 404
+    data = request.get_json(silent=True)
+    requested = data.get('exercise_ids') if isinstance(data, dict) else None
+    if not isinstance(requested, list) or not 1 <= len(requested) <= 50 or not all(isinstance(item, str) for item in requested):
+        return jsonify({'msg': 'Selecione os exercícios da sessão.'}), 400
+    original = {str(exercise.id): exercise for exercise in day.exercises}
+    if len(set(requested)) != len(requested) or any(item not in original for item in requested):
+        return jsonify({'msg': 'O treino mudou. Revise os exercícios e tente novamente.'}), 409
+
+    replacements = data.get('replacements', {})
+    if not isinstance(replacements, dict) or any(key not in requested for key in replacements):
+        return jsonify({'msg': 'Substituições inválidas.'}), 400
+    library = {}
+    try:
+        for key, value in replacements.items():
+            source = original[key].exercise_library
+            replacement = ExerciseLibrary.query.filter_by(id=uuid.UUID(str(value)), is_active=True).first()
+            if (not source or not source.muscle_groups or not replacement or not replacement.muscle_groups
+                    or source.category != replacement.category or source.muscle_groups[0] != replacement.muscle_groups[0]):
+                raise ValueError
+            library[key] = replacement
+    except ValueError:
+        return jsonify({'msg': 'Uma alternativa deixou de estar disponível. Revise a sessão.'}), 409
+
+    name = f'{day.name or "Treino"} · sessão adaptada'[:255]
+    plan = WorkoutPlan(user_id=user_id, name=name, is_active=False, generated_by_ai=False)
+    adapted = WorkoutDay(user_id=user_id, workout_plan=plan, day_of_week=day.day_of_week,
+                         name=name, muscle_groups=day.muscle_groups, order=1)
+    for order, original_id in enumerate(requested, 1):
+        exercise = original[original_id]
+        replacement = library.get(original_id)
+        adapted.exercises.append(Exercise(
+            user_id=user_id, name=replacement.name if replacement else exercise.name,
+            exercise_library_id=replacement.id if replacement else exercise.exercise_library_id,
+            description=replacement.description if replacement else exercise.description,
+            sets=exercise.sets, reps=exercise.reps, rest_seconds=exercise.rest_seconds,
+            weight_kg=None if replacement else exercise.weight_kg,
+            notes=None if replacement else exercise.notes, order=order,
+        ))
+    db.session.add(plan)
+    db.session.flush()
+    db.session.add(WorkoutSession(user_id=user_id, workout_day_id=adapted.id,
+                                  started_at=now_cuiaba(), status='in_progress'))
+    db.session.commit()
+    return jsonify({'plan_id': str(plan.id), 'day_id': str(adapted.id)}), 201

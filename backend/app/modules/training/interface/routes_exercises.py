@@ -212,7 +212,8 @@ def start_session():
     except ValueError:
         return jsonify({"msg": "workout_day_id is required"}), 400
         
-    # Verify ownership
+    # Serialize starts for the same user, including starts on different workout days.
+    User.query.filter_by(id=user_id).with_for_update().one()
     day = WorkoutDay.query.filter_by(id=workout_day_id, user_id=user_id).with_for_update().first()
     if not day:
         return jsonify({"msg": "Workout day not found"}), 404
