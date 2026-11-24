@@ -17,25 +17,26 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
-import { Pressable, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
-import { Avatar, Badge, BadgeIcon, Card, ProgressBar, Row, Text } from '@/components/ui';
+import { Group, GROUP_RADIUS, GroupRow, GroupTitle, TileColors } from '@/components/grouped';
+import { Avatar, Badge, ProgressBar, Row, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { imageQueryOptions, imageUri, useBlockUser, useDeleteActivity, useReact, useReport, type ImagePayload } from '@/hooks/community';
+import { imageQueryOptions, imageUri, useBlockUser, useChallenges, useDeleteActivity, useReact, useReport, type ImagePayload } from '@/hooks/community';
 import { api, API_URL, errorMessage } from '@/lib/api';
 import { challengeWhen, describeActivity, imageAspect, metricUnit, REACTIONS, timeAgo } from '@/lib/community';
 import { AppActionSheet, AppAlert } from '@/lib/feedback';
 import { useColors } from '@/providers/theme';
 import type { Challenge, CommunityActivity, ReactionKind } from '@/types/api';
 
-const TYPE_ICONS: Record<string, LucideIcon> = {
-  workout_completed: Dumbbell,
-  streak: Flame,
-  achievement: Award,
-  hydration_goal: Droplets,
-  challenge_completed: Trophy,
-  group_joined: UserPlus,
-  post: PenLine,
+const TYPE_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
+  workout_completed: { icon: Dumbbell, color: TileColors.orange },
+  streak: { icon: Flame, color: TileColors.red },
+  achievement: { icon: Award, color: TileColors.purple },
+  hydration_goal: { icon: Droplets, color: TileColors.blue },
+  challenge_completed: { icon: Trophy, color: TileColors.green },
+  group_joined: { icon: UserPlus, color: TileColors.blue },
+  post: { icon: PenLine, color: TileColors.green },
 };
 
 export const staticUrl = (path: string) =>
@@ -85,7 +86,7 @@ export function ReactionBar({ activity, onComments }: { activity: CommunityActiv
     });
   };
   return (
-    <Row style={{ gap: Spacing.two, flexWrap: 'wrap' }}>
+    <Row style={{ gap: Spacing.one, flexWrap: 'wrap', marginLeft: -Spacing.two }}>
       {REACTIONS.map((r) => {
         const on = activity.my_reaction === r.kind;
         const count = activity.reactions[r.kind] ?? 0;
@@ -99,18 +100,18 @@ export function ReactionBar({ activity, onComments }: { activity: CommunityActiv
             accessibilityLabel={`${r.label}${count ? `, ${count}` : ''}`}
             hitSlop={4}
             style={({ pressed }) => ({
-              height: 32,
-              minWidth: 44,
-              paddingHorizontal: Spacing.three,
+              height: 30,
+              minWidth: 36,
+              paddingHorizontal: Spacing.two,
               borderRadius: Radius.full,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 4,
-              backgroundColor: on ? (pressed ? Colors.voltStrong : Colors.volt) : pressed ? Colors.surfaceChip : Colors.surfaceSunken,
+              backgroundColor: on ? Colors.voltSoft : pressed ? Colors.surfaceChip : 'transparent',
             })}>
-            <Text style={{ fontSize: 15, lineHeight: 18 }}>{r.emoji}</Text>
-            {count > 0 && <Text variant="label" color={on ? Colors.onVolt : Colors.inkMuted} style={{ fontVariant: ['tabular-nums'], fontWeight: '600' }}>{count}</Text>}
+            <Text style={{ fontSize: 17, lineHeight: 20, opacity: on || count ? 1 : 0.55 }}>{r.emoji}</Text>
+            {count > 0 && <Text style={{ fontSize: 13, fontVariant: ['tabular-nums'], fontWeight: '600' }} color={on ? Colors.voltInk : Colors.inkMuted}>{count}</Text>}
           </Pressable>
         );
       })}
@@ -121,17 +122,17 @@ export function ReactionBar({ activity, onComments }: { activity: CommunityActiv
           accessibilityLabel={activity.comment_count ? `${activity.comment_count} comentários` : 'Comentar'}
           hitSlop={4}
           style={({ pressed }) => ({
-            height: 32,
-            paddingHorizontal: Spacing.three,
+            height: 30,
+            paddingHorizontal: Spacing.two,
             borderRadius: Radius.full,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
+            gap: 5,
             marginLeft: 'auto',
-            backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken,
+            backgroundColor: pressed ? Colors.surfaceChip : 'transparent',
           })}>
-          <MessageCircle size={16} color={Colors.ink} />
-          <Text variant="label" style={{ fontWeight: '600' }}>{activity.comment_count || 'Comentar'}</Text>
+          <MessageCircle size={19} color={Colors.inkMuted} />
+          {activity.comment_count > 0 && <Text style={{ fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] }} color={Colors.inkMuted}>{activity.comment_count}</Text>}
         </Pressable>
       )}
     </Row>
@@ -148,16 +149,17 @@ export function ActivityCard({ activity: a, showGroup = true, detail = false }: 
   const { title, detail: line } = describeActivity(a);
   const open = detail ? undefined : () => router.push(`/community/activity/${a.id}`);
   const isPost = a.type === 'post';
-  const icon = TYPE_ICONS[a.type] ?? Users;
+  const kind = TYPE_ICONS[a.type] ?? { icon: Users, color: TileColors.blue };
+  const KindIcon = kind.icon;
 
   return (
-    <View style={{ gap: Spacing.three, paddingVertical: Spacing.four, borderBottomWidth: detail ? 0 : 1, borderBottomColor: Colors.line }}>
+    <View style={{ gap: Spacing.three, paddingVertical: Spacing.four, borderBottomWidth: detail ? 0 : StyleSheet.hairlineWidth, borderBottomColor: Colors.line }}>
       <Row style={{ gap: Spacing.three }}>
         <Pressable onPress={() => openProfile(a.user.id)} accessibilityRole="button" accessibilityLabel={`Perfil de ${a.user.name}`} hitSlop={4}>
-          <Avatar name={a.user.name} uri={a.user.profile_picture} size={40} />
+          <Avatar name={a.user.name} uri={a.user.profile_picture} size={36} />
         </Pressable>
         <Pressable style={{ flex: 1, gap: 1 }} onPress={() => openProfile(a.user.id)} accessibilityRole="button">
-          <Text variant="titleSm" numberOfLines={1}>{a.user.name}</Text>
+          <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '600' }} numberOfLines={1}>{a.user.name}</Text>
           <Row style={{ gap: 6 }}>
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
               {[timeAgo(a.created_at), showGroup ? a.group?.name : null].filter(Boolean).join(' · ')}
@@ -167,17 +169,20 @@ export function ActivityCard({ activity: a, showGroup = true, detail = false }: 
         </Pressable>
         <Pressable onPress={() => menu(a, detail ? () => router.back() : undefined)} accessibilityRole="button" accessibilityLabel="Mais opções" hitSlop={10}
           style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? Colors.surfaceChip : 'transparent' })}>
-          <MoreHorizontal size={20} color={Colors.ink} />
+          <MoreHorizontal size={18} color={Colors.inkMuted} />
         </Pressable>
       </Row>
 
       {!isPost && (
         <Pressable onPress={open} disabled={!open} accessibilityRole={open ? 'button' : undefined} accessibilityLabel={open ? 'Abrir publicação' : undefined}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, backgroundColor: Colors.surfaceSunken, borderRadius: Radius.md, borderCurve: 'continuous', padding: Spacing.three }}>
-          <BadgeIcon icon={icon} size={36} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="titleSm" numberOfLines={3}>{title}</Text>
-            {line ? <Text variant="caption" numberOfLines={2}>{line}</Text> : null}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three, paddingHorizontal: Spacing.three,
+            borderRadius: GROUP_RADIUS, borderCurve: 'continuous', backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken })}>
+          <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface }}>
+            <KindIcon size={18} color={kind.color} strokeWidth={2.2} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+            <Text style={{ fontSize: 15, lineHeight: 20 }} numberOfLines={3}>{title}</Text>
+            {line ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={2}>{line}</Text> : null}
           </View>
         </Pressable>
       )}
@@ -220,8 +225,10 @@ export function ChallengeCard({ challenge: c, onPress, largeCover = false }: {
   const uri = imageUri(cover.data);
   const progress = c.my_progress ?? 0;
   const pct = c.target ? (progress / c.target) * 100 : 0;
+  const Icon = c.completed ? Trophy : c.is_public ? Globe : Users;
   return (
-    <Card onPress={onPress ?? (() => router.push(`/community/challenge/${c.id}`))} accessibilityLabel={`Desafio ${c.title}`}>
+    <Pressable onPress={onPress ?? (() => router.push(`/community/challenge/${c.id}`))} accessibilityRole="button" accessibilityLabel={`Desafio ${c.title}`}
+      style={({ pressed }) => ({ backgroundColor: pressed ? Colors.surfaceChip : Colors.surfaceSunken, borderRadius: GROUP_RADIUS, borderCurve: 'continuous', padding: Spacing.four, gap: Spacing.three })}>
       {uri && largeCover && (
         <Image source={{ uri }} contentFit="cover" cachePolicy={cover.data?.url ? 'disk' : 'none'}
           style={{ width: '100%', aspectRatio: 1.8, borderRadius: Radius.md }} />
@@ -229,13 +236,15 @@ export function ChallengeCard({ challenge: c, onPress, largeCover = false }: {
       <Row style={{ gap: Spacing.three }}>
         {uri && !largeCover ? (
           <Image source={{ uri }} contentFit="cover" cachePolicy={cover.data?.url ? 'disk' : 'none'}
-            style={{ width: 44, height: 44, borderRadius: Radius.sm }} />
+            style={{ width: 40, height: 40, borderRadius: Radius.sm }} />
         ) : (
-          <BadgeIcon icon={c.completed ? Trophy : c.is_public ? Globe : Users} size={36} tone={c.completed || c.joined ? 'volt' : 'chip'} />
+          <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.completed || c.joined ? Colors.voltSoft : Colors.surfaceChip }}>
+            <Icon size={20} color={c.completed || c.joined ? Colors.voltInk : Colors.ink} />
+          </View>
         )}
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="titleSm" numberOfLines={1}>{c.title}</Text>
-          <Text variant="caption" numberOfLines={1}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text style={{ fontSize: 16, lineHeight: 22, fontWeight: '600' }} numberOfLines={1}>{c.title}</Text>
+          <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={1}>
             {[c.is_public ? 'FitGen' : c.group?.name, challengeWhen(c), `${c.participant_count} ${c.participant_count === 1 ? 'participante' : 'participantes'}`].filter(Boolean).join(' · ')}
           </Text>
         </View>
@@ -244,17 +253,17 @@ export function ChallengeCard({ challenge: c, onPress, largeCover = false }: {
       {c.joined ? (
         <View style={{ gap: Spacing.two }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="label" color={Colors.inkMuted}>Seu progresso</Text>
-            <Text variant="label" style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
+            <Text muted style={{ fontSize: 13 }}>Seu progresso</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
               {Math.min(progress, c.target)}/{c.target} {metricUnit(c.metric)}
             </Text>
           </Row>
           <ProgressBar value={pct} />
         </View>
       ) : (
-        <Text variant="caption">Meta: {c.target} {metricUnit(c.metric)} · toque para participar</Text>
+        <Text muted style={{ fontSize: 13 }}>Meta: {c.target} {metricUnit(c.metric)} · toque para participar</Text>
       )}
-    </Card>
+    </Pressable>
   );
 }
 
@@ -268,10 +277,10 @@ export function SwitchRow({ title, caption, value, onChange, disabled }: {
 }) {
   const Colors = useColors();
   return (
-    <Row style={{ gap: Spacing.three, paddingVertical: Spacing.two }}>
+    <Row style={{ gap: Spacing.three, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, minHeight: 56 }}>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="titleSm">{title}</Text>
-        {caption ? <Text variant="caption">{caption}</Text> : null}
+        <Text style={{ fontSize: 16, lineHeight: 22 }}>{title}</Text>
+        {caption ? <Text muted style={{ fontSize: 13, lineHeight: 18 }}>{caption}</Text> : null}
       </View>
       <Switch
         value={value}
@@ -292,4 +301,15 @@ function ActivityImage({ id, aspect }: { id: string; aspect: number }) {
   const uri = imageUri(query.data);
   if (!uri) return <View style={{ width: '100%', aspectRatio: aspect, alignItems: 'center', justifyContent: 'center', backgroundColor: undefined }}><Text variant="caption">{query.error ? 'Foto indisponível' : 'Carregando foto…'}</Text></View>;
   return <Image source={{ uri }} cachePolicy={query.data?.url ? 'disk' : 'none'} recyclingKey={id} style={{ width: '100%', aspectRatio: aspect, borderRadius: Radius.md, borderCurve: 'continuous' }} contentFit="cover" accessibilityLabel="Foto da publicação" />;
+}
+
+/** Titled list of challenge cards with loading, error and empty states as group rows. */
+export function ChallengeSection({ title, query, empty }: { title: string; query: ReturnType<typeof useChallenges>; empty: string }) {
+  return <View style={{ gap: Spacing.three }}>
+    <GroupTitle title={title} />
+    {query.isLoading && <Group><GroupRow icon={Trophy} title="Carregando desafios…" /></Group>}
+    {query.error && <Group><GroupRow icon={Trophy} title="Não foi possível carregar" caption="Toque para tentar novamente" onPress={() => query.refetch()} /></Group>}
+    {query.data?.length === 0 && <Group><GroupRow icon={Trophy} title="Nenhum desafio" caption={empty} captionLines={3} /></Group>}
+    {query.data?.map(c => <ChallengeCard key={c.id} challenge={c} />)}
+  </View>;
 }

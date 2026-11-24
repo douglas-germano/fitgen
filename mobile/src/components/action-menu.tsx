@@ -11,7 +11,9 @@ import { tabBarClearance, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 
 const FAB_SIZE = 58;
-const OTTO_SIZE = 48;
+const OTTO_SIZE = 50;
+/** Background of the Otto mark artwork, so the clipped circle has no seams. */
+const OTTO_INK = '#0e0e12';
 const FAB_GAP = Spacing.three;
 /** Extra bottom room for a page with the floating "+" and Otto, so they never cover the last item. */
 export const FAB_CLEARANCE = FAB_SIZE + FAB_GAP + OTTO_SIZE + Spacing.four;
@@ -48,15 +50,15 @@ export function FloatingAddButton({ onPress, label, hint, busy, tone = 'volt', o
           width: OTTO_SIZE,
           height: OTTO_SIZE,
           borderRadius: OTTO_SIZE / 2,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: pressed ? Colors.surfaceChip : Colors.surface,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: Colors.line,
           transform: [{ scale: pressed ? 0.94 : 1 }],
-          boxShadow: '0 3px 12px rgba(17, 18, 20, 0.16)',
+          boxShadow: '0 6px 16px rgba(17, 18, 20, 0.26)',
         })}>
-        <OttoAvatar size={30} />
+        {({ pressed }) => (
+          // The Otto mark is a dark rounded tile; clipping it to a circle of the same dark makes the button the mark itself.
+          <View style={[styles.otto, { opacity: pressed ? 0.85 : 1 }]}>
+            <OttoAvatar size={OTTO_SIZE * 0.86} />
+          </View>
+        )}
       </Pressable>
     )}
     <Pressable
@@ -175,3 +177,17 @@ export function ActionMenu({ visible, title, items, onClose, compact = false }: 
     </Dialog>
   );
 }
+
+const styles = StyleSheet.create({
+  otto: {
+    flex: 1,
+    borderRadius: OTTO_SIZE / 2,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: OTTO_INK,
+    // Thin volt ring: ties it to the "+" and keeps the dark coin visible on the dark theme.
+    borderWidth: 1.5,
+    borderColor: 'rgba(161, 236, 3, 0.55)',
+  },
+});

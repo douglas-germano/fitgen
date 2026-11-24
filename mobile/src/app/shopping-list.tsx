@@ -2,14 +2,17 @@ import { AppAlert } from '@/lib/feedback';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, ShoppingBasket } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Button, Card, EmptyState, Page, PageSkeleton, ProgressBar, QueryError, Row, Text, TopBar } from '@/components/ui';
+import { BackBar, Group, GroupRow, HeaderCard, SCREEN_COLUMN } from '@/components/grouped';
+import { Button, Page, PageSkeleton, ProgressBar, QueryError, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useDietPlan } from '@/hooks/queries';
 import { api, errorMessage } from '@/lib/api';
 import type { ShoppingItem } from '@/types/api';
+
+const brl = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function ShoppingListScreen() {
   const query = useDietPlan();
@@ -36,28 +39,35 @@ function ShoppingList({ items }: { items: ShoppingItem[] }) {
     finally { setBusy(false); }
   };
   return (
-    <Page topBar={<TopBar title="Lista de compras" back />}>
+    <Page topBar={<BackBar />} contentStyle={SCREEN_COLUMN}
+      footer={list.length ? <Button size="lg" title="Salvar lista" onPress={save} loading={busy} /> : undefined}>
       {list.length ? <>
-        <Card>
-          <Text variant="titleLg">{checked} de {list.length} itens</Text>
-          <Text muted>Marque o que você já comprou e salve a lista.</Text>
-          <ProgressBar value={checked / list.length * 100} />
-          {total > 0 && <Text variant="titleSm">Custo estimado: {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>}
-        </Card>
-        <View style={{ gap: Spacing.three }}>
+        <HeaderCard title={`${checked} de ${list.length} itens`} value={total > 0 ? `≈ ${brl(total)}` : null}>
+          <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four, gap: Spacing.three }}>
+            <ProgressBar value={checked / list.length * 100} />
+            <Text muted style={{ fontSize: 13 }}>Marque o que você já comprou e salve a lista.</Text>
+          </View>
+        </HeaderCard>
+        <Group title="Itens">
           {list.map((item, index) => (
-            <Pressable key={index} disabled={busy} accessibilityRole="checkbox" accessibilityState={{ checked: !!item.checked }} accessibilityLabel={`${item.item}, ${item.quantidade}`}
-              onPress={() => setList(list.map((x, i) => i === index ? { ...x, checked: !x.checked } : x))}>
-              <Card style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: item.checked ? Colors.volt : Colors.lineStrong, backgroundColor: item.checked ? Colors.volt : Colors.surface, alignItems: 'center', justifyContent: 'center' }}>{item.checked && <Check size={18} color={Colors.onVolt} />}</View>
-                <View style={{ flex: 1, gap: 2 }}><Text variant="titleSm" style={item.checked && { textDecorationLine: 'line-through', color: Colors.inkMuted }}>{item.item}</Text><Text muted>{item.quantidade}</Text></View>
-                {Number(item.preco_aprox) > 0 && <Text variant="label">{Number(item.preco_aprox).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>}
-              </Card>
-            </Pressable>
+            <GroupRow key={index}
+              leading={
+                <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: item.checked ? Colors.volt : Colors.lineStrong, backgroundColor: item.checked ? Colors.volt : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                  {item.checked && <Check size={15} strokeWidth={3} color={Colors.onVolt} />}
+                </View>
+              }
+              title={item.item} caption={item.quantidade}
+              value={Number(item.preco_aprox) > 0 ? brl(Number(item.preco_aprox)) : null}
+              chevron={false}
+              accessibilityLabel={`${item.item}, ${item.quantidade}${item.checked ? ', comprado' : ''}`}
+              onPress={busy ? undefined : () => setList(list.map((x, i) => i === index ? { ...x, checked: !x.checked } : x))} />
           ))}
-        </View>
-        <Row><Button size="lg" title="Salvar lista" onPress={save} loading={busy} style={{ flex: 1 }} /></Row>
-      </> : <EmptyState icon={ShoppingBasket} message="Seu plano ainda não tem uma lista de compras." />}
+        </Group>
+      </> : (
+        <Group>
+          <GroupRow icon={ShoppingBasket} title="Seu plano ainda não tem uma lista de compras." />
+        </Group>
+      )}
     </Page>
   );
 }

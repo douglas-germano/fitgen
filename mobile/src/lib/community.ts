@@ -114,15 +114,21 @@ export function challengeWhen(c: { status: string; start_date: string; end_date:
   return left <= 1 ? 'Último dia' : `${left} dias restantes`;
 }
 
+/** The web app (web.fitgen.pro): invite links open there on any phone, and it has the join route. */
+const APP_WEB_URL = (process.env.EXPO_PUBLIC_APP_WEB_URL ?? 'https://web.fitgen.pro').replace(/\/+$/, '');
+
+/**
+ * Link shared in club invites. On the web app it stays on the current site; native apps always share the
+ * public web app address — never `window.location`, which in a dev build points at the Metro server's IP.
+ */
 export const inviteLink = (code: string) => {
-  const base = typeof window !== 'undefined' && window.location?.protocol.startsWith('http')
-    ? window.location.origin + '/'
-    : 'fitgen://';
-  return `${base}community/join/${encodeURIComponent(code)}`;
+  const onWeb = process.env.EXPO_OS === 'web' && typeof window !== 'undefined' && window.location?.protocol.startsWith('http');
+  const base = onWeb ? window.location.origin : APP_WEB_URL;
+  return `${base}/community/join/${encodeURIComponent(code)}`;
 };
 
 export const groupInviteMessage = (groupName: string, code: string) =>
-  `Bora treinar juntos? Entre no meu grupo "${groupName}" no FitGen.\n\nCódigo: ${code}\n${inviteLink(code)}`;
+  `Bora treinar juntos? Entre no meu clube "${groupName}" no FitGen.\n\nCódigo: ${code}\n${inviteLink(code)}`;
 
 /** Codes are typed from messages: uppercase, no spaces, our alphabet only. */
 export const normalizeCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
@@ -133,4 +139,17 @@ export function communityNotificationPath(type: unknown, id: unknown): string | 
   if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) return null;
   const routes: Record<string, string> = { community_activity: 'activity', community_group: 'group', community_challenge: 'challenge', community_user: 'user' };
   return typeof type === 'string' && routes[type] ? `/community/${routes[type]}/${id}` : null;
+}
+
+/** Public clubs for the Clubes tab: "Para você" (people you follow first) and "Mais populares" (most members). */
+export function discoverClubs<T extends { id: string; member_count: number; my_role: string | null; followed_members?: number; premium_only?: boolean }>(all: T[], limit = 5) {
+  // The PRO club has its own card on the Clubes tab.
+  const clubs = all.filter((c) => !c.premium_only);
+  const popular = [...clubs].sort((a, b) => b.member_count - a.member_count);
+  const topIds = new Set(popular.slice(0, limit).map((c) => c.id));
+  const forYou = clubs
+    .filter((c) => !c.my_role && ((c.followed_members ?? 0) > 0 || !topIds.has(c.id)))
+    .sort((a, b) => (b.followed_members ?? 0) - (a.followed_members ?? 0) || b.member_count - a.member_count)
+    .slice(0, limit);
+  return { forYou, popular };
 }

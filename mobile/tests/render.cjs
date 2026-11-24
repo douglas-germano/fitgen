@@ -271,7 +271,8 @@ try {
           assert.ok(!result.includes('Atualizar feed'), 'feed has no refresh button');
         }
         if (mode === 'content' && file.endsWith('/community/group/[id].tsx')) {
-          assert.ok(result.includes('Mais opções'), 'admin can open club options');
+          assert.ok(result.includes('Configurações do clube'), 'admin opens the club options from the gear');
+          assert.ok(result.includes('ver membros e ranking'), 'club header opens members and ranking');
           assert.ok(result.includes('Adicionar ao clube'), 'club uses the shared floating add button');
           assert.ok(!result.includes('Membros e ranking') && !result.includes('Nova publicação'), 'no shortcuts or publication button above club feed');
           assert.ok(!result.includes('Editar grupo') && !result.includes('Excluir grupo') && !result.includes('Alterar foto do clube'), 'club feed does not contain settings');

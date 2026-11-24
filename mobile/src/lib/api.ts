@@ -129,7 +129,17 @@ async function parseBody(res: Response) {
   const type = res.headers.get('content-type') ?? '';
   if (type.includes('application/json')) return res.json();
   const text = await res.text();
+  // Error pages from the server or a proxy (Flask 404/405, gateway 502) are HTML, never a message for the user.
+  if (!res.ok && (type.includes('text/html') || /^\s*</.test(text))) return null;
   return { message: text || res.statusText };
+}
+
+/** What to say when the server gave no message of its own. */
+function statusMessage(status: number) {
+  if (status === 404 || status === 405) return 'Este recurso ainda não está disponível. Atualize o app ou tente novamente mais tarde.';
+  if (status === 429) return 'Muitas tentativas seguidas. Aguarde um pouco e tente novamente.';
+  if (status >= 500) return 'O servidor está com instabilidade. Tente novamente em instantes.';
+  return `Falha na requisição (${status})`;
 }
 
 export async function api<T = unknown>(
@@ -176,7 +186,7 @@ export async function api<T = unknown>(
     const fields = data?.errors && typeof data.errors === 'object'
       ? Object.values(data.errors).flat().filter((v): v is string => typeof v === 'string').join('\n') : '';
     const message = fields ||
-      (data?.msg ?? data?.message ?? data?.error ?? `Falha na requisição (${res.status})`);
+      (data?.msg ?? data?.message ?? data?.error ?? statusMessage(res.status));
     throw new ApiError(String(message), res.status, data, endpointTemplate(endpoint));
   }
   return data as T;

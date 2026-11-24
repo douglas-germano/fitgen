@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Utensils } from 'lucide-react-native';
+import { CalendarDays, Flame, Utensils } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { WeekChart } from '@/components/charts';
-import { Card, Chips, EmptyState, OverviewCard, Page, PageSkeleton, QueryError, Row, SectionHeader, Text, TopBar } from '@/components/ui';
+import { BackBar, Group, GroupRow, HeaderCard, SCREEN_COLUMN, Tile, TileColors, TileRow } from '@/components/grouped';
+import { Chips, Page, PageSkeleton, QueryError } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/lib/api';
 import { formatDayMonth, formatInt } from '@/lib/workout';
@@ -22,19 +23,31 @@ export default function NutritionHistoryScreen() {
   if (query.error) return <QueryError title="Histórico alimentar" back error={query.error} onRetry={query.refetch} />;
   const records = query.data?.data ?? [];
   return (
-    <Page topBar={<TopBar title="Histórico alimentar" back />} refreshing={query.isRefetching} onRefresh={query.refetch}>
+    <Page topBar={<BackBar />} contentStyle={SCREEN_COLUMN} refreshing={query.isRefetching} onRefresh={query.refetch}>
       <Chips value={range} onChange={setRange} options={['7', '30', '90'].map((value) => ({ value, label: `${value} dias` }))} />
-      <OverviewCard icon={Utensils} title={`Últimos ${range} dias`} subtitle="Média dos dias com registros" stats={[{ value: formatInt(query.data?.summary?.avg_calories ?? 0), label: 'kcal / dia' }, { value: String(records.reduce((s, r) => s + r.meals_count, 0)), label: 'Refeições' }, { value: String(records.length), label: 'Dias registrados' }]} />
+      <TileRow>
+        <Tile icon={Flame} color={TileColors.orange} title="kcal por dia" value={formatInt(query.data?.summary?.avg_calories ?? 0)} />
+        <Tile icon={Utensils} color={TileColors.green} title="Refeições" value={String(records.reduce((s, r) => s + r.meals_count, 0))} />
+        <Tile icon={CalendarDays} color={TileColors.blue} title="Dias com registro" value={String(records.length)} />
+      </TileRow>
       {records.length ? <>
-        <SectionHeader title="Calorias por dia" note="últimos 7 registros" />
-        <WeekChart data={records.slice(-7).map((r) => ({ label: formatDayMonth(r.date + 'T12:00:00', false), value: r.calories }))} accessibilityLabel="Calorias consumidas por dia" />
-        <View style={{ gap: Spacing.three }}>
-          {[...records].reverse().map((r) => <Card key={r.date}>
-            <Row style={{ justifyContent: 'space-between' }}><Text variant="titleSm">{formatDayMonth(r.date + 'T12:00:00')}</Text><Text variant="titleSm">{formatInt(r.calories)} kcal</Text></Row>
-            <Text muted>{r.meals_count} refeições · P {formatInt(r.protein)} g · C {formatInt(r.carbs)} g · G {formatInt(r.fats)} g</Text>
-          </Card>)}
-        </View>
-      </> : <EmptyState icon={Utensils} message="Nenhuma refeição registrada neste período." />}
+        <HeaderCard title="Calorias por dia" value="últimos 7 registros">
+          <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+            <WeekChart data={records.slice(-7).map((r) => ({ label: formatDayMonth(r.date + 'T12:00:00', false), value: r.calories }))} accessibilityLabel="Calorias consumidas por dia" />
+          </View>
+        </HeaderCard>
+        <Group title="Dias">
+          {[...records].reverse().map((r) => (
+            <GroupRow key={r.date} icon={CalendarDays} title={formatDayMonth(r.date + 'T12:00:00', false)}
+              caption={`${r.meals_count} ${r.meals_count === 1 ? 'refeição' : 'refeições'} · P ${formatInt(r.protein)} · C ${formatInt(r.carbs)} · G ${formatInt(r.fats)} g`}
+              value={`${formatInt(r.calories)} kcal`} />
+          ))}
+        </Group>
+      </> : (
+        <Group>
+          <GroupRow icon={Utensils} title="Nenhuma refeição registrada neste período." />
+        </Group>
+      )}
     </Page>
   );
 }

@@ -37,6 +37,11 @@ const COPY: Record<PremiumFeature | 'default', { title: string; headline: string
     headline: 'Acompanhe sua evolução neste exercício',
     description: 'Reveja as séries, cargas e repetições que você registrou nos treinos anteriores.',
   },
+  pro_club: {
+    title: 'Clube FitGen PRO',
+    headline: 'Entre no clube dos assinantes',
+    description: 'Um clube exclusivo de quem assina: desafios, novidades em primeira mão e troca com quem leva o treino a sério.',
+  },
   default: {
     title: 'FitGen Premium',
     headline: 'Libere a IA do FitGen',

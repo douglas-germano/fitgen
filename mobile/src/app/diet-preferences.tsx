@@ -3,7 +3,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { ChoiceField } from '@/components/choice-field';
-import { Button, Card, Input, Page, Text, TopBar } from '@/components/ui';
+import { View } from 'react-native';
+
+import { BackBar, SCREEN_COLUMN } from '@/components/grouped';
+import { Button, Input, Page, Text } from '@/components/ui';
+import { Spacing } from '@/constants/theme';
 import { api, errorMessage, isPremiumRequired } from '@/lib/api';
 import { decimal } from '@/lib/forms';
 import { usePremium } from '@/hooks/use-premium';
@@ -39,8 +43,11 @@ export default function DietPreferencesScreen() {
     finally { setBusy(false); }
   };
   return (
-    <Page topBar={<TopBar title="Criar plano alimentar" back />}>
-      <Card><Text variant="titleLg">Um cardápio para sua rotina.</Text><Text muted>Escolha suas preferências e a meta definida para você. A geração pode levar alguns instantes.</Text></Card>
+    <Page topBar={<BackBar />} contentStyle={SCREEN_COLUMN}>
+      <View style={{ gap: 2, paddingHorizontal: Spacing.two }}>
+        <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>Criar plano alimentar</Text>
+        <Text muted style={{ fontSize: 13 }}>Escolha suas preferências e o Otto monta um cardápio para sua rotina. A geração pode levar alguns instantes.</Text>
+      </View>
       <ChoiceField label="Objetivo" value={goal} onChange={setGoal} options={[{ value: 'saude', label: 'Saúde' }, { value: 'emagrecimento', label: 'Perder peso' }, { value: 'ganho_massa', label: 'Ganhar massa' }, { value: 'manutencao', label: 'Manter peso' }]} />
       <Input label="Meta diária (kcal)" placeholder="Sua meta de calorias" value={calories} onChangeText={setCalories} keyboardType="number-pad" />
       <ChoiceField label="Refeições por dia" value={meals} onChange={setMeals} options={['3', '4', '5', '6'].map((value) => ({ value, label: value }))} />

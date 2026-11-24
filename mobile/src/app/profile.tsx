@@ -227,7 +227,6 @@ function NameDialog({ current, onClose }: { current: string; onClose: () => void
     <Dialog visible onClose={onClose} title="Alterar Nome" description="Seu nome de exibição no app.">
       <Input label="Novo Nome" value={name} onChangeText={setName} autoFocus />
       <Row style={{ gap: Spacing.three }}>
-        <Button variant="soft" title="Cancelar" onPress={onClose} style={{ flex: 1 }} />
         <Button title="Salvar" onPress={save} loading={loading} style={{ flex: 1 }} />
       </Row>
     </Dialog>
@@ -281,7 +280,6 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
       <Input label="Nova Senha" {...field} textContentType="newPassword" value={form.next} onChangeText={(next) => setForm({ ...form, next })} />
       <Input label="Confirmar Nova Senha" {...field} textContentType="newPassword" value={form.confirm} onChangeText={(confirm) => setForm({ ...form, confirm })} />
       <Row style={{ gap: Spacing.three }}>
-        <Button variant="soft" title="Cancelar" onPress={onClose} style={{ flex: 1 }} />
         <Button title="Salvar" onPress={save} loading={loading} style={{ flex: 1 }} />
       </Row>
     </Dialog>

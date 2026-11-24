@@ -317,6 +317,12 @@ export interface CommunityGroup {
   created_at: string;
   my_rank?: number | null;
   week_workouts?: number;
+  /** Public listing only: how many people I follow are members. */
+  followed_members?: number;
+  /** Created by the FitGen team. */
+  official?: boolean;
+  /** The subscribers' club: joined from the Clubes tab with Premium only. */
+  premium_only?: boolean;
 }
 
 export interface GroupPreview extends CommunityGroup {

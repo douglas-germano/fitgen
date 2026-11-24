@@ -2,7 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityCard, openProfile } from '@/components/community';
 import { Pressable, View } from 'react-native';
-import { Avatar, Button, Input, Page, PageSkeleton, QueryError, Row, Text, TopBar } from '@/components/ui';
+import { BackBar, GroupTitle, SCREEN_COLUMN } from '@/components/grouped';
+import { Avatar, Button, Input, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
 import { timeAgo } from '@/lib/community';
 import { useActivity, useAddComment, useComments, useDeleteComment, useReport } from '@/hooks/community';
 import { errorMessage } from '@/lib/api';
@@ -12,9 +13,9 @@ export default function ActivityScreen() {
   const error = (e: unknown) => AppAlert.alert('Não foi possível concluir', errorMessage(e));
   if (query.isLoading) return <PageSkeleton title="Publicação" back />;
   if (query.error || !query.data) return <QueryError title="Publicação" back error={query.error} onRetry={query.refetch} />;
-  return <Page topBar={<TopBar title="Publicação" back />} refreshing={query.isRefetching} onRefresh={() => { query.refetch(); comments.refetch(); }}>
+  return <Page topBar={<BackBar />} contentStyle={SCREEN_COLUMN} refreshing={query.isRefetching} onRefresh={() => { query.refetch(); comments.refetch(); }}>
     <ActivityCard activity={query.data} detail />
-    <Text variant="titleSm">Comentários</Text>
+    <GroupTitle title="Comentários" />
     {comments.isLoading && <Text>Carregando comentários…</Text>}
     {comments.error && <Button title="Tentar carregar comentários" onPress={() => comments.refetch()} />}
     {comments.data?.map(c => <Row key={c.id} style={{ alignItems: 'flex-start', gap: 12 }}>

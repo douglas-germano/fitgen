@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ChevronRight, Play, Route, Trophy } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ChevronRight, Play, Trophy } from 'lucide-react-native';
+import { Pressable, View } from 'react-native';
 
 import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
 import { RouteThumbnail } from '@/components/outdoor-summary';
-import { BadgeIcon, Button, Card, Row, SectionHeader, Text } from '@/components/ui';
+import { Group, HeaderCard } from '@/components/grouped';
+import { Button, Row, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useExerciseLibrary, useProfile, useRecentRecords } from '@/hooks/queries';
 import { api } from '@/lib/api';
@@ -33,15 +34,8 @@ export function OutdoorCard({ last }: { last: ExerciseSessionSummary | undefined
   const recent = last?.outdoor_type ? OUTDOOR_NAMES[last.outdoor_type].recent : 'Última atividade';
 
   return (
-    <Card>
-      <Row style={{ gap: Spacing.three }}>
-        <BadgeIcon icon={Route} size={40} tone="chip" />
-        <View style={{ flex: 1, gap: Spacing.one }}>
-          <Text variant="titleMd" accessibilityRole="header">Atividades ao ar livre</Text>
-          <Text variant="caption">Corrida, caminhada e pedal com GPS</Text>
-        </View>
-      </Row>
-      <Button size="lg" title="Iniciar atividade" icon={Play} onPress={() => router.push('/outdoor')} />
+    <HeaderCard title="Atividades ao ar livre">
+      <Text muted style={{ fontSize: 13, paddingHorizontal: Spacing.four, marginTop: -Spacing.two, paddingBottom: Spacing.three }}>Corrida, caminhada e pedal com GPS</Text>
       {last && (
         <Pressable
           onPress={() => router.push({ pathname: '/outdoor/[id]', params: { id: last.id } })}
@@ -49,18 +43,22 @@ export function OutdoorCard({ last }: { last: ExerciseSessionSummary | undefined
           accessibilityLabel={`${recent}: ${distanceLabel(last.distance_meters ?? 0)}, ${minutes(last.duration_seconds)}, ${timeAgo(last.started_at)}`}
           accessibilityHint="Abre o resumo com o trajeto"
           style={({ pressed }) => ({
-            flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingTop: Spacing.three,
-            borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, opacity: pressed ? 0.65 : 1,
+            flexDirection: 'row', alignItems: 'center', gap: Spacing.three,
+            paddingHorizontal: Spacing.four, paddingBottom: Spacing.three,
+            opacity: pressed ? 0.65 : 1,
           })}>
-          <RouteThumbnail route={route.data} size={48} />
-          <View style={{ flex: 1, gap: Spacing.one }}>
-            <Text variant="titleSm">{recent}</Text>
-            <Text variant="caption">{distanceLabel(last.distance_meters ?? 0)} · {minutes(last.duration_seconds)} · {timeAgo(last.started_at)}</Text>
+          <RouteThumbnail route={route.data} size={52} />
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text style={{ fontSize: 16, lineHeight: 22 }} numberOfLines={1}>{recent}</Text>
+            <Text muted style={{ fontSize: 13, lineHeight: 18 }}>{distanceLabel(last.distance_meters ?? 0)} · {minutes(last.duration_seconds)} · {timeAgo(last.started_at)}</Text>
           </View>
-          <ChevronRight size={18} color={colors.inkMuted} />
+          <ChevronRight size={16} color={colors.inkMuted} />
         </Pressable>
       )}
-    </Card>
+      <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+        <Button size="lg" title="Iniciar atividade" icon={Play} onPress={() => router.push('/outdoor')} />
+      </View>
+    </HeaderCard>
   );
 }
 
@@ -72,41 +70,35 @@ export function RecordsCard() {
   if (!records?.length) return null;
 
   return (
-    <View style={{ gap: Spacing.three }}>
-      <SectionHeader title="Recordes" />
-      <View>
-        {records.map((record, index) => {
-          const exercise = library?.find((item) => item.id === record.exercise_library_id);
-          return (
-            <Row key={record.exercise_library_id}
-              accessible
-              accessibilityLabel={`Recorde em ${record.name}: ${kg(record.weight_kg)}, ${kg(record.weight_kg - record.previous_kg)} a mais, ${timeAgo(record.achieved_at)}`}
-              style={{
-                gap: Spacing.three, minHeight: 56, paddingVertical: Spacing.two,
-                borderTopWidth: index ? StyleSheet.hairlineWidth : 0, borderColor: colors.line,
-              }}>
-              {exercise ? (
-                <ExerciseThumbnail size={44} exercise={{
-                  id: exercise.id, name: exercise.name, sets: 0, reps: '',
-                  animation_url: exercise.animation_url, exercise_library_id: exercise.id,
-                }} />
-              ) : (
-                <View style={{ width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: colors.voltSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Trophy size={20} color={colors.voltInk} />
-                </View>
-              )}
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="titleSm" numberOfLines={1}>{record.name}</Text>
-                <Text variant="caption">{timeAgo(record.achieved_at)}</Text>
+    <Group title="Recordes">
+      {records.map((record) => {
+        const exercise = library?.find((item) => item.id === record.exercise_library_id);
+        return (
+          <Row key={record.exercise_library_id}
+            accessible
+            accessibilityLabel={`Recorde em ${record.name}: ${kg(record.weight_kg)}, ${kg(record.weight_kg - record.previous_kg)} a mais, ${timeAgo(record.achieved_at)}`}
+            style={{ gap: Spacing.three, paddingLeft: Spacing.three, paddingRight: Spacing.four, paddingVertical: Spacing.three }}>
+            {exercise ? (
+              <ExerciseThumbnail size={44} exercise={{
+                id: exercise.id, name: exercise.name, sets: 0, reps: '',
+                animation_url: exercise.animation_url, exercise_library_id: exercise.id,
+              }} />
+            ) : (
+              <View style={{ width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: colors.voltSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Trophy size={20} color={colors.voltInk} />
               </View>
-              <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                <Text variant="titleMd" style={{ fontVariant: ['tabular-nums'] }}>{kg(record.weight_kg)}</Text>
-                <Text variant="label" color={colors.voltInk} style={{ fontVariant: ['tabular-nums'] }}>+{kg(record.weight_kg - record.previous_kg)}</Text>
-              </View>
-            </Row>
-          );
-        })}
-      </View>
-    </View>
+            )}
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text style={{ fontSize: 16, lineHeight: 22 }} numberOfLines={1}>{record.name}</Text>
+              <Text muted style={{ fontSize: 13, lineHeight: 18 }}>{timeAgo(record.achieved_at)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <Text style={{ fontSize: 16, lineHeight: 22, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{kg(record.weight_kg)}</Text>
+              <Text style={{ fontSize: 13, lineHeight: 18, fontVariant: ['tabular-nums'] }} color={colors.voltInk}>+{kg(record.weight_kg - record.previous_kg)}</Text>
+            </View>
+          </Row>
+        );
+      })}
+    </Group>
   );
 }

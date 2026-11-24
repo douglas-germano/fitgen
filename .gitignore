@@ -34,6 +34,8 @@ backend/instance/
 # Local development artifacts
 .idea/
 .openidea/
+.wrangler/
+/assets/
 /FitGen-preview-android.apk
 /backend/logs/*.log
 /backend/app/static/uploads/profile_pics/user_*

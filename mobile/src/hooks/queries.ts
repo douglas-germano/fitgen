@@ -77,6 +77,19 @@ export const useWorkoutPlan = (id: string | undefined) =>
     enabled: !!id,
   });
 
+/** Renames the plan or one of its workouts; every screen showing the name refreshes. */
+export function useRenameWorkout() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kind, id, name }: { kind: 'plan' | 'day'; id: string; name: string }) =>
+      api<{ id: string; name: string }>(kind === 'plan' ? `/workouts/${id}` : `/workouts/day/${id}`, { method: 'PUT', body: { name } }),
+    onSuccess: () => Promise.all([
+      client.invalidateQueries({ queryKey: ['workouts'] }),
+      client.invalidateQueries({ queryKey: ['workout'] }),
+    ]),
+  });
+}
+
 export function useActiveWorkoutPlan() {
   const plans = useWorkoutPlans();
   const activeId = plans.data?.find((p) => p.is_active)?.id;

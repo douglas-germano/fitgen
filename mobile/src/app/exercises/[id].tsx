@@ -1,13 +1,14 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
-import { BookOpen, History, Lock, Play } from 'lucide-react-native';
+import { Activity, BookOpen, Dumbbell, Gauge, History, LayoutGrid, Lock, Play, Target } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ExerciseGuide } from '@/components/exercise-guide';
-import { Badge, BadgeIcon, Button, Card, EmptyState, Page, PageSkeleton, QueryError, Row, Text, TopBar } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { BackBar, Group, GROUP_RADIUS, GroupRow, GroupTitle, HeaderCard, SCREEN_COLUMN } from '@/components/grouped';
+import { Button, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
+import { Spacing } from '@/constants/theme';
 import { useExerciseLibrary, useLibraryExerciseHistory } from '@/hooks/queries';
 import { usePremium } from '@/hooks/use-premium';
 import { isPremiumRequired } from '@/lib/api';
@@ -25,8 +26,10 @@ export default function ExerciseDetailScreen() {
   if (library.error && !library.data) return <QueryError title="Exercício" back error={library.error} onRetry={library.refetch} />;
   if (!exercise) {
     return (
-      <Page tab={false} topBar={<TopBar title="Exercício" back />}>
-        <EmptyState icon={BookOpen} message="Exercício não encontrado na biblioteca." />
+      <Page tab={false} topBar={<BackBar />} contentStyle={SCREEN_COLUMN}>
+        <Group>
+          <GroupRow icon={BookOpen} title="Exercício não encontrado na biblioteca" />
+        </Group>
       </Page>
     );
   }
@@ -37,13 +40,13 @@ export default function ExerciseDetailScreen() {
   return (
     <Page
       tab={false}
-      topBar={<TopBar title="Exercício" back />}
-      contentStyle={{ gap: Spacing.five }}
+      topBar={<BackBar />}
+      contentStyle={SCREEN_COLUMN}
       footer={exercise.video_url ? (
         <Button size="lg" icon={Play} title="Ver vídeo" onPress={() => WebBrowser.openBrowserAsync(exercise.video_url!)} />
       ) : undefined}>
       {exercise.animation_url ? (
-        <View style={{ alignSelf: 'center', width: '100%', maxWidth: 440, aspectRatio: 1, backgroundColor: '#fff', borderRadius: Radius.md, overflow: 'hidden', justifyContent: 'center' }}>
+        <View style={{ alignSelf: 'center', width: '100%', aspectRatio: 1, backgroundColor: '#fff', borderRadius: GROUP_RADIUS, borderCurve: 'continuous', overflow: 'hidden', justifyContent: 'center' }}>
           {failedAnimation === exercise.animation_url ? (
             <Text style={{ textAlign: 'center', color: '#303030', padding: Spacing.four }}>Animação indisponível no momento.</Text>
           ) : (
@@ -54,20 +57,18 @@ export default function ExerciseDetailScreen() {
           )}
         </View>
       ) : null}
-      <View style={{ gap: Spacing.three }}>
-        <Text variant="display">{exercise.name}</Text>
-        <Row style={{ flexWrap: 'wrap' }}>
-          <Badge label={LEVEL_LABELS[exercise.difficulty_level]} />
-          <Badge label={CATEGORY_LABELS[exercise.category]} tone="chip" />
-        </Row>
+      <View style={{ gap: Spacing.two, paddingHorizontal: Spacing.two }}>
+        <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>{exercise.name}</Text>
         {exercise.description ? <Text muted>{exercise.description}</Text> : null}
       </View>
 
-      <View style={{ gap: Spacing.two }}>
-        {primary && <Fact label="Músculo principal" value={muscleLabel(primary)} />}
-        {secondary.length > 0 && <Fact label="Também trabalha" value={secondary.map(muscleLabel).join(', ')} />}
-        {gear ? <Fact label="Equipamento" value={gear} /> : null}
-      </View>
+      <Group>
+        <GroupRow icon={Gauge} title="Nível" value={LEVEL_LABELS[exercise.difficulty_level]} />
+        <GroupRow icon={LayoutGrid} title="Categoria" value={CATEGORY_LABELS[exercise.category]} />
+        {primary ? <GroupRow icon={Target} title="Músculo principal" value={muscleLabel(primary)} /> : null}
+        {secondary.length > 0 ? <GroupRow icon={Activity} title="Também trabalha" caption={secondary.map(muscleLabel).join(', ')} /> : null}
+        {gear ? <GroupRow icon={Dumbbell} title="Equipamento" caption={gear} /> : null}
+      </Group>
 
       <ExerciseGuide exercise={exercise} />
       <ExerciseHistory id={exercise.id} />
@@ -82,28 +83,26 @@ function ExerciseHistory({ id }: { id: string }) {
 
   return (
     <View style={{ gap: Spacing.three }}>
-      <Text variant="titleLg">Histórico</Text>
+      <GroupTitle title="Histórico" />
       {loading ? <Text muted>Carregando acesso…</Text> : !isPremium || isPremiumRequired(history.error) ? (
-        <Card style={{ gap: Spacing.three }}>
-          <Row style={{ gap: Spacing.three }}>
-            <BadgeIcon icon={Lock} size={40} />
-            <Text variant="titleSm" style={{ flex: 1 }}>Histórico Premium</Text>
-          </Row>
-          <Text muted>Veja as datas, séries, cargas e repetições dos seus treinos neste exercício.</Text>
-          <Button title="Conhecer o Premium" variant="soft" onPress={() => openPremiumSheet('exercise_history')} />
-        </Card>
+        <Group>
+          <GroupRow icon={Lock} title="Histórico Premium" captionLines={3}
+            caption="Veja as datas, séries, cargas e repetições dos seus treinos neste exercício."
+            onPress={() => openPremiumSheet('exercise_history')} />
+        </Group>
       ) : history.isLoading ? <Text muted>Carregando histórico…</Text> : (
         <>
           {sessions.map((session) => (
-            <Card key={session.id} style={{ gap: Spacing.two }}>
-              <Text variant="titleSm">{formatDayMonth(session.started_at)}</Text>
-              {session.sets.map((set) => (
-                <Row key={set.id} style={{ justifyContent: 'space-between', gap: Spacing.two }}>
-                  <Text muted>Série {set.set_number}</Text>
-                  <Text>{set.weight_kg === null ? '' : `${set.weight_kg.toLocaleString('pt-BR')} kg · `}{set.reps} reps</Text>
-                </Row>
-              ))}
-            </Card>
+            <HeaderCard key={session.id} title={formatDayMonth(session.started_at)}>
+              <View style={{ gap: Spacing.two, paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+                {session.sets.map((set) => (
+                  <Row key={set.id} style={{ justifyContent: 'space-between', gap: Spacing.two }}>
+                    <Text muted>Série {set.set_number}</Text>
+                    <Text style={{ fontVariant: ['tabular-nums'] }}>{set.weight_kg === null ? '' : `${set.weight_kg.toLocaleString('pt-BR')} kg · `}{set.reps} reps</Text>
+                  </Row>
+                ))}
+              </View>
+            </HeaderCard>
           ))}
           {history.error ? (
             <>
@@ -112,7 +111,10 @@ function ExerciseHistory({ id }: { id: string }) {
                 onPress={() => { if (history.isFetchNextPageError) void history.fetchNextPage(); else void history.refetch(); }} />
             </>
           ) : sessions.length === 0 ? (
-            <EmptyState icon={History} message="As séries aparecem aqui depois que você finalizar um treino com este exercício." />
+            <Group>
+              <GroupRow icon={History} title="Nenhuma série ainda" captionLines={3}
+                caption="As séries aparecem aqui depois que você finalizar um treino com este exercício." />
+            </Group>
           ) : null}
           {history.hasNextPage && !history.isFetchNextPageError ? (
             <Button title="Carregar mais" variant="soft" loading={history.isFetchingNextPage} onPress={() => history.fetchNextPage()} />
@@ -123,11 +125,3 @@ function ExerciseHistory({ id }: { id: string }) {
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <Row style={{ alignItems: 'flex-start', gap: Spacing.three }}>
-      <Text variant="caption" style={{ width: 130 }}>{label}</Text>
-      <Text variant="titleSm" style={{ flex: 1, fontSize: 14 }}>{value}</Text>
-    </Row>
-  );
-}

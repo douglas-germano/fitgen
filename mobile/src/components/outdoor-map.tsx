@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Platform, View } from 'react-native';
 
 import { OutdoorTrace } from '@/components/outdoor-summary';
-import { SectionHeader } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { GROUP_RADIUS, GroupTitle } from '@/components/grouped';
+import { Spacing } from '@/constants/theme';
 import type { OutdoorRoute } from '@/lib/outdoor';
 import { useAppTheme } from '@/providers/theme';
 
@@ -55,11 +55,11 @@ function RouteMap({ route, live }: { route: OutdoorRoute; live: boolean }) {
 
   return (
     <View style={{ gap: Spacing.three }}>
-      <SectionHeader title="Trajeto GPS" />
+      <GroupTitle title="Trajeto GPS" />
       <View
         accessible
         accessibilityLabel="Mapa com o trajeto registrado por GPS"
-        style={{ height: live ? 240 : 280, borderRadius: Radius.md, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: colors.surfaceSunken }}>
+        style={{ height: live ? 240 : 280, borderRadius: GROUP_RADIUS, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: colors.surfaceSunken }}>
         <AppleMaps.View
           ref={map}
           style={{ flex: 1 }}

@@ -5,7 +5,8 @@ import { Pressable, View } from 'react-native';
 
 import { ActionMenu } from '@/components/action-menu';
 import { CommunityFeed } from '@/components/community-feed';
-import { Avatar, Badge, Button, Card, IconButton, Page, PageSkeleton, QueryError, Row, Text, TopBar } from '@/components/ui';
+import { BackBar, GROUP_RADIUS, GroupTitle, SCREEN_COLUMN, Tile, TileColors, TileRow } from '@/components/grouped';
+import { Avatar, Badge, Button, Card, IconButton, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useBlockUser, useCommunityProfile, useFollowUser, useReport, useRespondFriendRequest } from '@/hooks/community';
 import { useCommunityRefresh } from '@/hooks/use-community-refresh';
@@ -33,10 +34,10 @@ export default function UserScreen() {
   const isSelf = p.friendship === 'self';
   const firstName = p.name.split(' ')[0];
   const { month_workouts: workouts, month_minutes: minutes, workout_streak: streak } = p.stats;
-  const highlights: { icon: LucideIcon; value: string; label: string }[] = [];
-  if (workouts !== undefined) highlights.push({ icon: Dumbbell, value: String(workouts), label: workouts === 1 ? 'treino no mês' : 'treinos no mês' });
-  if (minutes !== undefined) highlights.push({ icon: Timer, value: String(minutes), label: 'min no mês' });
-  if (streak !== undefined) highlights.push({ icon: Flame, value: String(streak), label: streak === 1 ? 'dia seguido' : 'dias seguidos' });
+  const highlights: { icon: LucideIcon; color: string; value: string; label: string }[] = [];
+  if (workouts !== undefined) highlights.push({ icon: Dumbbell, color: TileColors.orange, value: String(workouts), label: workouts === 1 ? 'treino no mês' : 'treinos no mês' });
+  if (minutes !== undefined) highlights.push({ icon: Timer, color: TileColors.blue, value: String(minutes), label: 'min no mês' });
+  if (streak !== undefined) highlights.push({ icon: Flame, color: TileColors.red, value: String(streak), label: streak === 1 ? 'dia seguido' : 'dias seguidos' });
 
   const toggleBlock = () => AppAlert.alert(
     p.blocked_by_me ? 'Desbloquear pessoa?' : 'Bloquear pessoa?',
@@ -49,8 +50,8 @@ export default function UserScreen() {
 
   return <>
     <Page
-      topBar={<TopBar title="Perfil" back action={isSelf ? undefined : <IconButton icon={MoreHorizontal} label="Mais opções" onPress={() => setMenuOpen(true)} />} />}
-      refreshing={refreshing} onRefresh={refresh} contentStyle={{ gap: Spacing.five }}>
+      topBar={<BackBar>{isSelf ? null : <IconButton icon={MoreHorizontal} label="Mais opções" onPress={() => setMenuOpen(true)} />}</BackBar>}
+      refreshing={refreshing} onRefresh={refresh} contentStyle={SCREEN_COLUMN}>
 
       <View style={{ alignItems: 'center', gap: Spacing.three }}>
         <View style={{ padding: 4, borderRadius: 64, borderWidth: 2, borderColor: Colors.volt }}>
@@ -65,7 +66,7 @@ export default function UserScreen() {
         </View>
       </View>
 
-      <Row style={{ borderRadius: Radius.md, backgroundColor: Colors.surfaceSunken, paddingVertical: Spacing.four }}>
+      <Row style={{ borderRadius: GROUP_RADIUS, borderCurve: 'continuous', backgroundColor: Colors.surfaceSunken, paddingVertical: Spacing.four }}>
         <Count value={p.follower_count} label="Seguidores" />
         <Divider />
         <Count value={p.friend_count} label="Seguindo" />
@@ -100,18 +101,14 @@ export default function UserScreen() {
 
       {!p.blocked_by_me && <>
         {!!highlights.length && <View style={{ gap: Spacing.three }}>
-          <Text variant="titleSm">Este mês</Text>
-          <Row style={{ gap: Spacing.three }}>
-            {highlights.map(h => <Card key={h.label} style={{ flex: 1, alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two }}>
-              <h.icon size={20} color={Colors.voltInk} strokeWidth={2.2} />
-              <Text variant="titleMd">{h.value}</Text>
-              <Text variant="caption" style={{ textAlign: 'center' }}>{h.label}</Text>
-            </Card>)}
-          </Row>
+          <GroupTitle title="Este mês" />
+          <TileRow>
+            {highlights.map(h => <Tile key={h.label} icon={h.icon} color={h.color} value={h.value} title={h.label} />)}
+          </TileRow>
         </View>}
 
         {!!p.shared_group_list?.length && <View style={{ gap: Spacing.three }}>
-          <Text variant="titleSm">{isSelf ? 'Seus clubes' : 'Clubes em comum'}</Text>
+          <GroupTitle title={isSelf ? 'Seus clubes' : 'Clubes em comum'} />
           <Row style={{ flexWrap: 'wrap', gap: Spacing.two }}>
             {p.shared_group_list.map(g => <Pressable key={g.id} onPress={() => router.push(`/community/group/${g.id}`)} accessibilityRole="button" accessibilityLabel={`Abrir clube ${g.name}`}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: pressed ? Colors.volt : Colors.surfaceChip })}>
@@ -122,7 +119,7 @@ export default function UserScreen() {
         </View>}
 
         <View style={{ gap: Spacing.three }}>
-          <Text variant="titleSm">Publicações</Text>
+          <GroupTitle title="Publicações" />
           <CommunityFeed scope={{ scope: 'user', userId: id }} />
         </View>
       </>}

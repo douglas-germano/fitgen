@@ -78,3 +78,21 @@ test('feed crop is the largest centred rectangle in the chosen format', async ()
   }
   assert.equal(centerCropRect(0, 100, 0.8), null);
 });
+
+test('invite links point at the public web app, never a dev server address', async () => {
+  const { inviteLink, groupInviteMessage } = await import('../src/lib/community.ts');
+  assert.equal(inviteLink('ABCD2345'), 'https://web.fitgen.pro/community/join/ABCD2345');
+  const message = groupInviteMessage('5am Club', 'ABCD2345');
+  assert.ok(message.includes('https://web.fitgen.pro/community/join/ABCD2345'));
+  assert.ok(!/\d+\.\d+\.\d+\.\d+|localhost|fitgen:\/\//.test(message));
+});
+
+test('club discovery: people you follow first, popular by members', async () => {
+  const { discoverClubs } = await import('../src/lib/community.ts');
+  const club = (id, member_count, extra = {}) => ({ id, member_count, my_role: null, ...extra });
+  const clubs = [club('a', 3), club('b', 20), club('c', 8, { followed_members: 2 }), club('d', 5, { my_role: 'member' }), club('e', 1)];
+  const { forYou, popular } = discoverClubs(clubs, 2);
+  assert.deepEqual(popular.map((c) => c.id), ['b', 'c', 'd', 'a', 'e']);
+  // Followed first; clubs already in the top 2 popular only when someone you follow is there; never clubs you joined.
+  assert.deepEqual(forYou.map((c) => c.id), ['c', 'a']);
+});

@@ -5,7 +5,7 @@ import { lastFeedbackClosedAt } from '@/lib/feedback';
 /** iOS presents one modal at a time; give a just-closed alert/menu time to leave the screen. */
 const MODAL_SETTLE_MS = 400;
 
-export type PremiumFeature = 'coach' | 'diet_plan' | 'meal_estimate' | 'workout_plan' | 'exercise_history';
+export type PremiumFeature = 'coach' | 'diet_plan' | 'meal_estimate' | 'workout_plan' | 'exercise_history' | 'pro_club';
 
 type State = { open: boolean; feature: PremiumFeature | null };
 

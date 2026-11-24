@@ -1,10 +1,10 @@
-import { QueryError , BadgeIcon, Chips, EmptyState, Page, PageSkeleton, ProgressBar, Row, Text, TopBar } from '@/components/ui';
-import { Droplets, Flame, Heart, LayoutGrid, Lock, Trophy, Utensils, type LucideIcon } from 'lucide-react-native';
+import { QueryError, Chips, Page, PageSkeleton, ProgressBar, Text } from '@/components/ui';
+import { Droplets, Flame, LayoutGrid, Lock, Sparkles, Trophy, Utensils, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Radius, Spacing } from '@/constants/theme';
-import { useColors } from '@/providers/theme';
+import { BackBar, Group, GroupRow, HeaderCard, SCREEN_COLUMN, Tile, TileColors, TileRow } from '@/components/grouped';
+import { Spacing } from '@/constants/theme';
 import { useAchievements, useGamificationProgress, useStreaks } from '@/hooks/queries';
 import { formatDayMonth, formatInt } from '@/lib/workout';
 import type { Achievement } from '@/types/api';
@@ -17,12 +17,12 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'hydration', label: 'Hidratação' },
 ];
 
-const ICONS: Record<string, LucideIcon> = {
+const ICONS: Record<Filter | 'other', LucideIcon> = {
+  all: Trophy,
   workout: Flame,
-  consistency: Flame,
   nutrition: Utensils,
-  diet: Utensils,
-  hydration: Heart,
+  hydration: Droplets,
+  other: LayoutGrid,
 };
 
 function categoryOf(a: Achievement): Filter | 'other' {
@@ -34,7 +34,6 @@ function categoryOf(a: Achievement): Filter | 'other' {
 }
 
 export default function AchievementsScreen() {
-  const Colors = useColors();
   const achievements = useAchievements();
   const progress = useGamificationProgress();
   const streaks = useStreaks();
@@ -46,96 +45,52 @@ export default function AchievementsScreen() {
 
   const p = progress.data;
   const streak = streaks.data?.workout_streak ?? 0;
-  const list = (achievements.data ?? [])
-    .filter((a) => filter === 'all' || categoryOf(a) === filter)
-    .sort((a, b) => Number(b.unlocked) - Number(a.unlocked));
+  const all = achievements.data ?? [];
+  const list = all.filter((a) => filter === 'all' || categoryOf(a) === filter);
+  const unlocked = list
+    .filter((a) => a.unlocked)
+    .sort((a, b) => (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''));
+  const locked = list.filter((a) => !a.unlocked);
+
+  const row = (a: Achievement) => (
+    <GroupRow key={a.id} icon={a.unlocked ? ICONS[categoryOf(a)] : Lock} title={a.name} caption={a.description}
+      value={a.unlocked ? (a.unlocked_at ? formatDayMonth(a.unlocked_at, false) : null) : (a.xp_reward ? `+${a.xp_reward} XP` : null)}
+      accessibilityLabel={`${a.name}. ${a.description}. ${a.unlocked ? 'Desbloqueada' : 'Bloqueada'}`} />
+  );
 
   return (
     <Page
       tab={false}
-      topBar={<TopBar title="Conquistas" back />}
+      topBar={<BackBar />}
+      contentStyle={SCREEN_COLUMN}
       refreshing={achievements.isRefetching}
       onRefresh={() => {
         achievements.refetch();
         progress.refetch();
         streaks.refetch();
       }}>
-      {/* Level card */}
-      <View style={{ backgroundColor: Colors.volt, borderRadius: 20, borderCurve: 'continuous', padding: Spacing.five, gap: Spacing.four }}>
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <View>
-            <Text variant="titleSm" color={Colors.onVolt}>
-              Nível
-            </Text>
-            <Text color={Colors.onVolt} style={{ fontSize: 64, lineHeight: 68, fontWeight: '800', letterSpacing: -2 }}>
-              {String(p?.level ?? 1).padStart(2, '0')}
-            </Text>
-          </View>
-          <View style={{ alignItems: 'flex-end', paddingBottom: Spacing.two }}>
-            <Text variant="titleLg" color={Colors.onVolt}>
-              {streak} {streak === 1 ? 'dia' : 'dias'}
-            </Text>
-            <Text variant="label" color={Colors.onVolt} style={{ fontWeight: '400' }}>
-              de sequência
-            </Text>
-          </View>
-        </Row>
-        <ProgressBar value={p?.progress_percent ?? 0} color={Colors.onVolt} trackColor="rgba(17,18,20,0.15)" />
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Text variant="label" color={Colors.onVolt} style={{ fontWeight: '400', fontSize: 12, flex: 1 }}>
-            Continue treinando para passar de nível!
-          </Text>
-          <Text variant="label" color={Colors.onVolt} style={{ fontSize: 12 }}>
-            {formatInt(p?.xp ?? 0)} / {formatInt(p?.next_level_xp ?? 100)} XP
-          </Text>
-        </Row>
-      </View>
+      <HeaderCard title={`Nível ${p?.level ?? 1}`} value={`${formatInt(p?.xp ?? 0)} / ${formatInt(p?.next_level_xp ?? 100)} XP`}>
+        <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four, gap: Spacing.three }}>
+          <ProgressBar value={p?.progress_percent ?? 0} />
+          <Text muted style={{ fontSize: 13 }}>Continue treinando para passar de nível.</Text>
+        </View>
+      </HeaderCard>
+
+      <TileRow>
+        <Tile icon={Flame} color={TileColors.orange} title="Sequência" value={`${streak} ${streak === 1 ? 'dia' : 'dias'}`} />
+        <Tile icon={Trophy} color={TileColors.green} title="Conquistas" value={`${all.filter((a) => a.unlocked).length} de ${all.length}`} />
+        <Tile icon={Sparkles} color={TileColors.purple} title="Pontos" value={`${formatInt(p?.xp ?? 0)} XP`} />
+      </TileRow>
 
       <Chips options={FILTERS} value={filter} onChange={setFilter} />
 
-      {list.length === 0 ? (
-        <EmptyState icon={Trophy} message="Nenhuma conquista nesta categoria." />
-      ) : (
-        <Row style={{ flexWrap: 'wrap', gap: Spacing.four, alignItems: 'stretch' }}>
-          {list.map((a) => {
-            const cat = categoryOf(a);
-            const icon = ICONS[cat] ?? (cat === 'other' ? LayoutGrid : Droplets);
-            return (
-              <View
-                key={a.id}
-                accessible
-                accessibilityLabel={`${a.name}. ${a.description}. ${a.unlocked ? 'Desbloqueada' : 'Bloqueada'}`}
-                style={{
-                  width: '47%',
-                  flexGrow: 1,
-                  backgroundColor: Colors.surfaceSunken,
-                  borderRadius: Radius.md,
-                  borderCurve: 'continuous',
-                  padding: Spacing.five,
-                  gap: Spacing.two,
-                }}>
-                <BadgeIcon icon={a.unlocked ? icon : Lock} tone={a.unlocked ? 'volt' : 'chip'} size={44} />
-                <Text variant="titleSm" style={{ fontSize: 15, marginTop: Spacing.three }}>
-                  {a.name}
-                </Text>
-                <Text muted style={{ fontSize: 12, lineHeight: 17 }}>
-                  {a.description}
-                </Text>
-                <View style={{ flex: 1 }} />
-                {a.unlocked ? (
-                  <Text variant="label" color={Colors.voltInk} style={{ fontWeight: '600', marginTop: Spacing.two }}>
-                    Desbloqueada{a.unlocked_at ? ` · ${formatDayMonth(a.unlocked_at, false)}` : ''}
-                  </Text>
-                ) : (
-                  <Text variant="caption" style={{ fontSize: 12, marginTop: Spacing.two }}>
-                    Bloqueada{a.xp_reward ? ` · +${a.xp_reward} XP` : ''}
-                  </Text>
-                )}
-              </View>
-            );
-          })}
-        </Row>
+      {list.length === 0 && (
+        <Group>
+          <GroupRow icon={Trophy} title="Nenhuma conquista nesta categoria" />
+        </Group>
       )}
+      {unlocked.length > 0 && <Group title="Desbloqueadas">{unlocked.map(row)}</Group>}
+      {locked.length > 0 && <Group title="Para desbloquear">{locked.map(row)}</Group>}
     </Page>
   );
 }

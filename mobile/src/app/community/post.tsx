@@ -6,7 +6,8 @@ import { Camera, Globe, Images, Lock, Send, Users, X, type LucideIcon } from 'lu
 import { useState } from 'react';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 
-import { Avatar, Button, Chip, IconButton, Input, Page, Row, SectionHeader, Text, TopBar } from '@/components/ui';
+import { BackBar, GroupTitle, SCREEN_COLUMN } from '@/components/grouped';
+import { Avatar, Button, Chip, IconButton, Input, Page, Row, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useCreatePost, useGroups } from '@/hooks/community';
 import { useProfile } from '@/hooks/queries';
@@ -101,8 +102,8 @@ export default function PostScreen() {
 
   return (
     <Page
-      topBar={<TopBar title="Nova publicação" back />}
-      contentStyle={{ gap: Spacing.five }}
+      topBar={<BackBar />}
+      contentStyle={{ ...SCREEN_COLUMN, gap: Spacing.five }}
       footer={
         <>
           <Text variant="caption" style={{ textAlign: 'center' }}>
@@ -111,6 +112,7 @@ export default function PostScreen() {
           <Button size="lg" icon={Send} title="Publicar" disabled={!canPublish} loading={create.isPending} onPress={publish} />
         </>
       }>
+      <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700', paddingHorizontal: Spacing.two }}>Nova publicação</Text>
       {/* Author */}
       <Row style={{ gap: Spacing.three }}>
         <Avatar name={profile.data?.name} uri={profile.data?.profile_picture} size={44} />
@@ -178,7 +180,7 @@ export default function PostScreen() {
 
       {/* Audience */}
       <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Quem pode ver" />
+        <GroupTitle title="Quem pode ver" />
         {AUDIENCES.map((a) => {
           const on = audience === a.value;
           return (

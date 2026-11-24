@@ -1,12 +1,14 @@
-import { AppAlert, AppActionSheet } from '@/lib/feedback';
+import { AppAlert } from '@/lib/feedback';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { ImagePlus, Sparkles, X } from 'lucide-react-native';
+import { Apple, Camera, Coffee, ImagePlus, Soup, Sparkles, Utensils, X, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Keyboard, Platform, Pressable, View } from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
 
-import { Button, Card, Chips, Dialog, Input, Row, Text, type DialogHandle } from '@/components/ui';
+import { Group, GroupRow, HeaderCard, Tile, TileColors, TileRow } from '@/components/grouped';
+import { OttoAvatar } from '@/components/otto';
+import { Button, Dialog, Input, Row, Text, type DialogHandle } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useEstimateMeal, useLogMeal } from '@/hooks/queries';
@@ -22,6 +24,28 @@ export const MEAL_TYPES: { value: MealType; label: string; short: string }[] = [
   { value: 'snack', label: 'Lanche', short: 'Lanche' },
   { value: 'dinner', label: 'Jantar', short: 'Jantar' },
 ];
+
+export const MEAL_ICONS: Record<MealType, { icon: LucideIcon; color: string }> = {
+  breakfast: { icon: Coffee, color: TileColors.orange },
+  lunch: { icon: Utensils, color: TileColors.green },
+  snack: { icon: Apple, color: TileColors.red },
+  dinner: { icon: Soup, color: TileColors.purple },
+};
+
+/** Four tiles to pick the meal type, like the measurement tiles. */
+export function MealTypePicker({ value, onChange }: { value: MealType; onChange: (type: MealType) => void }) {
+  return (
+    <View accessibilityRole="tablist" style={{ gap: Spacing.two }}>
+      <Text variant="label">Tipo de refeição</Text>
+      <TileRow>
+        {MEAL_TYPES.map((t) => (
+          <Tile key={t.value} role="tab" icon={MEAL_ICONS[t.value].icon} color={MEAL_ICONS[t.value].color}
+            title={t.short} selected={value === t.value} onPress={() => onChange(t.value)} />
+        ))}
+      </TileRow>
+    </View>
+  );
+}
 
 /** Meal type that fits the current hour. */
 function defaultMealType(): MealType {
@@ -84,21 +108,6 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
     if (!res.canceled) setPhotos((p) => [...p, ...res.assets.map((a) => a.uri)].slice(0, 3));
   };
 
-  const addPhoto = () => {
-    if (Platform.OS === 'ios') {
-      AppActionSheet.showActionSheetWithOptions(
-        { options: ['Tirar Foto', 'Escolher da Galeria', 'Cancelar'], cancelButtonIndex: 2 },
-        (i) => (i === 0 ? pick('camera') : i === 1 ? pick('library') : undefined),
-      );
-    } else {
-      AppAlert.alert('Adicionar Foto', undefined, [
-        { text: 'Tirar Foto', onPress: () => pick('camera') },
-        { text: 'Escolher da Galeria', onPress: () => pick('library') },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
-  };
-
   const analyze = async () => {
     if ((!description.trim() && !photos.length) || estimateMeal.isPending || logMeal.isPending) return;
     if (manual) { unlockAi(); return; }
@@ -140,26 +149,19 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
   const macro = (key: keyof typeof macros) => (t: string) => setMacros((m) => ({ ...m, [key]: t }));
 
   return (
-    <Dialog ref={sheet} sheet sheetSize="registration" scrollable={manual} visible={visible} onClose={afterClose} onDismissed={afterDismiss} title="Registrar Refeição"
+    <Dialog ref={sheet} sheet sheetSize="registration" scrollable={manual} visible={visible} onClose={afterClose} onDismissed={afterDismiss} title="Registrar refeição"
       footer={manual ? (
-        <Button size="lg" title="Salvar Refeição" onPress={saveManual} loading={logMeal.isPending} disabled={!canSaveManual} />
+        <Button size="lg" title="Salvar refeição" onPress={saveManual} loading={logMeal.isPending} disabled={!canSaveManual} />
       ) : estimate ? (
         <Row style={{ gap: Spacing.three }}>
           <Button variant="soft" size="lg" title="Editar refeição" onPress={() => setEstimate(null)} disabled={logMeal.isPending} style={{ flex: 1 }} />
-          <Button size="lg" title="Salvar Refeição" onPress={save} loading={logMeal.isPending} style={{ flex: 1 }} />
+          <Button size="lg" title="Salvar refeição" onPress={save} loading={logMeal.isPending} style={{ flex: 1 }} />
         </Row>
       ) : (
-        <Button size="lg" title="Analisar com IA" onPress={analyze} loading={estimateMeal.isPending} disabled={!canAnalyze} />
+        <Button size="lg" icon={Sparkles} title="Analisar com o Otto" onPress={analyze} loading={estimateMeal.isPending} disabled={!canAnalyze} />
       )}>
       {!estimate && <>
-      <View style={{ gap: Spacing.two }}>
-        <Text variant="label">Tipo de Refeição</Text>
-        <Chips
-          value={mealType}
-          onChange={setMealType}
-          options={MEAL_TYPES.map((t) => ({ value: t.value, label: t.short }))}
-        />
-      </View>
+      <MealTypePicker value={mealType} onChange={setMealType} />
 
       <Input
         label="O que você comeu?"
@@ -199,36 +201,37 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
             <Input label="Carboidratos (g)" placeholder="Opcional" keyboardType="decimal-pad" value={macros.carbs} onChangeText={macro('carbs')} containerStyle={{ flex: 1 }} />
             <Input label="Gordura (g)" placeholder="Opcional" keyboardType="decimal-pad" value={macros.fats} onChangeText={macro('fats')} containerStyle={{ flex: 1 }} />
           </Row>
-          <Button variant="soft" size="lg" icon={Sparkles} title="Calcular com IA · Premium" onPress={unlockAi} />
+          <Group>
+            <GroupRow leading={<OttoAvatar size={24} />} title="Calcular com o Otto" caption="Premium · foto ou descrição viram calorias e macros" onPress={unlockAi} />
+          </Group>
         </>
       ) : (
-        <Button variant="soft" size="lg" icon={ImagePlus} title="Adicionar Foto" onPress={addPhoto} disabled={photos.length >= 3} />
+        <Group>
+          <GroupRow icon={Camera} title="Tirar foto" caption={photos.length >= 3 ? 'Máximo de 3 fotos' : 'O Otto estima pela imagem'}
+            onPress={photos.length >= 3 ? undefined : () => { void pick('camera'); }} />
+          <GroupRow icon={ImagePlus} title="Escolher da galeria" caption={`${photos.length} de 3 fotos`}
+            onPress={photos.length >= 3 ? undefined : () => { void pick('library'); }} />
+        </Group>
       )}
       </>}
 
       {estimate && (
-        <Card style={{ gap: Spacing.four }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="titleSm" style={{ flex: 1 }} numberOfLines={1}>
-              Análise da IA
-            </Text>
-            <Text variant="caption" style={{ fontSize: 12 }}>
-              Valores estimados
-            </Text>
-          </Row>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <Macro value={`${Math.round(estimate.calories)}`} label="kcal" />
-            <Macro value={`${Math.round(estimate.protein)} g`} label="Prot" />
-            <Macro value={`${Math.round(estimate.carbs)} g`} label="Carb" />
-            <Macro value={`${Math.round(estimate.fats)} g`} label="Gord" />
-          </Row>
-          {estimate.name ? (
-            <Text variant="caption">
-              {estimate.name}
-              {estimate.portion_size ? ` · ${estimate.portion_size}` : ''}
-            </Text>
-          ) : null}
-        </Card>
+        <HeaderCard title="Análise do Otto" value="Valores estimados">
+          <View style={{ gap: Spacing.three, paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+            {estimate.name ? (
+              <Text muted style={{ fontSize: 13, marginTop: -Spacing.two }}>
+                {estimate.name}
+                {estimate.portion_size ? ` · ${estimate.portion_size}` : ''}
+              </Text>
+            ) : null}
+            <Row style={{ alignItems: 'flex-start' }}>
+              <Macro value={`${Math.round(estimate.calories)}`} label="kcal" />
+              <Macro value={`${Math.round(estimate.protein)} g`} label="Proteína" />
+              <Macro value={`${Math.round(estimate.carbs)} g`} label="Carbos" />
+              <Macro value={`${Math.round(estimate.fats)} g`} label="Gorduras" />
+            </Row>
+          </View>
+        </HeaderCard>
       )}
 
     </Dialog>
@@ -238,7 +241,7 @@ export function MealLogger({ visible, onClose }: { visible: boolean; onClose: ()
 function Macro({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ flex: 1, gap: 2 }}>
-      <Text variant="titleLg" style={{ fontVariant: ['tabular-nums'] }}>
+      <Text style={{ fontSize: 18, lineHeight: 23, fontWeight: '700', fontVariant: ['tabular-nums'] }} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
       <Text variant="caption" style={{ fontSize: 12 }}>

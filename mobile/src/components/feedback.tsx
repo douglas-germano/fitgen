@@ -49,6 +49,8 @@ function FeedbackSurface({ request }: { request: FeedbackRequest }) {
           <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: Spacing.two }}>
             {request.actions.map((action, index) => {
               const cancel = action.style === 'cancel';
+              // The close button (and tapping outside) already cancels: a "Cancelar" button would repeat it.
+              if (cancel && request.cancelable) return null;
               const destructive = action.style === 'destructive';
               const primary = request.kind === 'alert' && !cancel && !destructive;
               return <Pressable key={index} disabled={closing || action.disabled} accessibilityRole="button" accessibilityLabel={action.label} accessibilityState={{ disabled: closing || !!action.disabled }} onPress={() => dismiss(index)}

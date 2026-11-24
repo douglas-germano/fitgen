@@ -1,11 +1,9 @@
-import { QueryError , Chips, EmptyState, ListItem, OverviewCard, Page, PageSkeleton, Row, SectionHeader, Text, TopBar } from '@/components/ui';
+import { QueryError, Chips, Page, PageSkeleton } from '@/components/ui';
 import { router } from 'expo-router';
-import { CalendarDays, Dumbbell, Route } from 'lucide-react-native';
+import { CalendarDays, Clock, Dumbbell, Flame, Route } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
-import { Radius, Spacing } from '@/constants/theme';
-import { useColors } from '@/providers/theme';
+import { BackBar, Group, GroupRow, SCREEN_COLUMN, Tile, TileColors, TileRow } from '@/components/grouped';
 import { useWorkoutHistory } from '@/hooks/queries';
 import { distanceLabel, elapsedLabel } from '@/lib/outdoor';
 import { formatDayMonth, formatInt, WEEKDAY_SHORT } from '@/lib/workout';
@@ -13,7 +11,6 @@ import { formatDayMonth, formatInt, WEEKDAY_SHORT } from '@/lib/workout';
 type Range = '7' | '30' | '90';
 
 export default function WorkoutHistoryScreen() {
-  const Colors = useColors();
   const { data = [], isLoading, refetch, isRefetching, error } = useWorkoutHistory();
   const [range, setRange] = useState<Range>('30');
 
@@ -31,82 +28,46 @@ export default function WorkoutHistoryScreen() {
 
   const totalSec = sessions.reduce((s, x) => s + x.duration_seconds, 0);
   const totalKcal = sessions.reduce((s, x) => s + (x.calories ?? 0), 0);
-  const hours = `${Math.floor(totalSec / 3600)}:${String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')} hr`;
+  const hours = `${Math.floor(totalSec / 3600)}h${String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')}`;
 
   return (
-    <Page tab={false} topBar={<TopBar title="Histórico" back />} refreshing={isRefetching} onRefresh={refetch}>
+    <Page tab={false} topBar={<BackBar />} contentStyle={SCREEN_COLUMN} refreshing={isRefetching} onRefresh={refetch}>
       <Chips
         value={range}
         onChange={setRange}
         options={[
-          { value: '7', label: '7 Dias' },
-          { value: '30', label: '30 Dias' },
-          { value: '90', label: '90 Dias' },
+          { value: '7', label: '7 dias' },
+          { value: '30', label: '30 dias' },
+          { value: '90', label: '90 dias' },
         ]}
       />
 
-      <OverviewCard
-        icon={Dumbbell}
-        title={`Últimos ${days} Dias`}
-        subtitle={`${formatDayMonth(from, false)} — ${formatDayMonth(new Date())}`}
-        stats={[
-          { value: String(sessions.length), label: 'Treinos' },
-          { value: hours, label: 'Tempo Total' },
-          { value: formatInt(totalKcal), label: 'Kcal' },
-        ]}
-      />
+      <TileRow>
+        <Tile icon={Dumbbell} color={TileColors.orange} title="Treinos" value={String(sessions.length)} />
+        <Tile icon={Clock} color={TileColors.blue} title="Tempo total" value={hours} />
+        <Tile icon={Flame} color={TileColors.red} title="Kcal" value={formatInt(totalKcal)} />
+      </TileRow>
 
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title="Sessões:" />
+      <Group title={`${formatDayMonth(from, false)} a ${formatDayMonth(new Date(), false)}`}>
         {sessions.length === 0 ? (
-          <EmptyState icon={CalendarDays} message="Nenhum treino encontrado neste período." />
-        ) : (
-          sessions.map((s) => {
-            const d = new Date(s.started_at);
-            if (s.outdoor_type) {
-              const date = formatDayMonth(d);
-              return (
-                <ListItem key={s.id} icon={Route} title={s.workout_name}
-                  caption={`${date} · ${elapsedLabel(s.duration_seconds)} · ${distanceLabel(s.distance_meters ?? 0)}`}
-                  arrow onPress={() => router.push({ pathname: '/outdoor/[id]', params: { id: s.id } })} />
-              );
-            }
+          <GroupRow icon={CalendarDays} title="Nenhum treino neste período" caption="Os treinos que você concluir aparecem aqui." />
+        ) : sessions.map((s) => {
+          const d = new Date(s.started_at);
+          const when = `${WEEKDAY_SHORT[d.getDay()]}, ${formatDayMonth(d, false)} · ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+          if (s.outdoor_type) {
             return (
-              <Row
-                key={s.id}
-                style={{ gap: Spacing.four, padding: Spacing.four, borderRadius: Radius.md, borderCurve: 'continuous', backgroundColor: Colors.surfaceSunken }}>
-                <View style={{ width: 52, paddingVertical: Spacing.two, borderRadius: Radius.sm, backgroundColor: Colors.surfaceChip, alignItems: 'center' }}>
-                  <Text variant="caption" style={{ fontSize: 12 }}>
-                    {WEEKDAY_SHORT[d.getDay()]}
-                  </Text>
-                  <Text variant="titleLg" style={{ fontSize: 18, lineHeight: 22 }}>
-                    {d.getDate()}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="titleSm" style={{ fontSize: 15 }} numberOfLines={1}>
-                    {s.workout_name}
-                  </Text>
-                  <Text variant="caption" style={{ fontSize: 12 }}>
-                    {formatDayMonth(d)} · {d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                  {s.from_health && <Text variant="caption">Apple Saúde · {s.source}</Text>}
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text variant="titleSm" style={{ fontSize: 15 }}>
-                    {Math.round(s.duration_seconds / 60)} min
-                  </Text>
-                  {s.calories ? (
-                    <Text variant="caption" style={{ fontSize: 12 }}>
-                      {Math.round(s.calories)} kcal
-                    </Text>
-                  ) : null}
-                </View>
-              </Row>
+              <GroupRow key={s.id} icon={Route} title={s.workout_name} caption={`${when} · ${elapsedLabel(s.duration_seconds)}`}
+                value={distanceLabel(s.distance_meters ?? 0)}
+                onPress={() => router.push({ pathname: '/outdoor/[id]', params: { id: s.id } })} />
             );
-          })
-        )}
-      </View>
+          }
+          return (
+            <GroupRow key={s.id} icon={Dumbbell} title={s.workout_name}
+              caption={[when, s.calories ? `${Math.round(s.calories)} kcal` : null, s.from_health ? `Apple Saúde · ${s.source}` : null].filter(Boolean).join(' · ')}
+              value={`${Math.round(s.duration_seconds / 60)} min`} />
+          );
+        })}
+      </Group>
     </Page>
   );
 }

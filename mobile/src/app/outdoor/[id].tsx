@@ -1,14 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Clock, Flame, Gauge, Route, Timer } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { OutdoorMap } from '@/components/outdoor-map';
 import { OutdoorShare } from '@/components/outdoor-share';
-import { OutdoorStats } from '@/components/outdoor-summary';
-import { Button, Card, Page, PageSkeleton, QueryError, Text, TopBar } from '@/components/ui';
+import { BackBar, Group, GroupRow, HeaderCard, SCREEN_COLUMN, Tile, TileColors, TileRow } from '@/components/grouped';
+import { Button, Page, PageSkeleton, QueryError, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/queries';
 import { api } from '@/lib/api';
+import { distanceLabel, elapsedLabel, paceLabel, speedLabel } from '@/lib/outdoor';
 import { syncOutdoor } from '@/lib/outdoor-api';
 import { readPending, type OutdoorRecord } from '@/lib/outdoor-recording';
 
@@ -45,25 +47,38 @@ export default function OutdoorDetailScreen() {
   const { record, pending } = detail.data;
   const date = new Date(record.started_at).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
 
+  const speed = speedLabel(record.duration_seconds, record.distance_meters);
+
   return (
     <Page
-      topBar={<TopBar title="Resumo da atividade" back />}
+      topBar={<BackBar />}
+      contentStyle={SCREEN_COLUMN}
       footer={<Button title="Ver histórico" variant="soft" size="lg" onPress={() => router.dismissTo('/workout/history')} />}>
-      <View style={{ gap: Spacing.two }}>
-        <Text variant="display" accessibilityRole="header">{record.workout_name}</Text>
-        <Text variant="label" muted>{date}</Text>
+      <View style={{ gap: 2, paddingHorizontal: Spacing.two }}>
+        <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>{record.workout_name}</Text>
+        <Text muted style={{ fontSize: 13 }}>{date}</Text>
       </View>
 
-      <OutdoorStats summary type={record.outdoor_type} seconds={record.duration_seconds}
-        meters={record.distance_meters} calories={record.calories} />
+      <TileRow>
+        <Tile icon={Route} color={TileColors.green} title="Distância" value={distanceLabel(record.distance_meters)} />
+        <Tile icon={Clock} color={TileColors.blue} title="Tempo ativo" value={elapsedLabel(record.duration_seconds)} />
+        <Tile icon={Flame} color={TileColors.red} title="Calorias" value={record.calories === null ? '—' : `${record.calories} kcal`} />
+      </TileRow>
+
+      <Group>
+        {record.outdoor_type !== 'bike' && <GroupRow icon={Timer} title="Ritmo médio" value={paceLabel(record.duration_seconds, record.distance_meters)} />}
+        <GroupRow icon={Gauge} title="Velocidade média" value={speed} />
+      </Group>
+
       <OutdoorMap route={record.route} emptyMessage="Nenhum ponto de GPS foi registrado nesta sessão." />
       <OutdoorShare key={record.id} record={record} />
       {pending && (
-        <Card style={{ gap: Spacing.two }}>
-          <Text variant="titleMd">Sincronização pendente</Text>
-          <Text muted>Esta atividade está salva no aparelho.</Text>
-          <Button title="Tentar sincronizar" variant="soft" loading={detail.isFetching} onPress={() => void detail.refetch()} />
-        </Card>
+        <HeaderCard title="Sincronização pendente">
+          <View style={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four, gap: Spacing.three }}>
+            <Text muted>Esta atividade está salva no aparelho.</Text>
+            <Button title="Tentar sincronizar" variant="soft" loading={detail.isFetching} onPress={() => void detail.refetch()} />
+          </View>
+        </HeaderCard>
       )}
     </Page>
   );

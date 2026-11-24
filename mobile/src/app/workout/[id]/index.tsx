@@ -1,28 +1,16 @@
 import { AppAlert, AppActionSheet } from '@/lib/feedback';
-import { QueryError ,
-  Badge,
-  Button,
-  Card,
-  Chip,
-  EmptyState,
-  MoreButton,
-  Page,
-  PageSkeleton,
-  Row,
-  Text,
-  TopBar,
-} from '@/components/ui';
+import { QueryError, Button, Chip, Dialog, IconButton, Input, MoreButton, Page, PageSkeleton, Row, Text } from '@/components/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, Plus } from 'lucide-react-native';
+import { CalendarDays, Dumbbell, Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { ExerciseFormSheet } from '@/components/exercise-form-sheet';
 import { ExerciseThumbnail } from '@/components/exercise-thumbnail';
+import { BackBar, Group, GroupRow, HeaderCard, SCREEN_COLUMN } from '@/components/grouped';
 import { Spacing } from '@/constants/theme';
-import { useColors } from '@/providers/theme';
-import { useWorkoutPlan } from '@/hooks/queries';
+import { useRenameWorkout, useWorkoutPlan } from '@/hooks/queries';
 import { useExercisePicker } from '@/hooks/use-exercise-picker';
 import { api, errorMessage } from '@/lib/api';
 import {
@@ -51,20 +39,22 @@ function isToday(day: WorkoutDay) {
 const dayChipLabel = (day: WorkoutDay) => `${isToday(day) ? 'Hoje' : WEEKDAY_SHORT[DAY_INDEX[day.day_of_week]] ?? ''} · ${workoutTitle(day)}`;
 
 export default function WorkoutPlanScreen() {
-  const Colors = useColors();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: plan, isLoading, refetch, isRefetching, error } = useWorkoutPlan(id);
   const picker = useExercisePicker(id, 'plan');
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Exercise | null>(null);
+  const [renaming, setRenaming] = useState<RenameTarget | null>(null);
 
   if (isLoading) return <PageSkeleton title="Plano" back tab={false} />;
   if (error) return <QueryError title="Plano" back error={error} onRetry={refetch} />;
   if (!plan) {
     return (
-      <Page tab={false} topBar={<TopBar title="Plano" back />}>
-        <EmptyState icon={Dumbbell} message="Plano não encontrado." />
+      <Page tab={false} topBar={<BackBar />} contentStyle={SCREEN_COLUMN}>
+        <Group>
+          <GroupRow icon={Dumbbell} title="Plano não encontrado" />
+        </Group>
       </Page>
     );
   }
@@ -110,87 +100,79 @@ export default function WorkoutPlanScreen() {
   return (
     <Page
       tab={false}
-      topBar={<TopBar title={plan.name} back />}
+      topBar={<BackBar />}
       refreshing={isRefetching}
       onRefresh={refetch}
-      contentStyle={{ gap: Spacing.five }}
+      contentStyle={SCREEN_COLUMN}
       footer={
         activeDay?.exercises.length ? (
-          <Button size="lg" title={`Abrir Treino · ${workoutTitle(activeDay)}`} onPress={() => router.push(`/workout/${plan.id}/play/${activeDay.id}`)} />
+          <Button size="lg" title={`Abrir treino · ${workoutTitle(activeDay)}`} onPress={() => router.push(`/workout/${plan.id}/play/${activeDay.id}`)} />
         ) : undefined
       }>
-      <View style={{ gap: Spacing.three }}>
-        <Text muted>
-          {days.length === 1 ? '1 treino por semana' : `${days.length} treinos por semana`} · desde {formatDayMonth(plan.created_at)}
-        </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, paddingLeft: Spacing.two }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>{plan.name}</Text>
+          <Text muted style={{ fontSize: 13 }}>
+            {days.length === 1 ? '1 treino por semana' : `${days.length} treinos por semana`} · desde {formatDayMonth(plan.created_at)}
+          </Text>
+        </View>
+        <IconButton icon={Pencil} size="sm" label="Renomear plano" onPress={() => setRenaming({ kind: 'plan', id: plan.id, name: plan.name })} />
+      </View>
+
+      {days.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.two }}>
           {days.map((d) => (
             <Chip key={d.id} label={dayChipLabel(d)} selected={d.id === activeDay?.id} onPress={() => setActiveDayId(d.id)} />
           ))}
         </ScrollView>
-      </View>
+      )}
 
       {activeDay ? (
         <>
-          <View style={{ gap: 4 }}>
-            <Row style={{ gap: Spacing.two }}>
-              <Text variant="display" style={{ flexShrink: 1 }}>{workoutTitle(activeDay)}</Text>
-              {isToday(activeDay) && <Badge label="Hoje" />}
-            </Row>
-            <Text muted>
+          <HeaderCard title={workoutTitle(activeDay)} value={isToday(activeDay) ? 'Hoje' : WEEKDAY_SHORT[DAY_INDEX[activeDay.day_of_week]]}
+            action={<IconButton icon={Pencil} size="sm" label="Renomear treino" onPress={() => setRenaming({ kind: 'day', id: activeDay.id, name: workoutTitle(activeDay) })} />}>
+            <Text muted style={{ fontSize: 13, paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
               {activeDay.muscle_groups?.map(muscleLabel).join(', ') || activeDay.focus} · {workoutSummary(activeDay)}
             </Text>
-          </View>
+          </HeaderCard>
 
-          {activeDay.exercises.length === 0 && <EmptyState icon={Dumbbell} message="Nenhum exercício neste dia." />}
-
-          {activeDay.exercises.length > 0 && (
-            <Card style={{ gap: 0, paddingVertical: Spacing.one, paddingHorizontal: Spacing.four }}>
-              {activeDay.exercises.map((ex, i) => (
-                <Row
-                  key={ex.id}
-                  style={{
-                    gap: Spacing.three,
-                    paddingVertical: Spacing.three,
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: Colors.line,
-                  }}>
-                  <ExerciseThumbnail exercise={ex} />
-                  <Pressable
-                    style={{ flex: 1, gap: 2 }}
-                    disabled={!ex.exercise_library_id}
-                    onPress={() => {
-                      if (ex.exercise_library_id) {
-                        router.push({ pathname: '/exercises/[id]', params: { id: ex.exercise_library_id } });
-                      }
-                    }}
-                    accessibilityRole={ex.exercise_library_id ? 'button' : undefined}
-                    accessibilityHint={ex.exercise_library_id ? 'Mostra como fazer o exercício' : undefined}>
-                    <Text variant="titleSm" style={{ fontSize: 15 }} numberOfLines={2}>
-                      {ex.name}
-                    </Text>
-                    <Text variant="caption" style={{ fontSize: 12 }}>
-                      {exerciseLine(ex)}
-                      {ex.muscle_group ? ` · ${ex.muscle_group}` : ''}
-                    </Text>
-                    {ex.notes ? (
-                      <Text variant="caption" style={{ fontSize: 12 }} numberOfLines={1}>
-                        {ex.notes}
-                      </Text>
-                    ) : null}
-                  </Pressable>
-                  <MoreButton size="sm" onPress={() => exerciseMenu(ex)} />
-                </Row>
-              ))}
-            </Card>
-          )}
-
-          <Button variant="soft" size="lg" icon={Plus} title="Adicionar Exercício" onPress={() => picker.open(activeDay.id)} />
+          <Group title="Exercícios">
+            {activeDay.exercises.length === 0 && (
+              <GroupRow icon={CalendarDays} title="Nenhum exercício neste dia" />
+            )}
+            {activeDay.exercises.map((ex) => (
+              <View key={ex.id} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingLeft: Spacing.three, paddingRight: Spacing.two, paddingVertical: Spacing.three }}>
+                <ExerciseThumbnail exercise={ex} size={48} />
+                <Pressable
+                  style={({ pressed }) => ({ flex: 1, minWidth: 0, gap: 2, opacity: pressed ? 0.6 : 1 })}
+                  disabled={!ex.exercise_library_id}
+                  onPress={() => {
+                    if (ex.exercise_library_id) {
+                      router.push({ pathname: '/exercises/[id]', params: { id: ex.exercise_library_id } });
+                    }
+                  }}
+                  accessibilityRole={ex.exercise_library_id ? 'button' : undefined}
+                  accessibilityHint={ex.exercise_library_id ? 'Mostra como fazer o exercício' : undefined}>
+                  <Text style={{ fontSize: 16, lineHeight: 22 }} numberOfLines={2}>{ex.name}</Text>
+                  <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={1}>
+                    {exerciseLine(ex)}
+                    {ex.muscle_group ? ` · ${ex.muscle_group}` : ''}
+                  </Text>
+                  {ex.notes ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={1}>{ex.notes}</Text> : null}
+                </Pressable>
+                <MoreButton size="sm" onPress={() => exerciseMenu(ex)} />
+              </View>
+            ))}
+            <GroupRow icon={Plus} title="Adicionar exercício" accessibilityLabel="Adicionar exercício" onPress={() => picker.open(activeDay.id)} />
+          </Group>
         </>
       ) : (
-        <EmptyState icon={Dumbbell} message="Este plano ainda não tem treinos." />
+        <Group>
+          <GroupRow icon={Dumbbell} title="Este plano ainda não tem treinos" />
+        </Group>
       )}
 
+      {renaming && <RenameDialog target={renaming} onClose={() => setRenaming(null)} />}
       {(editing || addition) && activeDay && (
         <ExerciseFormSheet
           key={editing?.id ?? addition?.entry?.id ?? 'custom'}
@@ -208,5 +190,33 @@ export default function WorkoutPlanScreen() {
         />
       )}
     </Page>
+  );
+}
+
+type RenameTarget = { kind: 'plan' | 'day'; id: string; name: string };
+
+/** Renames the plan or the selected workout ("Treino A – Peito e Tríceps"). */
+function RenameDialog({ target, onClose }: { target: RenameTarget; onClose: () => void }) {
+  const rename = useRenameWorkout();
+  const [name, setName] = useState(target.name);
+  const trimmed = name.trim();
+  const save = async () => {
+    if (!trimmed || rename.isPending) return;
+    if (trimmed === target.name) { onClose(); return; }
+    try {
+      await rename.mutateAsync({ kind: target.kind, id: target.id, name: trimmed });
+      onClose();
+    } catch (e) {
+      AppAlert.alert('Não foi possível renomear.', errorMessage(e));
+    }
+  };
+  return (
+    <Dialog visible onClose={onClose} title={target.kind === 'plan' ? 'Renomear plano' : 'Renomear treino'}>
+      <Input label="Nome" value={name} onChangeText={setName} maxLength={80} autoFocus
+        returnKeyType="done" onSubmitEditing={save} />
+      <Row style={{ gap: Spacing.three }}>
+        <Button title="Salvar" onPress={save} disabled={!trimmed} loading={rename.isPending} style={{ flex: 1 }} />
+      </Row>
+    </Dialog>
   );
 }

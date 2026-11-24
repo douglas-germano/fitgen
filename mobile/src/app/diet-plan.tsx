@@ -1,24 +1,13 @@
-import { AppAlert, AppActionSheet } from '@/lib/feedback';
+import { AppAlert } from '@/lib/feedback';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, Utensils } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, RefreshCw, ShoppingBasket, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import {
-  Button,
-  Card,
-  DayPicker,
-  EmptyState,
-  MoreButton,
-  Page,
-  PageSkeleton,
-  QueryError,
-  Row,
-  SectionHeader,
-  Text,
-  TopBar,
-} from '@/components/ui';
+import { BackBar, Group, GroupRow, GroupTitle, HeaderCard, SCREEN_COLUMN } from '@/components/grouped';
+import { OttoAvatar } from '@/components/otto';
+import { DayPicker, Page, PageSkeleton, QueryError, Row, Text } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 import { useDietPlan } from '@/hooks/queries';
@@ -61,13 +50,12 @@ export default function DietPlanScreen() {
   if (error) return <QueryError title="Plano Alimentar" back error={error} onRetry={refetch} />;
   if (!plan?.weekly_plan) {
     return (
-      <Page tab={false} topBar={<TopBar title="Plano Alimentar" back />}>
-        <EmptyState
-          icon={Utensils}
-          title="Nenhum plano ativo"
-          message="Defina suas preferências para criar um cardápio da semana."
-          action={<Button title="Criar meu plano" onPress={() => router.push('/diet-preferences')} />}
-        />
+      <Page tab={false} topBar={<BackBar />} contentStyle={SCREEN_COLUMN}>
+        <Group>
+          <GroupRow leading={<OttoAvatar size={26} />} title="Nenhum plano ativo"
+            caption="Defina suas preferências para o Otto montar o cardápio da semana."
+            onPress={() => router.push('/diet-preferences')} />
+        </Group>
       </Page>
     );
   }
@@ -90,85 +78,54 @@ export default function DietPlanScreen() {
     }
   };
 
-  const openMenu = () => {
-    if (Platform.OS === 'ios') {
-      AppActionSheet.showActionSheetWithOptions(
-        { options: ['Lista de Compras', 'Gerar Novo Cardápio para Este Dia', 'Cancelar'], cancelButtonIndex: 2 },
-        (i) => (i === 0 ? router.push('/shopping-list') : i === 1 ? regenerateDay() : undefined),
-      );
-    } else {
-      AppAlert.alert('Plano Alimentar', undefined, [
-        { text: 'Lista de Compras', onPress: () => router.push('/shopping-list') },
-        { text: 'Gerar Novo Cardápio', onPress: regenerateDay },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
-  };
-
   return (
     <Page
       tab={false}
-      topBar={<TopBar title="Plano Alimentar" back action={<MoreButton onPress={openMenu} />} />}
+      topBar={<BackBar />}
+      contentStyle={SCREEN_COLUMN}
       refreshing={isRefetching}
-      onRefresh={refetch}
-      footer={
-        <>
-          <Button size="lg" title="Lista de Compras" onPress={() => router.push('/shopping-list')} />
-          <Button size="lg" variant="soft" title="Gerar Novo Cardápio para Este Dia" onPress={regenerateDay} loading={regenerating} />
-        </>
-      }>
-      <View style={{ gap: Spacing.three }}>
-        <Text muted>Sua dieta personalizada da semana</Text>
-        <Button variant="soft" title="Criar outro plano alimentar" onPress={() => router.push('/diet-preferences')} />
-        <DayPicker
-          selected={day}
-          onSelect={setDay}
-          days={currentWeek().map((d) => ({ key: DAY_KEYS[d.getDay()], weekday: WEEKDAY_SHORT[d.getDay()], day: String(d.getDate()) }))}
-        />
+      onRefresh={refetch}>
+      <View style={{ gap: 2, paddingHorizontal: Spacing.two }}>
+        <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>Plano alimentar</Text>
+        <Text muted style={{ fontSize: 13 }}>Sua dieta personalizada da semana</Text>
       </View>
 
-      <Card style={{ gap: Spacing.three }}>
-        <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '600' }}>Meta Diária</Text>
-        <Row style={{ alignItems: 'flex-start', gap: Spacing.three }}>
+      <DayPicker
+        selected={day}
+        onSelect={setDay}
+        days={currentWeek().map((d) => ({ key: DAY_KEYS[d.getDay()], weekday: WEEKDAY_SHORT[d.getDay()], day: String(d.getDate()) }))}
+      />
+
+      <HeaderCard title="Meta diária">
+        <Row style={{ alignItems: 'flex-start', gap: Spacing.three, paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
           <Target value={formatInt(calories)} label="kcal" />
           <Target value={`${t?.protein ?? 0} g`} label="Proteína" />
           <Target value={`${t?.carbs ?? 0} g`} label="Carbos" />
           <Target value={`${t?.fats ?? 0} g`} label="Gorduras" />
         </Row>
-      </Card>
+      </HeaderCard>
 
-      <View style={{ gap: Spacing.three }}>
-        <SectionHeader title={`Cardápio de ${WEEKDAY_LONG[(dayIndex + 7) % 7]}:`} />
-        {Object.keys(dayPlan).length === 0 ? (
-          <EmptyState
-            icon={Utensils}
-            message="Nenhuma refeição planejada para este dia."
-            action={<Button size="sm" icon={RefreshCw} title="Gerar cardápio" onPress={regenerateDay} loading={regenerating} />}
-          />
-        ) : (
-          MEALS.map(({ key, label }) => {
-            const meal = dayPlan[key];
-            if (!meal) return null;
-            const prepOpen = openPrep === key;
-            return (
-              <Card key={key} style={{ gap: Spacing.three, padding: Spacing.five }}>
-                <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="titleSm" style={{ fontSize: 15 }}>
-                      {label}
-                    </Text>
-                    {meal.nome ? <Text variant="caption" style={{ fontSize: 12 }}>{meal.nome}</Text> : null}
-                  </View>
-                  <Text variant="titleSm">{formatInt(meal.calorias)} kcal</Text>
-                </Row>
+      <GroupTitle title={`Cardápio de ${WEEKDAY_LONG[(dayIndex + 7) % 7].toLowerCase()}`} />
+      {Object.keys(dayPlan).length === 0 ? (
+        <Group>
+          <GroupRow icon={RefreshCw} title="Nenhuma refeição planejada para este dia"
+            caption={regenerating ? 'Gerando cardápio…' : 'Toque para o Otto gerar o cardápio'} onPress={regenerating ? undefined : regenerateDay} />
+        </Group>
+      ) : (
+        MEALS.map(({ key, label }) => {
+          const meal = dayPlan[key];
+          if (!meal) return null;
+          const prepOpen = openPrep === key;
+          return (
+            <HeaderCard key={key} title={label} value={`${formatInt(meal.calorias)} kcal`}>
+              <View style={{ gap: Spacing.three, paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}>
+                {meal.nome ? <Text muted style={{ fontSize: 13, marginTop: -Spacing.two }}>{meal.nome}</Text> : null}
                 {!!meal.ingredientes?.length && (
                   <View style={{ gap: 4 }}>
                     {meal.ingredientes.map((ing, i) => (
                       <Row key={i} style={{ alignItems: 'flex-start', gap: Spacing.two }}>
-                        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.inkMuted, marginTop: 8, marginLeft: 4 }} />
-                        <Text muted style={{ flex: 1 }}>
-                          {ing}
-                        </Text>
+                        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.inkMuted, marginTop: 9, marginLeft: 4 }} />
+                        <Text style={{ flex: 1 }}>{ing}</Text>
                       </Row>
                     ))}
                   </View>
@@ -179,19 +136,26 @@ export default function DietPlanScreen() {
                       onPress={() => setOpenPrep(prepOpen ? null : key)}
                       accessibilityRole="button"
                       accessibilityState={{ expanded: prepOpen }}
-                      hitSlop={8}>
-                      <Text variant="titleSm">{prepOpen ? '▼' : '▶'} Preparo</Text>
+                      hitSlop={8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.one }}>
+                      {prepOpen ? <ChevronDown size={16} color={Colors.voltInk} /> : <ChevronRight size={16} color={Colors.voltInk} />}
+                      <Text style={{ fontSize: 14, fontWeight: '600' }} color={Colors.voltInk}>Modo de preparo</Text>
                     </Pressable>
                     {prepOpen && <Text muted>{meal.preparo}</Text>}
                   </View>
                 ) : null}
-              </Card>
-            );
-          })
-        )}
-      </View>
+              </View>
+            </HeaderCard>
+          );
+        })
+      )}
 
-
+      <Group title="Opções">
+        <GroupRow icon={ShoppingBasket} title="Lista de compras" onPress={() => router.push('/shopping-list')} />
+        <GroupRow icon={RefreshCw} title="Gerar novo cardápio para este dia"
+          caption={regenerating ? 'Gerando…' : 'O Otto troca as refeições do dia'} onPress={regenerating ? undefined : regenerateDay} />
+        <GroupRow icon={Sparkles} title="Criar outro plano alimentar" onPress={() => router.push('/diet-preferences')} />
+      </Group>
     </Page>
   );
 }

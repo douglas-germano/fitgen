@@ -1,19 +1,24 @@
 import { useCommunityRefresh } from '@/hooks/use-community-refresh';
 import { router } from 'expo-router';
-import { ChevronRight, Crown, Search, Settings, SquarePen, Trophy, UserPlus, UserRound, Users } from 'lucide-react-native';
+import { Crown, Search, Settings, Sparkles, SquarePen, Trophy, UserPlus, UserRound, Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionMenu, FAB_CLEARANCE, FloatingAddButton } from '@/components/action-menu';
 import { GroupAvatar } from '@/components/group-photo';
 import { CommunityFeed } from '@/components/community-feed';
-import { ChallengeCard } from '@/components/community';
-import { BellButton, Button, Card, Page, Row, Text, TopBar } from '@/components/ui';
+import { ChallengeSection } from '@/components/community';
+import { Group, GroupRow, MediaRow, SCREEN_COLUMN } from '@/components/grouped';
+import { BellButton, Button, Chips, Page, Row, Text } from '@/components/ui';
 import { tabBarClearance, Spacing } from '@/constants/theme';
-import { useChallenges, useGroups, usePublicGroups } from '@/hooks/community';
+import { useChallenges, useGroups, useJoinGroup, usePublicGroups } from '@/hooks/community';
+import { usePremium } from '@/hooks/use-premium';
+import { openPremiumSheet } from '@/lib/premium-sheet';
+import { AppAlert } from '@/lib/feedback';
 import { useUnreadNotifications } from '@/hooks/queries';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, isPremiumRequired } from '@/lib/api';
+import { discoverClubs } from '@/lib/community';
 import { useColors } from '@/providers/theme';
 
 type FeedTab = 'clubs' | 'challenges' | 'following';
@@ -36,18 +41,16 @@ export default function SocialScreen() {
   const [actionsOpen, setActionsOpen] = useState(false);
 
   return <View style={{ flex: 1, backgroundColor: Colors.surface }}>
-    <Page tab topBar={<TopBar title="Comunidade"
-      action={<BellButton unread={unread.data?.length ?? 0} />} />}
+    <Page tab topBar={
+      <Row style={{ width: '100%', maxWidth: 480, alignSelf: 'center', justifyContent: 'space-between' }}>
+        <Text accessibilityRole="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>Comunidade</Text>
+        <BellButton unread={unread.data?.length ?? 0} />
+      </Row>}
       refreshing={refreshing} onRefresh={refresh}
-      contentStyle={{ gap: 0, paddingBottom: FAB_CLEARANCE }}>
-      <Row accessibilityRole="tablist" style={{ marginHorizontal: -Spacing.five, borderBottomWidth: 1, borderBottomColor: Colors.line }}>
-        {TABS.map(t => <Pressable key={t.value} onPress={() => setTab(t.value)} accessibilityRole="tab"
-          accessibilityLabel={t.label} accessibilityState={{ selected: tab === t.value }}
-          style={({ pressed }) => ({ flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2,
-            borderBottomColor: tab === t.value ? Colors.volt : 'transparent', backgroundColor: pressed ? Colors.surfaceSunken : 'transparent' })}>
-          <Text style={{ fontSize: 15, fontWeight: tab === t.value ? '700' : '500' }} color={tab === t.value ? Colors.ink : Colors.inkMuted}>{t.label}</Text>
-        </Pressable>)}
-      </Row>
+      contentStyle={{ ...SCREEN_COLUMN, paddingBottom: FAB_CLEARANCE }}>
+      <View accessibilityRole="tablist">
+        <Chips options={TABS} value={tab} onChange={setTab} />
+      </View>
 
       {tab === 'clubs' && <>
         {groups.isLoading && <View style={{ paddingVertical: 40 }}><Text muted style={{ textAlign: 'center' }}>Carregando seus clubes…</Text></View>}
@@ -63,22 +66,17 @@ export default function SocialScreen() {
             <Button title="Criar clube" size="lg" style={{ flexGrow: 1 }} onPress={() => router.push('/community/create-group')} />
           </Row>
         </View>}
-        {!!groups.data?.length && <View style={{ paddingTop: 24, gap: 16 }}>
-          <Text variant="titleSm">Seus clubes</Text>
-          {groups.data.map(g => <Card key={g.id} onPress={() => router.push(`/community/group/${g.id}`)}>
-            <Row style={{ gap: 12 }}>
-              <GroupAvatar group={g} size={48} />
-              <View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">{g.is_public ? 'Público' : 'Privado'} · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'} · {g.week_workouts ?? 0} treinos na semana</Text></View>
-              <ChevronRight size={18} color={Colors.inkMuted} />
-            </Row>
-            {g.description && <Text muted numberOfLines={2}>{g.description}</Text>}
-          </Card>)}
-          <Button title="Entrar em outro clube" variant="soft" onPress={() => router.push('/community/join')} />
-        </View>}
-      {(!!groups.data?.length || !!publicGroups.data?.length || publicGroups.isLoading || publicGroups.error) && <View style={{ paddingTop: 24 }}><PublicClubs query={publicGroups} /></View>}
+        {!!groups.data?.length && <Group title="Seus clubes">
+          {groups.data.map(g => <MediaRow key={g.id} leading={<GroupAvatar group={g} size={44} />} title={g.name}
+            caption={`${g.official ? 'Oficial · ' : ''}${g.is_public ? 'Público' : 'Privado'} · ${g.member_count} ${g.member_count === 1 ? 'pessoa' : 'pessoas'} · ${g.week_workouts ?? 0} treinos na semana`}
+            onPress={() => router.push(`/community/group/${g.id}`)} />)}
+          <GroupRow icon={UserPlus} title="Entrar em outro clube" onPress={() => router.push('/community/join')} />
+        </Group>}
+      <ProClub query={publicGroups} />
+      {(!!groups.data?.length || !!publicGroups.data?.length || publicGroups.isLoading || publicGroups.error) && <PublicClubs query={publicGroups} />}
       </>}
-      {tab === 'challenges' && <View style={{ paddingTop: 24, gap: 24 }}><ChallengesList /></View>}
-      {tab === 'following' && <View style={{ paddingTop: 24 }}><CommunityFeed scope={{ scope: 'home' }} /></View>}
+      {tab === 'challenges' && <ChallengesList />}
+      {tab === 'following' && <CommunityFeed scope={{ scope: 'home' }} />}
     </Page>
     <FloatingAddButton label="Adicionar à comunidade" hint="Abre as ações da comunidade" onPress={() => setActionsOpen(true)} />
     <ActionMenu visible={actionsOpen} title="O que você quer fazer?" onClose={() => setActionsOpen(false)} items={[
@@ -114,36 +112,62 @@ function RankingIllustration() {
   </View>;
 }
 
+/** The subscribers' club: Premium joins in one tap, everyone else sees what it is and can subscribe. */
+function ProClub({ query }: { query: ReturnType<typeof usePublicGroups> }) {
+  const Colors = useColors();
+  const { isPremium } = usePremium();
+  const join = useJoinGroup();
+  const pro = query.data?.find(g => g.premium_only);
+  if (!pro || pro.my_role) return null;
+  const enter = () => isPremium
+    ? join.mutate({ group_id: pro.id }, { onSuccess: () => router.push(`/community/group/${pro.id}`), onError: e => { if (!isPremiumRequired(e)) AppAlert.alert('Não foi possível entrar', errorMessage(e)); } })
+    : openPremiumSheet('pro_club');
+  return <Group title="FitGen PRO">
+    <MediaRow leading={<GroupAvatar group={pro} size={44} />} title={pro.name} captionLines={3}
+      caption={isPremium ? 'Exclusivo para assinantes · você já pode entrar' : 'Exclusivo para quem assina o FitGen PRO'}
+      onPress={join.isPending ? undefined : enter}
+      trailing={isPremium
+        ? <Button size="sm" title="Entrar" loading={join.isPending} onPress={enter} />
+        : <View style={{ paddingHorizontal: Spacing.two, paddingVertical: 3, borderRadius: 8, backgroundColor: Colors.volt }}><Text style={{ fontSize: 12, fontWeight: '700' }} color={Colors.onVolt}>PRO</Text></View>} />
+  </Group>;
+}
+
 function PublicClubs({ query }: { query: ReturnType<typeof usePublicGroups> }) {
-  return <View style={{ gap: 16 }}>
-    <Text variant="titleSm">Clubes públicos</Text>
-    {query.isLoading && <Text muted>Carregando clubes…</Text>}
-    {query.error && <Button title="Tentar carregar clubes" variant="soft" onPress={() => query.refetch()} />}
-    {query.data?.length === 0 && <Text muted>Ainda não há clubes públicos. Crie um e reúna sua turma.</Text>}
-    {query.data?.map(g => <Card key={g.id} onPress={() => router.push(`/community/group/${g.id}`)}>
-      <Row style={{ gap: 12 }}><GroupAvatar group={g} /><View style={{ flex: 1, gap: 4 }}><Text variant="titleSm">{g.name}</Text><Text variant="caption">Público · {g.member_count} {g.member_count === 1 ? 'pessoa' : 'pessoas'}{g.my_role ? ' · Você participa' : ''}</Text></View><ChevronRight size={18} /></Row>
-      {g.description && <Text muted numberOfLines={2}>{g.description}</Text>}
-    </Card>)}
-  </View>;
+  const [showAll, setShowAll] = useState(false);
+  const { forYou, popular } = discoverClubs(query.data ?? []);
+  const people = (n: number) => `${n} ${n === 1 ? 'pessoa' : 'pessoas'}`;
+  if (query.isLoading || query.error || !popular.length) return <Group title="Clubes públicos">
+    {query.isLoading && <GroupRow icon={Users} title="Carregando clubes…" />}
+    {query.error && <GroupRow icon={Users} title="Não foi possível carregar os clubes" caption="Toque para tentar novamente" onPress={() => query.refetch()} />}
+    {query.data?.length === 0 && <GroupRow icon={Users} title="Ainda não há clubes públicos" caption="Crie um e reúna sua turma." onPress={() => router.push('/community/create-group')} />}
+  </Group>;
+  return <>
+    <Group title="Para você">
+      {!forYou.length && <GroupRow icon={Sparkles} title="Você já está nos clubes sugeridos" caption="Crie um clube e chame quem você segue." onPress={() => router.push('/community/create-group')} />}
+      {forYou.map(g => {
+        const followed = g.followed_members ?? 0;
+        return <MediaRow key={g.id} leading={<GroupAvatar group={g} size={44} />} title={g.name}
+          caption={[g.official ? 'Oficial' : null, followed ? `${followed} ${followed === 1 ? 'pessoa que você segue' : 'pessoas que você segue'}` : people(g.member_count), g.description].filter(Boolean).join(' · ')}
+          onPress={() => router.push(`/community/group/${g.id}`)} />;
+      })}
+    </Group>
+    <Group title="Mais populares" action={popular.length > 5 ? (showAll ? 'Ver menos' : 'Ver todos') : undefined} onAction={() => setShowAll(v => !v)}>
+      {(showAll ? popular : popular.slice(0, 5)).map((g, i) => <MediaRow key={g.id}
+        leading={<View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          <Text muted style={{ width: 18, textAlign: 'right', fontVariant: ['tabular-nums'], fontWeight: '600' }}>{i + 1}</Text>
+          <GroupAvatar group={g} size={44} />
+        </View>}
+        title={g.name} caption={`${g.official ? 'Oficial · ' : ''}${people(g.member_count)}${g.my_role ? ' · Você participa' : ''}`}
+        onPress={() => router.push(`/community/group/${g.id}`)} />)}
+    </Group>
+  </>;
 }
 
 function ChallengesList() {
   const mine = useChallenges('mine');
   const available = useChallenges('available');
-  return <View style={{ gap: 24 }}>
-    <View style={{ gap: 16 }}>
-      <Text variant="titleSm">Seus desafios</Text>
-      {mine.isLoading && <Text muted>Carregando desafios…</Text>}
-      {mine.error && <Button title="Tentar carregar seus desafios" variant="soft" onPress={() => mine.refetch()} />}
-      {mine.data?.length === 0 && <Text muted>Participe de um desafio abaixo para começar.</Text>}
-      {mine.data?.map(c => <ChallengeCard key={c.id} challenge={c} />)}
-    </View>
-    <View style={{ gap: 16 }}>
-      <Text variant="titleSm">Para participar</Text>
-      {available.isLoading && <Text muted>Carregando…</Text>}
-      {available.error && <Button title="Tentar carregar desafios disponíveis" variant="soft" onPress={() => available.refetch()} />}
-      {available.data?.length === 0 && <Text muted>Novos desafios aparecerão por aqui. Você também pode criar um para seu clube.</Text>}
-      {available.data?.map(c => <ChallengeCard key={c.id} challenge={c} />)}
-    </View>
-  </View>;
+  return <>
+    <ChallengeSection title="Seus desafios" query={mine} empty="Participe de um desafio abaixo para começar." />
+    <ChallengeSection title="Para participar" query={available} empty="Novos desafios aparecerão por aqui. Você também pode criar um para seu clube." />
+  </>;
 }

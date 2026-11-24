@@ -1,8 +1,9 @@
-import { ChevronRight, type LucideIcon } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { Children, Fragment, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { Text } from '@/components/ui';
+import { IconButton, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/providers/theme';
 
@@ -21,6 +22,19 @@ export const TileColors = {
 } as const;
 
 export const GROUP_RADIUS = Radius.md + 4;
+
+/** Centered column used by every screen in this layout. */
+export const SCREEN_COLUMN: ViewStyle = { width: '100%', maxWidth: 480, alignSelf: 'center', gap: Spacing.four };
+
+/** Untitled top bar of a pushed screen: back on the left, optional actions on the right. */
+export function BackBar({ children }: { children?: ReactNode }) {
+  return (
+    <View style={{ width: '100%', maxWidth: 480, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two }}>
+      <IconButton icon={ChevronLeft} label="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
+      {children ? <View style={{ flexDirection: 'row', gap: Spacing.two }}>{children}</View> : null}
+    </View>
+  );
+}
 
 /** Bold section title that sits outside a group or card. */
 export function GroupTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
@@ -62,7 +76,7 @@ export function Group({ title, action, onAction, children, nativeID }: {
   );
 }
 
-export function GroupRow({ icon: Icon, leading, title, caption, captionLines = 2, value, dot, onPress, accessibilityLabel }: {
+export function GroupRow({ icon: Icon, leading, title, caption, captionLines = 2, value, dot, onPress, accessibilityLabel, chevron = true }: {
   icon?: LucideIcon;
   /** Custom 24px leading view instead of an icon (avatar, mascot). */
   leading?: ReactNode;
@@ -76,6 +90,8 @@ export function GroupRow({ icon: Icon, leading, title, caption, captionLines = 2
   /** Small red attention dot after the title. */
   dot?: boolean;
   onPress?: () => void;
+  /** Hide the trailing chevron on a pressable row that toggles instead of navigating. */
+  chevron?: boolean;
 }) {
   const colors = useColors();
   return (
@@ -92,7 +108,35 @@ export function GroupRow({ icon: Icon, leading, title, caption, captionLines = 2
         {caption ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={captionLines}>{caption}</Text> : null}
       </View>
       {value ? <Text muted style={{ fontSize: 14, maxWidth: '50%', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{value}</Text> : null}
-      {onPress && <ChevronRight size={16} color={colors.inkMuted} />}
+      {onPress && chevron && <ChevronRight size={16} color={colors.inkMuted} />}
+    </Pressable>
+  );
+}
+
+/** Group row with a larger leading view (avatar, club photo, thumbnail) and an optional trailing control. */
+export function MediaRow({ leading, title, caption, captionLines = 2, value, trailing, onPress, accessibilityLabel, chevron = true }: {
+  leading: ReactNode;
+  title: string;
+  caption?: string | null;
+  captionLines?: number;
+  value?: string | null;
+  /** Control at the end of the row (a button), shown instead of the chevron. */
+  trailing?: ReactNode;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+  chevron?: boolean;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={accessibilityLabel} disabled={!onPress} onPress={onPress}
+      style={({ pressed }) => [styles.mediaRow, { backgroundColor: pressed ? colors.surfaceChip : 'transparent' }]}>
+      {leading}
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text style={{ fontSize: 16, lineHeight: 22 }} numberOfLines={1}>{title}</Text>
+        {caption ? <Text muted style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={captionLines}>{caption}</Text> : null}
+      </View>
+      {value ? <Text muted style={{ fontSize: 14, maxWidth: '40%', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{value}</Text> : null}
+      {trailing ?? (onPress && chevron && <ChevronRight size={16} color={colors.inkMuted} />)}
     </Pressable>
   );
 }
@@ -131,10 +175,12 @@ export function Tile({ icon: Icon, color, title, value, caption, selected, onPre
 }
 
 /** Card with a "Title  value >" header row, like "Minhas medalhas  13 >". */
-export function HeaderCard({ title, value, onPress, children }: {
+export function HeaderCard({ title, value, onPress, action, children }: {
   title: string;
   value?: string | null;
   onPress?: () => void;
+  /** Small control at the end of the header (e.g. an edit button), instead of the chevron. */
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   const colors = useColors();
@@ -144,7 +190,7 @@ export function HeaderCard({ title, value, onPress, children }: {
         style={({ pressed }) => [styles.headerRow, { opacity: pressed ? 0.7 : 1 }]}>
         <Text style={{ flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600' }} accessibilityRole="header" numberOfLines={1}>{title}</Text>
         {value ? <Text muted style={{ fontSize: 15, lineHeight: 20, flexShrink: 1 }} numberOfLines={1}>{value}</Text> : null}
-        {onPress && <ChevronRight size={18} color={colors.inkMuted} />}
+        {action ?? (onPress && <ChevronRight size={18} color={colors.inkMuted} />)}
       </Pressable>
       {children}
     </View>
@@ -156,6 +202,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.four, minHeight: 56,
     paddingHorizontal: Spacing.four, paddingVertical: Spacing.three,
+  },
+  mediaRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 64,
+    paddingLeft: Spacing.three, paddingRight: Spacing.four, paddingVertical: Spacing.three,
   },
   dot: { width: 7, height: 7, borderRadius: 4 },
   tile: {
