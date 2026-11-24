@@ -34,6 +34,16 @@
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_po2G9XaSjhp7u3gXAVRjCFxZ9Q4Dpsixxb69FyB64K6u",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
+    },
+    "play-aab": {
+      "extends": "production",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
   },
   "submit": {
