@@ -1,9 +1,9 @@
-import { A2uiSurface } from '@a2ui/react';
-import { MessageProcessor } from '@a2ui/web_core';
-import { basicCatalog } from '@a2ui/web_core/catalogs/basic/v1';
+import { A2uiSurface, createComponentImplementation } from '@a2ui/react';
+import { Catalog, MessageProcessor } from '@a2ui/web_core';
+import { A2uiColumn, A2uiText, ButtonApi, ChoicePickerApi, basicCatalog } from '@a2ui/web_core/catalogs/basic/v1';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, Check, ChevronDown } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { ArrowLeftRight, ArrowRight, Check, ChevronDown, Dumbbell } from 'lucide-react-native';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { fontFor } from '@/constants/theme';
 import { useActiveWorkoutPlan, useExerciseLibrary } from '@/hooks/queries';
@@ -12,7 +12,47 @@ import { muscleLabel } from '@/lib/exercise-library';
 import { useAppTheme } from '@/providers/theme';
 import type { Exercise, LibraryExercise } from '@/types/api';
 
+import './coach-exercise-swap.css';
+
 const surfaceId = 'exercise-swap';
+
+const AlternativeCards = createComponentImplementation(ChoicePickerApi, ({ props }) => {
+  const groupId = useId();
+  return (
+    <fieldset className="fitgen-swap-options">
+      <legend>{props.label}</legend>
+      {props.options.map(({ value, label }) => {
+        const [name, equipment] = (label ?? '').split('\n', 2);
+        const selected = props.value?.includes(value);
+        return (
+          <label className="fitgen-swap-option" key={value}>
+            <input type="radio" name={groupId} checked={selected ?? false} onChange={() => props.setValue([value])} />
+            <span className="fitgen-swap-option-icon" aria-hidden><Dumbbell size={19} color="currentColor" /></span>
+            <span className="fitgen-swap-option-copy">
+              <strong>{name}</strong>
+              {equipment && <small>{equipment}</small>}
+            </span>
+            <span className="fitgen-swap-option-indicator" aria-hidden>{selected && <Check size={13} color="currentColor" />}</span>
+          </label>
+        );
+      })}
+    </fieldset>
+  );
+});
+
+const SaveSwap = createComponentImplementation(ButtonApi, ({ props, buildChild }) => (
+  <button className="fitgen-swap-save" type="button" disabled={!props.isValid} onClick={() => { void props.action(); }}>
+    {props.child && buildChild(props.child)}
+    <span aria-hidden><ArrowRight size={18} color="currentColor" /></span>
+  </button>
+));
+
+const swapCatalog = new Catalog(
+  'https://fitgen.pro/a2ui/coach-exercise-swap/v1',
+  '1.0',
+  [A2uiColumn, A2uiText, AlternativeCards, SaveSwap],
+  [...basicCatalog.functions.values()],
+);
 
 function SwapOptions({ exercise, alternatives, planId, onSaved }: {
   exercise: Exercise;
@@ -24,9 +64,9 @@ function SwapOptions({ exercise, alternatives, planId, onSaved }: {
   const saving = useRef(false);
   const [status, setStatus] = useState('');
   const surface = useMemo(() => {
-    const processor = new MessageProcessor([basicCatalog]);
+    const processor = new MessageProcessor([swapCatalog]);
     processor.processMessages([
-      { version: '1.0', createSurface: { surfaceId, catalogId: basicCatalog.id } },
+      { version: '1.0', createSurface: { surfaceId, catalogId: swapCatalog.id } },
       {
         version: '1.0',
         updateComponents: {
@@ -37,10 +77,9 @@ function SwapOptions({ exercise, alternatives, planId, onSaved }: {
               id: 'alternatives',
               component: 'ChoicePicker',
               label: 'Alternativas da biblioteca',
-              displayStyle: 'chips',
               options: alternatives.map(({ id, name, equipment_needed }) => ({
                 value: id,
-                label: [name, equipment_needed.join(', ')].filter(Boolean).join(' · '),
+                label: [name, equipment_needed.join(', ')].filter(Boolean).join('\n'),
               })),
               value: { '@path': '/selection' },
             },
@@ -156,25 +195,17 @@ export function CoachExerciseSwap() {
     display: 'grid',
     gap: 16,
     '--swap-muted': colors.inkMuted,
-    '--a2ui-color-primary': colors.volt,
-    '--a2ui-color-primary-hover': colors.voltStrong,
-    '--a2ui-color-on-primary': colors.onVolt,
-    '--a2ui-color-on-background': colors.ink,
-    '--a2ui-color-on-surface': colors.ink,
-    '--a2ui-color-border': colors.line,
-    '--a2ui-color-on-input': colors.ink,
-    '--a2ui-color-input': colors.surface,
-    '--a2ui-button-border-radius': '14px',
-    '--a2ui-button-margin': '0',
-    '--a2ui-button-padding': '14px 18px',
-    '--a2ui-button-font-weight': '700',
-    '--a2ui-choicepicker-gap': '8px',
-    '--a2ui-choicepicker-label-font-size': '13px',
-    '--a2ui-choicepicker-chip-background': colors.surface,
-    '--a2ui-choicepicker-chip-background-selected': colors.volt,
-    '--a2ui-choicepicker-chip-border-radius': '12px',
-    '--a2ui-choicepicker-chip-font-size': '13px',
-    '--a2ui-choicepicker-chip-padding': '12px 14px',
+    '--swap-surface': colors.surface,
+    '--swap-line': colors.line,
+    '--swap-focus': colors.focus,
+    '--swap-accent': colors.volt,
+    '--swap-accent-hover': colors.voltStrong,
+    '--swap-accent-ink': colors.onVolt,
+    '--swap-accent-soft': colors.voltSoft,
+    '--swap-accent-text': colors.voltInk,
+    '--swap-chip': colors.surfaceChip,
+    '--swap-semibold': fontFor(600),
+    '--a2ui-text-color-text': 'inherit',
     '--a2ui-column-gap': '16px',
   } as CSSProperties;
   const labelStyle: CSSProperties = { display: 'grid', gap: 6, fontFamily: fontFor(600), fontSize: 13 };
