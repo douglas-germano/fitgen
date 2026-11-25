@@ -62,7 +62,7 @@ def get_history():
       - in: query
         name: type
         type: string
-        enum: [weight, fat, muscle]
+        enum: [weight, fat, muscle, waist]
         default: weight
       - in: query
         name: limit
@@ -80,6 +80,75 @@ def get_history():
              
     return jsonify(data), 200
 
+
+@metrics_bp.route('/entries', methods=['GET'])
+@jwt_required()
+def list_entries():
+    """
+    List full metric records, newest first
+    ---
+    tags:
+      - Metrics
+    parameters:
+      - in: query
+        name: limit
+        type: integer
+        default: 60
+    responses:
+      200:
+        description: List of metric records
+    """
+    try:
+        limit = max(1, min(int(request.args.get('limit', 60)), 500))
+    except ValueError:
+        limit = 60
+    return jsonify(MetricsService.list_entries(get_jwt_identity(), limit)), 200
+
+
+@metrics_bp.route('/<metric_id>', methods=['PUT'])
+@jwt_required()
+def update_metric(metric_id):
+    """
+    Update a metric record (owner only)
+    ---
+    tags:
+      - Metrics
+    responses:
+      200:
+        description: Updated record
+      404:
+        description: Not found
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"msg": "Invalid body"}), 400
+    try:
+        metric = MetricsService.update_metric(get_jwt_identity(), metric_id, data)
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"msg": str(exc)}), 400
+    if not metric:
+        return jsonify({"msg": "Metric not found"}), 404
+    return jsonify(MetricsService.serialize_entry(metric)), 200
+
+
+@metrics_bp.route('/<metric_id>', methods=['DELETE'])
+@jwt_required()
+def delete_metric(metric_id):
+    """
+    Delete a metric record (owner only)
+    ---
+    tags:
+      - Metrics
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not MetricsService.delete_metric(get_jwt_identity(), metric_id):
+        return jsonify({"msg": "Metric not found"}), 404
+    return '', 204
 
 
 @metrics_bp.route('/dashboard', methods=['GET'])

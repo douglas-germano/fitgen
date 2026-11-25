@@ -23,8 +23,8 @@ _client = None
 _client_key = None
 
 # Where legacy / fallback files live: 'static' is public (profile pictures), 'instance' is private.
-LOCAL_ROOTS = {'avatars': 'static', 'posts': 'instance', 'groups': 'instance', 'challenges': 'instance'}
-LEGACY_DIRS = {'avatars': 'uploads/profile_pics', 'posts': 'uploads/community', 'groups': 'uploads/community_groups', 'challenges': 'uploads/community_challenges'}
+LOCAL_ROOTS = {'avatars': 'static', 'posts': 'instance', 'groups': 'instance', 'challenges': 'instance', 'progress-photos': 'instance'}
+LEGACY_DIRS = {'avatars': 'uploads/profile_pics', 'posts': 'uploads/community', 'groups': 'uploads/community_groups', 'challenges': 'uploads/community_challenges', 'progress-photos': 'uploads/progress_photos'}
 
 
 class StorageError(Exception):

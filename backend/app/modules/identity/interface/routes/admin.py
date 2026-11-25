@@ -395,7 +395,10 @@ def delete_user(id):
     current_user_id = get_jwt_identity()
     if str(user.id) == current_user_id:
         return jsonify({"msg": "Cannot delete yourself"}), 400
-        
+
+    # LGPD: private progress photos must not outlive the account.
+    from app.modules.analytics.application.progress_photos import delete_all_for_user
+    delete_all_for_user(user.id)
     db.session.delete(user)
     db.session.commit()
     return jsonify({"msg": "User deleted"}), 200

@@ -138,6 +138,11 @@ class MetricsService:
         return metric
 
     @staticmethod
+    def _uid(user_id):
+        import uuid
+        return user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(str(user_id))
+
+    @staticmethod
     def get_history(user_id, metric_type='weight', limit=30):
         """
         Retrieves historical data for a specific metric type.
@@ -145,7 +150,7 @@ class MetricsService:
         but BodyMetric structure stores all in one row.
         We select only relevant columns to optimize.
         """
-        query = BodyMetric.query.filter_by(user_id=user_id).order_by(BodyMetric.recorded_at.asc())
+        query = BodyMetric.query.filter_by(user_id=MetricsService._uid(user_id)).order_by(BodyMetric.recorded_at.asc())
         
         # We could optimize by selecting only specific columns using with_entities
         # query = query.with_entities(BodyMetric.recorded_at, getattr(BodyMetric, field_name))
@@ -161,10 +166,12 @@ class MetricsService:
                 val = m.body_fat_percentage
             elif metric_type == 'muscle':
                 val = m.muscle_mass_kg
-            # Add other types as needed
+            elif metric_type == 'waist':
+                val = m.waist_cm
                 
             if val is not None:
                  data.append({
+                     "id": str(m.id),
                      "date": m.recorded_at.isoformat(),
                      "value": val
                  })
@@ -173,3 +180,106 @@ class MetricsService:
         # (Though with SQL limit we might miss recent non-nulls if we limit query)
         # Better to return last N valid entries.
         return data[-limit:] if limit else data
+
+
+    EDITABLE_FIELDS = ('weight_kg', 'body_fat_percentage', 'muscle_mass_kg', 'waist_cm')
+
+    @staticmethod
+    def _find(user_id, metric_id):
+        import uuid
+        try:
+            mid = metric_id if isinstance(metric_id, uuid.UUID) else uuid.UUID(str(metric_id))
+            uid = user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(str(user_id))
+        except (ValueError, AttributeError):
+            return None
+        return BodyMetric.query.filter_by(id=mid, user_id=uid).first()
+
+    @staticmethod
+    def _latest(user_id, exclude_id=None, weight_only=False):
+        query = BodyMetric.query.filter_by(user_id=MetricsService._uid(user_id))
+        if exclude_id is not None:
+            query = query.filter(BodyMetric.id != exclude_id)
+        if weight_only:
+            query = query.filter(BodyMetric.weight_kg > 0)
+        return query.order_by(BodyMetric.recorded_at.desc()).first()
+
+    @staticmethod
+    def serialize_entry(m):
+        return {
+            "id": str(m.id),
+            "recorded_at": m.recorded_at.isoformat() if m.recorded_at else None,
+            "weight_kg": m.weight_kg,
+            "body_fat_percentage": m.body_fat_percentage,
+            "muscle_mass_kg": m.muscle_mass_kg,
+            "waist_cm": m.waist_cm,
+            "notes": m.notes,
+        }
+
+    @staticmethod
+    def list_entries(user_id, limit=60):
+        query = BodyMetric.query.filter_by(user_id=MetricsService._uid(user_id)).order_by(BodyMetric.recorded_at.desc())
+        if limit:
+            query = query.limit(limit)
+        return [MetricsService.serialize_entry(m) for m in query.all()]
+
+    @staticmethod
+    def update_metric(user_id, metric_id, data):
+        """Updates an owned record. Returns None when not found; raises ValueError on invalid input."""
+        metric = MetricsService._find(user_id, metric_id)
+        if not metric:
+            return None
+        changes = {}
+        for field in MetricsService.EDITABLE_FIELDS:
+            if field not in data:
+                continue
+            value = data[field]
+            if value is None:
+                if field == 'weight_kg':
+                    raise ValueError('weight_kg cannot be empty')
+                changes[field] = None
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    raise ValueError(f'{field} must be a number')
+            value = float(value)
+            if value != value or value <= 0 or value > 1000:
+                raise ValueError(f'{field} out of range')
+            changes[field] = value
+        if 'notes' in data:
+            notes = data['notes']
+            if notes is not None and not isinstance(notes, str):
+                raise ValueError('notes must be a string')
+            changes['notes'] = notes
+        for field, value in changes.items():
+            setattr(metric, field, value)
+
+        if 'weight_kg' in changes:
+            latest = MetricsService._latest(user_id)
+            if latest and latest.id == metric.id:
+                profile = UserProfile.query.filter_by(user_id=metric.user_id).first()
+                if profile:
+                    profile.current_weight_kg = changes['weight_kg']
+        db.session.commit()
+        return metric
+
+    @staticmethod
+    def delete_metric(user_id, metric_id):
+        """Deletes an owned record. Returns False when not found."""
+        metric = MetricsService._find(user_id, metric_id)
+        if not metric:
+            return False
+        was_latest = (MetricsService._latest(user_id, weight_only=True) or metric).id == metric.id
+        owner_id = metric.user_id
+        mid = metric.id
+        db.session.delete(metric)
+        db.session.flush()
+        if was_latest:
+            new_latest = MetricsService._latest(owner_id, exclude_id=mid, weight_only=True)
+            if new_latest:
+                profile = UserProfile.query.filter_by(user_id=owner_id).first()
+                if profile:
+                    profile.current_weight_kg = new_latest.weight_kg
+        db.session.commit()
+        return True
