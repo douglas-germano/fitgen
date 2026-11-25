@@ -324,6 +324,68 @@ def log_set(session_id):
     
     return jsonify({"msg": "Set logged", "log_id": log.id}), 201
 
+def session_detail(session, day=None):
+    """A finished (or open) session with its logged sets grouped by exercise, in the order they were done."""
+    logs = sorted((log for log in session.logs if log.completed),
+                  key=lambda log: (log.created_at or datetime.min, log.set_number or 0))
+    names = {}
+    exercise_ids = {log.exercise_id for log in logs}
+    if exercise_ids:
+        names = {ex.id: ex.name for ex in Exercise.query.filter(Exercise.id.in_(exercise_ids)).all()}
+    groups = {}
+    for log in logs:
+        group = groups.setdefault(log.exercise_id, {
+            'exercise_id': str(log.exercise_id),
+            'exercise_library_id': str(log.exercise_library_id) if log.exercise_library_id else None,
+            'name': names.get(log.exercise_id) or 'Exercício',
+            'sets': [],
+        })
+        group['sets'].append({'set_number': log.set_number, 'reps': log.reps_done, 'weight_kg': log.weight_used_kg})
+    for group in groups.values():
+        group['sets'].sort(key=lambda item: item['set_number'] or 0)
+    volume = sum((log.reps_done or 0) * (log.weight_used_kg or 0) for log in logs)
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'workout_name': day.name if day and day.name else 'Treino',
+        'started_at': session.started_at.isoformat() if session.started_at else None,
+        'completed_at': session.completed_at.isoformat() if session.completed_at else None,
+        'duration_seconds': session.total_duration_seconds or 0,
+        'calories': session.calories_burned,
+        'notes': session.notes,
+        'total_sets': len(logs),
+        'total_volume_kg': round(volume, 1),
+        'exercises': list(groups.values()),
+    }
+
+
+@exercises_bp.route('/sessions/<uuid:session_id>', methods=['GET'])
+@jwt_required()
+def get_session(session_id):
+    """One workout session with its sets, for the history detail screen."""
+    user_id = uuid.UUID(get_jwt_identity())
+    session = WorkoutSession.query.filter_by(id=session_id, user_id=user_id).first()
+    if not session:
+        return jsonify({'msg': 'Treino não encontrado.'}), 404
+    day = WorkoutDay.query.filter_by(id=session.workout_day_id, user_id=user_id).first()
+    return jsonify(session_detail(session, day)), 200
+
+
+@exercises_bp.route('/sessions/<uuid:session_id>', methods=['DELETE'])
+@jwt_required()
+def discard_session(session_id):
+    """Throw away a workout that is still in progress, with its sets. Finished workouts stay."""
+    user_id = uuid.UUID(get_jwt_identity())
+    session = WorkoutSession.query.filter_by(id=session_id, user_id=user_id).first()
+    if not session:
+        return jsonify({'msg': 'Treino não encontrado.'}), 404
+    if session.status != 'in_progress':
+        return jsonify({'msg': 'Só dá para descartar um treino em andamento.'}), 409
+    db.session.delete(session)
+    db.session.commit()
+    return '', 204
+
+
 @exercises_bp.route('/sessions/<uuid:session_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_session(session_id):

@@ -148,6 +148,17 @@ def get_outdoor(activity_id):
     return jsonify(serialize_outdoor(session, detail=True))
 
 
+@outdoor_bp.delete('/<uuid:activity_id>')
+@jwt_required()
+def delete_outdoor(activity_id):
+    session = db.session.get(OutdoorSession, (UUID(get_jwt_identity()), activity_id))
+    if session is None:
+        return jsonify(message='Atividade não encontrada.'), 404
+    db.session.delete(session)
+    db.session.commit()
+    return '', 204
+
+
 @outdoor_bp.get('')
 @jwt_required()
 def list_outdoor():

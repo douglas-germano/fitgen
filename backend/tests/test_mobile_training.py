@@ -128,5 +128,44 @@ class MobileTrainingTests(unittest.TestCase):
             db.session.commit.assert_called_once()
             log_model.assert_not_called()
 
+    def test_discard_only_open_sessions(self):
+        model = MagicMock()
+        session = SimpleNamespace(id=uuid4(), status='completed')
+        model.query.filter_by.return_value.first.return_value = session
+        with patch.object(sessions, 'WorkoutSession', model), patch.object(sessions, 'db') as db:
+            self.assertEqual(self.client.delete(f'/exercises/sessions/{session.id}', headers=self.headers).status_code, 409)
+            db.session.delete.assert_not_called()
+            session.status = 'in_progress'
+            self.assertEqual(self.client.delete(f'/exercises/sessions/{session.id}', headers=self.headers).status_code, 204)
+            db.session.delete.assert_called_once_with(session)
+            db.session.commit.assert_called_once()
+            model.query.filter_by.assert_called_with(id=session.id, user_id=__import__('uuid').UUID(self.user))
+        model.query.filter_by.return_value.first.return_value = None
+        with patch.object(sessions, 'WorkoutSession', model):
+            self.assertEqual(self.client.delete(f'/exercises/sessions/{uuid4()}', headers=self.headers).status_code, 404)
+
+    def test_session_detail_groups_sets_by_exercise(self):
+        session_model, day_model, exercise_model = MagicMock(), MagicMock(), MagicMock()
+        squat, plank = uuid4(), uuid4()
+        t = datetime(2026, 11, 20, 7, 0)
+        logs = [
+            SimpleNamespace(exercise_id=squat, exercise_library_id=None, set_number=2, reps_done=8, weight_used_kg=60.0, completed=True, created_at=t + timedelta(minutes=3)),
+            SimpleNamespace(exercise_id=squat, exercise_library_id=None, set_number=1, reps_done=10, weight_used_kg=50.0, completed=True, created_at=t + timedelta(minutes=1)),
+            SimpleNamespace(exercise_id=plank, exercise_library_id=None, set_number=1, reps_done=45, weight_used_kg=0, completed=True, created_at=t + timedelta(minutes=6)),
+            SimpleNamespace(exercise_id=plank, exercise_library_id=None, set_number=2, reps_done=45, weight_used_kg=0, completed=False, created_at=t + timedelta(minutes=8)),
+        ]
+        session = SimpleNamespace(id=uuid4(), status='completed', workout_day_id=uuid4(), started_at=t, completed_at=t + timedelta(minutes=40),
+                                  total_duration_seconds=2400, calories_burned=300.0, notes=None, logs=logs)
+        session_model.query.filter_by.return_value.first.return_value = session
+        day_model.query.filter_by.return_value.first.return_value = SimpleNamespace(name='Treino A')
+        exercise_model.query.filter.return_value.all.return_value = [SimpleNamespace(id=squat, name='Agachamento'), SimpleNamespace(id=plank, name='Prancha')]
+        with patch.object(sessions, 'WorkoutSession', session_model), patch.object(sessions, 'WorkoutDay', day_model), patch.object(sessions, 'Exercise', exercise_model):
+            body = self.client.get(f'/exercises/sessions/{session.id}', headers=self.headers).json
+        self.assertEqual(body['workout_name'], 'Treino A')
+        self.assertEqual([e['name'] for e in body['exercises']], ['Agachamento', 'Prancha'])
+        self.assertEqual([s['set_number'] for s in body['exercises'][0]['sets']], [1, 2])
+        self.assertEqual(body['total_sets'], 3)
+        self.assertEqual(body['total_volume_kg'], 980.0)
+
 
 if __name__ == '__main__': unittest.main()

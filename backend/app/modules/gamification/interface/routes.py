@@ -31,11 +31,21 @@ def get_streaks():
             "hydration_streak": 0
         }), 200
         
+    from app.shared.utils.timezone import get_today_cuiaba
+    today = get_today_cuiaba()
     return jsonify({
-        "workout_streak": streaks.current_workout_streak,
-        "nutrition_streak": streaks.current_nutrition_streak,
-        "hydration_streak": streaks.current_hydration_streak
+        "workout_streak": live_streak(streaks.current_workout_streak, streaks.last_workout_date, today),
+        "nutrition_streak": live_streak(streaks.current_nutrition_streak, streaks.last_nutrition_log_date, today),
+        "hydration_streak": live_streak(streaks.current_hydration_streak, streaks.last_hydration_date, today)
     }), 200
+
+
+def live_streak(current, last_date, today):
+    """The stored streak only changes on activity, so a missed day leaves it stale. It is still alive while the
+    last activity was today or yesterday; older than that, it is already broken and reads as 0."""
+    if not current or last_date is None:
+        return 0
+    return current if (today - last_date).days <= 1 else 0
 
 @gamification_bp.route('/progress', methods=['GET'])
 @jwt_required()

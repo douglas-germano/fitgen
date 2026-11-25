@@ -129,6 +129,8 @@ class WorkoutGeneratorService:
         5. Adapte ao equipamento disponível
         6. IMPORTANTE: Mantenha 'reps' com menos de 50 caracteres (ex: '10-12' ou '3x15').
         7. CRÍTICO: USE APENAS EXERCÍCIOS DA LISTA ABAIXO. Retorne o 'exercise_id' correspondente ao número na lista.
+        8. Cada exercício de um dia deve trabalhar os grupos musculares do nome e de 'muscle_groups' desse dia. Exercícios de core ou cardio podem entrar em qualquer dia. Não coloque, por exemplo, remada num dia de pernas.
+        9. Escreva 'name', 'notes', 'plan_name', 'plan_description' e 'recommendations' em português do Brasil, sem palavras em inglês (escreva "peito aberto", não "peito up"). 'notes' é uma dica curta de execução, com no máximo 60 caracteres.
 
         LISTA DE EXERCÍCIOS DISPONÍVEIS (Use o número como ID):
         {exercises_list_str}

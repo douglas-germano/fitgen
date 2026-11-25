@@ -52,6 +52,14 @@ class OutdoorTrainingTests(unittest.TestCase):
     def headers(self, user_id):
         return {'Authorization': 'Bearer ' + create_access_token(identity=str(user_id))}
 
+    def test_delete_is_private(self):
+        owner, other = self.headers(self.owner), self.headers(self.other)
+        self.assertEqual(self.client.put(self.activity_url, json=self.payload, headers=owner).status_code, 200)
+        self.assertEqual(self.client.delete(self.activity_url, headers=other).status_code, 404)
+        self.assertEqual(self.client.delete(self.activity_url, headers=owner).status_code, 204)
+        self.assertEqual(self.client.get(self.activity_url, headers=owner).status_code, 404)
+        self.assertEqual(self.client.delete(self.activity_url, headers=owner).status_code, 404)
+
     def test_save_retry_and_private_history(self):
         owner = self.headers(self.owner)
         other = self.headers(self.other)
