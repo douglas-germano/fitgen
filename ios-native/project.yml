@@ -1,0 +1,37 @@
+name: FitGen
+options:
+  bundleIdPrefix: com.douglas
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: 5APN3M5HCC
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "2.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    from: 5.0.0
+targets:
+  FitGen:
+    type: application
+    platform: iOS
+    sources:
+      - path: FitGen
+    dependencies:
+      - package: RevenueCat
+        product: RevenueCat
+    settings:
+      base:
+        # Same id as the Expo app: the free developer profile allows only 3 apps on the iPhone.
+        PRODUCT_BUNDLE_IDENTIFIER: com.douglas.fitgen
+        INFOPLIST_FILE: FitGen/Info.plist
+        CODE_SIGN_ENTITLEMENTS: FitGen/FitGen.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        API_BASE_URL: https://dev-api.fitgen.pro/api
+        REVENUECAT_IOS_KEY: test_GNGDxltVJtXcBguhfoqEUemyCHM
